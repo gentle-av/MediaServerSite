@@ -8,36 +8,14 @@ const App = {
 
     init() {
         this.sliderWrapper = document.getElementById('sliderWrapper');
-        TreeManager.init();
         PlayerManager.init();
         this.setupEventListeners();
         this.loadDirectory(CONFIG.ROOT_PATH, 'video');
     },
 
     setupEventListeners() {
-        document.getElementById('menuBtn').addEventListener('click', () => this.toggleLeftPanel());
-        document.addEventListener('click', (e) => this.handleOutsideClick(e));
         this.setupDragScroll();
         this.sliderWrapper.addEventListener('scroll', () => this.updateScrollIndicator());
-    },
-
-    toggleLeftPanel() {
-        const leftPanel = document.getElementById('leftPanel');
-        leftPanel.classList.toggle('visible');
-        if (leftPanel.classList.contains('visible')) {
-            TreeManager.loadTreeData(this.currentMediaType);
-        }
-    },
-
-    handleOutsideClick(e) {
-        const leftPanel = document.getElementById('leftPanel');
-        const menuBtn = document.getElementById('menuBtn');
-        if (leftPanel.classList.contains('visible') &&
-            !leftPanel.contains(e.target) &&
-            e.target !== menuBtn &&
-            !menuBtn.contains(e.target)) {
-            this.toggleLeftPanel();
-        }
     },
 
     setupDragScroll() {
@@ -76,9 +54,7 @@ const App = {
             const data = await response.json();
             if (data.success) {
                 const visibleItems = data.items.filter(item => !Utils.isHiddenFile(item.name));
-                const totalHidden = data.items.length - visibleItems.length;
-                this.displayItems(visibleItems, totalHidden, mediaType);
-                TreeManager.updateActiveItem(path);
+                this.displayItems(visibleItems, mediaType);
             } else {
                 sliderContent.innerHTML = `<div class="error"><i class="fas fa-exclamation-triangle" style="margin-right: 10px;"></i>Ошибка: ${data.error}</div>`;
             }
@@ -87,14 +63,15 @@ const App = {
         }
     },
 
-    displayItems(items, hiddenCount = 0, mediaType = 'video') {
+    displayItems(items, mediaType = 'video') {
         const sliderContent = document.getElementById('sliderContent');
         sliderContent.innerHTML = '';
-        this.updateHiddenCount(hiddenCount);
+
         if (items.length === 0) {
             sliderContent.innerHTML = '<div class="empty-message"><i class="fas fa-folder-open" style="margin-right: 10px;"></i>📁 Папка пуста</div>';
             return;
         }
+
         let displayItems = items;
         if (mediaType === 'audio') {
             displayItems = items.filter(item =>
@@ -105,10 +82,12 @@ const App = {
                 item.isDirectory || Utils.isVideoFile(item.name)
             );
         }
+
         displayItems.forEach(item => {
             const card = this.createItemCard(item, mediaType);
             sliderContent.appendChild(card);
         });
+
         this.sliderWrapper.scrollTop = 0;
         this.updateScrollIndicator();
     },
@@ -118,6 +97,7 @@ const App = {
         card.className = 'item-card';
         let icon = 'fa-file';
         let iconClass = 'file-icon';
+
         if (item.isDirectory) {
             icon = 'fa-folder';
             iconClass = 'folder-icon';
@@ -133,6 +113,7 @@ const App = {
                 iconClass = 'file-icon';
             }
         }
+
         card.innerHTML = `
             <i class="fas ${icon} ${iconClass}"></i>
             <div class="item-info">
@@ -141,23 +122,14 @@ const App = {
                 <div class="item-path" title="${item.path}">${item.path}</div>
             </div>
         `;
+
         if (item.isDirectory) {
             card.onclick = () => this.loadDirectory(item.path, mediaType);
         } else {
             card.onclick = () => PlayerManager.playMedia(item.path);
         }
-        return card;
-    },
 
-    updateHiddenCount(count) {
-        const hiddenCountElement = document.getElementById('hiddenCount');
-        if (count > 0) {
-            hiddenCountElement.style.display = 'flex';
-            hiddenCountElement.querySelector('span').textContent =
-                `Скрыто: ${count} ${Utils.getHiddenWord(count)}`;
-        } else {
-            hiddenCountElement.style.display = 'none';
-        }
+        return card;
     },
 
     updateScrollIndicator() {

@@ -10,47 +10,29 @@
 </head>
 <body>
     <div class="top-player-bar" id="topPlayerBar">
-        <div class="player-info">
-            <i class="fas fa-film player-icon"></i>
-            <div class="player-track-info">
-                <div class="player-track-name" id="playerTrackName">Нет активного файла</div>
-                <div class="player-track-path" id="playerTrackPath"></div>
-            </div>
-        </div>
         <div class="player-top-controls">
+            <button class="top-control-btn" id="topSeekBackwardBtn" disabled title="Назад 10 сек">
+                <i class="fas fa-backward"></i>
+            </button>
             <button class="top-control-btn" id="topPlayPauseBtn" disabled>
                 <i class="fas fa-play"></i>
             </button>
-            <!-- Удалена кнопка topFullscreenBtn -->
+            <button class="top-control-btn" id="topSeekForwardBtn" disabled title="Вперед 10 сек">
+                <i class="fas fa-forward"></i>
+            </button>
+            <button class="top-control-btn" id="topFullscreenBtn" disabled>
+                <i class="fas fa-expand"></i>
+            </button>
             <button class="top-control-btn" id="topCloseFileBtn" disabled>
                 <i class="fas fa-times"></i>
             </button>
             <button class="top-control-btn" id="topDeleteFileBtn" disabled>
-              <i class="fas fa-trash-alt"></i>
+                <i class="fas fa-trash-alt"></i>
             </button>
         </div>
     </div>
 
-    <button class="menu-button" id="menuBtn">
-        <i class="fas fa-bars"></i>
-    </button>
-
-    <div class="main-container">
-        <div class="left-panel" id="leftPanel">
-            <div class="panel-header">
-                <h3>
-                    <i class="fas fa-folder-tree"></i>
-                    Дерево папок
-                </h3>
-                <button class="btn-close-panel" id="closePanelBtn">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="tree-container" id="treeContainer">
-                <div class="loading-tree" style="padding: 20px; text-align: center; color: var(--fg3);">Загрузка...</div>
-            </div>
-        </div>
-
+    <div class="main-container full-width">
         <div class="slider-container">
             <div class="slider-wrapper" id="sliderWrapper">
                 <div class="slider-content" id="sliderContent">
@@ -65,24 +47,25 @@
 
     <div id="playerControlPage" class="player-control-page">
         <div class="player-control-header">
-            <div class="current-file-info">
-                <i class="fas fa-film"></i>
-                <div class="file-details">
-                    <div class="file-name" id="currentFileName">Название файла</div>
-                    <div class="file-path" id="currentFilePath">Путь к файлу</div>
-                </div>
-            </div>
-            <div class="player-controls">
+            <div class="player-controls-center">
+                <button class="control-btn" id="seekBackwardBtn" title="Назад 10 секунд">
+                    <i class="fas fa-backward"></i>
+                </button>
                 <button class="control-btn" id="playPauseBtn" title="Воспроизведение/Пауза">
                     <i class="fas fa-play"></i>
                 </button>
-                <!-- Удалена кнопка exitFullscreenBtn -->
+                <button class="control-btn" id="seekForwardBtn" title="Вперед 10 секунд">
+                    <i class="fas fa-forward"></i>
+                </button>
+                <button class="control-btn" id="fullscreenBtn" title="Полноэкранный режим">
+                    <i class="fas fa-expand"></i>
+                </button>
                 <button class="control-btn close-file" id="closeFileBtn" title="Закрыть файл">
                     <i class="fas fa-times"></i>
                 </button>
-              <button class="control-btn delete-file" id="deleteFileBtn" title="Удалить файл (в корзину)">
+                <button class="control-btn delete-file" id="deleteFileBtn" title="Удалить файл (в корзину)">
                     <i class="fas fa-trash-alt"></i>
-              </button>
+                </button>
             </div>
         </div>
         <div class="player-placeholder">
@@ -95,11 +78,6 @@
         </button>
     </div>
 
-    <div id="hiddenCount" class="hidden-count" style="display: none;">
-        <i class="fas fa-eye-slash"></i>
-        <span></span>
-    </div>
-
     <div class="scroll-indicator" id="scrollIndicator">
         <div class="scroll-indicator-bar" id="scrollIndicatorBar"></div>
     </div>
@@ -109,7 +87,6 @@
     </div>
 
     <script src="js/utils.js"></script>
-    <script src="js/tree.js"></script>
     <script src="js/player.js"></script>
     <script src="js/app.js"></script>
 </body>

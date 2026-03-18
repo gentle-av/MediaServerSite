@@ -11,6 +11,7 @@ const PlayerManager = {
     serverHost: window.location.hostname,
     fullscreenRetryInterval: null,
     currentMediaType: 'video',
+
     init() {
         this.setupEventListeners();
         this.setPlayerActive(false);
@@ -19,50 +20,127 @@ const PlayerManager = {
         console.log('Server URL:', this.getServerUrl());
         console.log('Player URL:', this.getPlayerUrl());
     },
+
     getServerUrl() {
         return `http://${this.serverHost}:${CONFIG.SERVER_PORT}`;
     },
+
     getPlayerUrl() {
         return `http://${this.serverHost}:${CONFIG.PLAYER_PORT}`;
     },
+
     checkMobile() {
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         console.log('Mobile device:', this.isMobile);
     },
+
     setupEventListeners() {
         document.getElementById('playPauseBtn').addEventListener('click', () => this.togglePlayPause());
+        document.getElementById('seekForwardBtn').addEventListener('click', () => this.seekForward());
+        document.getElementById('seekBackwardBtn').addEventListener('click', () => this.seekBackward());
         document.getElementById('closeFileBtn').addEventListener('click', () => this.closeFile());
         document.querySelector('.close-control-page').addEventListener('click', () => this.hideControl());
         document.getElementById('topPlayPauseBtn').addEventListener('click', () => this.togglePlayPause());
+        document.getElementById('topSeekForwardBtn').addEventListener('click', () => this.seekForward());
+        document.getElementById('topSeekBackwardBtn').addEventListener('click', () => this.seekBackward());
         document.getElementById('topCloseFileBtn').addEventListener('click', () => this.closeFile());
         document.addEventListener('keydown', (e) => this.handleKeyPress(e));
         document.getElementById('deleteFileBtn').addEventListener('click', () => this.deleteFile());
         document.getElementById('topDeleteFileBtn').addEventListener('click', () => this.deleteFile());
+
         const fullscreenBtn = document.getElementById('fullscreenBtn');
         if (fullscreenBtn) fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+
         const topFullscreenBtn = document.getElementById('topFullscreenBtn');
         if (topFullscreenBtn) topFullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
     },
+
+    async seekForward() {
+        if (!this.currentFile) return;
+        try {
+            console.log('Seeking forward 10 seconds');
+            const url = `${this.getPlayerUrl()}/api/seekforward`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ seconds: 10 })
+            });
+            const data = await response.json();
+            if (data.success) {
+                Utils.showNotification('Вперед 10 секунд', 'success');
+            } else {
+                Utils.showNotification('Ошибка перемотки', 'error');
+            }
+        } catch (error) {
+            console.error('Seek forward error:', error);
+            Utils.showNotification('Ошибка перемотки: ' + error.message, 'error');
+        }
+    },
+
+    async seekBackward() {
+        if (!this.currentFile) return;
+        try {
+            console.log('Seeking backward 10 seconds');
+            const url = `${this.getPlayerUrl()}/api/seekbackward`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ seconds: 10 })
+            });
+            const data = await response.json();
+            if (data.success) {
+                Utils.showNotification('Назад 10 секунд', 'success');
+            } else {
+                Utils.showNotification('Ошибка перемотки', 'error');
+            }
+        } catch (error) {
+            console.error('Seek backward error:', error);
+            Utils.showNotification('Ошибка перемотки: ' + error.message, 'error');
+        }
+    },
+
     setPlayerActive(active) {
         this.playerActive = active;
         const topPlayBtn = document.getElementById('topPlayPauseBtn');
+        const topSeekForwardBtn = document.getElementById('topSeekForwardBtn');
+        const topSeekBackwardBtn = document.getElementById('topSeekBackwardBtn');
         const topCloseBtn = document.getElementById('topCloseFileBtn');
         const topDeleteBtn = document.getElementById('topDeleteFileBtn');
         const topFullscreenBtn = document.getElementById('topFullscreenBtn');
+
         if (active) {
             topPlayBtn.classList.add('active');
+            topSeekForwardBtn.classList.add('active');
+            topSeekBackwardBtn.classList.add('active');
             topCloseBtn.classList.add('active');
             topDeleteBtn.classList.add('active');
             if (topFullscreenBtn) topFullscreenBtn.classList.add('active');
             if (this.isPlaying) topPlayBtn.classList.add('playing');
+
+            topSeekForwardBtn.disabled = false;
+            topSeekBackwardBtn.disabled = false;
+            topPlayBtn.disabled = false;
+            topCloseBtn.disabled = false;
+            topDeleteBtn.disabled = false;
+            if (topFullscreenBtn) topFullscreenBtn.disabled = false;
         } else {
             topPlayBtn.classList.remove('active', 'playing');
+            topSeekForwardBtn.classList.remove('active');
+            topSeekBackwardBtn.classList.remove('active');
             topCloseBtn.classList.remove('active');
             topDeleteBtn.classList.remove('active');
             if (topFullscreenBtn) topFullscreenBtn.classList.remove('active');
             topPlayBtn.innerHTML = '<i class="fas fa-play"></i>';
+
+            topSeekForwardBtn.disabled = true;
+            topSeekBackwardBtn.disabled = true;
+            topPlayBtn.disabled = true;
+            topCloseBtn.disabled = true;
+            topDeleteBtn.disabled = true;
+            if (topFullscreenBtn) topFullscreenBtn.disabled = true;
         }
     },
+
     updateTopBar() {
         if (!this.playerActive || !this.currentFile) return;
         const topPlayBtn = document.getElementById('topPlayPauseBtn');
@@ -70,6 +148,7 @@ const PlayerManager = {
         if (this.isPlaying) topPlayBtn.classList.add('playing');
         else topPlayBtn.classList.remove('playing');
     },
+
     async launchPlayerWithFile(path) {
         console.log('Launching player with file:', path);
         try {
@@ -89,6 +168,7 @@ const PlayerManager = {
             throw error;
         }
     },
+
     async checkApiAvailability() {
         try {
             const controller = new AbortController();
@@ -113,6 +193,7 @@ const PlayerManager = {
         }
         return false;
     },
+
     async checkFullscreenStatus() {
         if (!this.currentFile) return false;
         try {
@@ -137,6 +218,7 @@ const PlayerManager = {
         } catch (error) {}
         return false;
     },
+
     updateFullscreenButton() {
         const fullscreenBtn = document.getElementById('fullscreenBtn');
         const topFullscreenBtn = document.getElementById('topFullscreenBtn');
@@ -149,6 +231,7 @@ const PlayerManager = {
             topFullscreenBtn.innerHTML = this.isFullscreen ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
         }
     },
+
     async toggleFullscreen() {
         if (!this.currentFile) return;
         try {
@@ -169,6 +252,7 @@ const PlayerManager = {
             Utils.showNotification('Ошибка при переключении полноэкранного режима: ' + error.message, 'error');
         }
     },
+
     updateProgressBar(attempt, maxAttempts) {
         const progressBar = document.getElementById('loadingProgress');
         const progressFill = progressBar.querySelector('.loading-progress-bar');
@@ -185,153 +269,162 @@ const PlayerManager = {
             `;
         }
     },
+
     hideProgressBar() {
         const progressBar = document.getElementById('loadingProgress');
         progressBar.classList.remove('active');
         progressBar.querySelector('.loading-progress-bar').style.width = '0%';
     },
+
     async playMedia(path) {
-      try {
-          this.currentFile = path;
-          this.currentMediaType = Utils.getMediaTypeFromPath(path);
-          const fileName = path.split('/').pop();
-          const mediaType = this.currentMediaType;
-          document.getElementById('playerTrackName').textContent = fileName;
-          document.getElementById('playerTrackPath').textContent = path;
-          this.showControl(path, mediaType);
-          document.getElementById('currentFileName').textContent = fileName;
-          document.getElementById('currentFilePath').textContent = path;
-          console.log('Launching player for file:', path);
-          console.log('Media type:', mediaType);
-          console.log('Server host:', this.serverHost);
-          let isPlayerRunning = false;
-          try {
-              const url = `${this.getPlayerUrl()}/api/status`;
-              console.log('Checking player status at:', url);
-              const statusCheck = await fetch(url, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({}),
-                  signal: AbortSignal.timeout(2000)
-              });
-              if (statusCheck.ok) {
-                  const statusData = await statusCheck.json();
-                  isPlayerRunning = statusData.available === true;
-                  console.log('Player already running:', isPlayerRunning);
-              }
-          } catch (e) {
-              console.log('Player not running or API not responding');
-              isPlayerRunning = false;
-          }
-          if (!isPlayerRunning) {
-              console.log('Launching new player instance...');
-              await this.launchPlayerWithFile(path);
-              console.log('Player launched, waiting for API...');
-              await Utils.delay(2000);
-          } else {
-              console.log('Player already running, sending open file command...');
-              try {
-                  const url = `${this.getPlayerUrl()}/api/openfile`;
-                  console.log('Open file URL:', url);
-                  const openResponse = await fetch(url, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ path: path }),
-                      signal: AbortSignal.timeout(5000)
-                  });
-                  if (!openResponse.ok) throw new Error(`HTTP error: ${openResponse.status}`);
-                  const openData = await openResponse.json();
-                  console.log('Open file response:', openData);
-                  if (!openData.success) throw new Error(openData.error || 'Failed to open file');
-              } catch (err) {
-                  console.error('Error opening file:', err);
-                  console.log('Falling back to launching new instance...');
-                  await this.launchPlayerWithFile(path);
-                  await Utils.delay(2000);
-              }
-          }
-          console.log('Waiting for API...');
-          let apiReady = false;
-          for (let attempt = 1; attempt <= 30; attempt++) {
-              this.updateProgressBar(attempt, 30);
-              try {
-                  const statusUrl = `${this.getPlayerUrl()}/api/status`;
-                  const statusResponse = await fetch(statusUrl, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({}),
-                      signal: AbortSignal.timeout(3000)
-                  });
-                  if (statusResponse.ok) {
-                      const statusData = await statusResponse.json();
-                      if (statusData && statusData.available === true) {
-                          console.log(`API available on attempt ${attempt}`);
-                          apiReady = true;
-                          this.setPlayerActive(true);
-                          this.showSuccessState(mediaType);
-                          this.isPlaying = true;
-                          this.updatePlayPauseButton();
-                          this.updateTopBar();
-                          this.startStatusCheck();
-                          if (mediaType === 'video') {
-                              this.enableFullscreenAsync();
-                          }
-                          break;
-                      }
-                  }
-              } catch (error) {
-                  console.log(`Attempt ${attempt}: API not ready (${error.message})`);
-              }
-              await Utils.delay(this.retryDelay);
-          }
-          if (!apiReady) {
-              throw new Error('API плеера не отвечает после 30 попыток');
-          }
-          Utils.addToHistory(path, 'success');
-          console.log('Media playback started successfully');
-      } catch (error) {
-          console.error('Error in playMedia:', error);
-          this.setPlayerActive(false);
-          this.showErrorState(error.message);
-          Utils.addToHistory(this.currentFile || path, 'error');
-      }
-    },
-    enableFullscreenAsync() {
-      setTimeout(async () => {
         try {
-          console.log('Attempting to enable fullscreen mode...');
-          const fsUrl = `${this.getPlayerUrl()}/api/fullscreen`;
-          const fsResponse = await fetch(fsUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fullscreen: true })
-          });
-          if (fsResponse.ok) {
-            const fsData = await fsResponse.json();
-            if (fsData.success) {
-              console.log('Fullscreen enabled successfully');
-              this.isFullscreen = true;
-              this.updateFullscreenButton();
+            this.currentFile = path;
+            this.currentMediaType = Utils.getMediaTypeFromPath(path);
+            const fileName = path.split('/').pop();
+            const mediaType = this.currentMediaType;
+            this.showControl(path, mediaType);
+            // document.getElementById('currentFileName').textContent = fileName;
+            // document.getElementById('currentFilePath').textContent = path;
+            console.log('Launching player for file:', path);
+            console.log('Media type:', mediaType);
+            console.log('Server host:', this.serverHost);
+
+            let isPlayerRunning = false;
+            try {
+                const url = `${this.getPlayerUrl()}/api/status`;
+                console.log('Checking player status at:', url);
+                const statusCheck = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({}),
+                    signal: AbortSignal.timeout(2000)
+                });
+                if (statusCheck.ok) {
+                    const statusData = await statusCheck.json();
+                    isPlayerRunning = statusData.available === true;
+                    console.log('Player already running:', isPlayerRunning);
+                }
+            } catch (e) {
+                console.log('Player not running or API not responding');
+                isPlayerRunning = false;
             }
-          }
-        } catch (e) {
-          console.log('Fullscreen attempt failed:', e.message);
+
+            if (!isPlayerRunning) {
+                console.log('Launching new player instance...');
+                await this.launchPlayerWithFile(path);
+                console.log('Player launched, waiting for API...');
+                await Utils.delay(2000);
+            } else {
+                console.log('Player already running, sending open file command...');
+                try {
+                    const url = `${this.getPlayerUrl()}/api/openfile`;
+                    console.log('Open file URL:', url);
+                    const openResponse = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path: path }),
+                        signal: AbortSignal.timeout(5000)
+                    });
+                    if (!openResponse.ok) throw new Error(`HTTP error: ${openResponse.status}`);
+                    const openData = await openResponse.json();
+                    console.log('Open file response:', openData);
+                    if (!openData.success) throw new Error(openData.error || 'Failed to open file');
+                } catch (err) {
+                    console.error('Error opening file:', err);
+                    console.log('Falling back to launching new instance...');
+                    await this.launchPlayerWithFile(path);
+                    await Utils.delay(2000);
+                }
+            }
+
+            console.log('Waiting for API...');
+            let apiReady = false;
+            for (let attempt = 1; attempt <= 30; attempt++) {
+                this.updateProgressBar(attempt, 30);
+                try {
+                    const statusUrl = `${this.getPlayerUrl()}/api/status`;
+                    const statusResponse = await fetch(statusUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({}),
+                        signal: AbortSignal.timeout(3000)
+                    });
+                    if (statusResponse.ok) {
+                        const statusData = await statusResponse.json();
+                        if (statusData && statusData.available === true) {
+                            console.log(`API available on attempt ${attempt}`);
+                            apiReady = true;
+                            this.setPlayerActive(true);
+                            this.showSuccessState(mediaType);
+                            this.isPlaying = true;
+                            this.updatePlayPauseButton();
+                            this.updateTopBar();
+                            this.startStatusCheck();
+                            if (mediaType === 'video') {
+                                this.enableFullscreenAsync();
+                            }
+                            break;
+                        }
+                    }
+                } catch (error) {
+                    console.log(`Attempt ${attempt}: API not ready (${error.message})`);
+                }
+                await Utils.delay(this.retryDelay);
+            }
+
+            if (!apiReady) {
+                throw new Error('API плеера не отвечает после 30 попыток');
+            }
+
+            Utils.addToHistory(path, 'success');
+            console.log('Media playback started successfully');
+
+        } catch (error) {
+            console.error('Error in playMedia:', error);
+            this.setPlayerActive(false);
+            this.showErrorState(error.message);
+            Utils.addToHistory(this.currentFile || path, 'error');
         }
-      }, 500);
-      this.fullscreenRetryInterval = setInterval(() => {
-        if (this.currentFile && !this.isFullscreen) {
-          console.log('Periodic fullscreen check - attempting to enable');
-          fetch(`${this.getPlayerUrl()}/api/fullscreen`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fullscreen: true })
-          }).then(() => {
-          this.isFullscreen = true;
-          this.updateFullscreenButton();
-          }).catch(e => {});
-        }
-      }, 5000);
     },
+
+    enableFullscreenAsync() {
+        setTimeout(async () => {
+            try {
+                console.log('Attempting to enable fullscreen mode...');
+                const fsUrl = `${this.getPlayerUrl()}/api/fullscreen`;
+                const fsResponse = await fetch(fsUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fullscreen: true })
+                });
+                if (fsResponse.ok) {
+                    const fsData = await fsResponse.json();
+                    if (fsData.success) {
+                        console.log('Fullscreen enabled successfully');
+                        this.isFullscreen = true;
+                        this.updateFullscreenButton();
+                    }
+                }
+            } catch (e) {
+                console.log('Fullscreen attempt failed:', e.message);
+            }
+        }, 500);
+
+        this.fullscreenRetryInterval = setInterval(() => {
+            if (this.currentFile && !this.isFullscreen) {
+                console.log('Periodic fullscreen check - attempting to enable');
+                fetch(`${this.getPlayerUrl()}/api/fullscreen`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fullscreen: true })
+                }).then(() => {
+                    this.isFullscreen = true;
+                    this.updateFullscreenButton();
+                }).catch(e => {});
+            }
+        }, 5000);
+    },
+
     hideControl() {
         document.getElementById('playerControlPage').style.display = 'none';
         document.querySelector('.main-container').classList.remove('blurred');
@@ -347,9 +440,12 @@ const PlayerManager = {
             this.fullscreenRetryInterval = null;
         }
         document.querySelector('.player-control-header').style.borderColor = '';
-        document.getElementById('playerTrackName').textContent = 'Нет активного файла';
-        document.getElementById('playerTrackPath').textContent = '';
+        // document.getElementById('playerTrackName').textContent = '';
+        // document.getElementById('playerTrackPath').textContent = '';
+        // document.getElementById('currentFileName').textContent = 'Название файла';
+        // document.getElementById('currentFilePath').textContent = 'Путь к файлу';
     },
+
     showControl(filePath, mediaType = 'video') {
         document.getElementById('playerControlPage').style.display = 'flex';
         document.querySelector('.main-container').classList.add('blurred');
@@ -362,18 +458,20 @@ const PlayerManager = {
             <div style="font-size: 0.9rem; margin-top: 10px; color: var(--fg3);">Плеер запустится на сервере, управление будет доступно с этого устройства</div>
         `;
     },
+
     showSuccessState(mediaType = 'video') {
         const placeholder = document.querySelector('.player-placeholder');
-        const icon = mediaType === 'audio' ? 'fa-music' : 'fa-film';
-        const mediaName = mediaType === 'audio' ? 'аудиоплеере' : 'Mediateka';
+        const fileName = this.currentFile ? this.currentFile.split('/').pop() : 'Файл';
+        const mediaName = mediaType === 'audio' ? 'Аудио' : 'Видео';
         placeholder.innerHTML = `
-            <i class="fas fa-check-circle" style="color: var(--green); font-size: 80px;"></i>
-            <div style="color: var(--green);">Файл успешно открыт на сервере</div>
-            <div style="font-size: 1rem; margin-top: 10px; color: var(--fg3);">Воспроизводится в ${mediaName} на сервере ${this.serverHost}</div>
+            <i class="fas fa-check-circle" style="color: var(--green); font-size: 60px; margin-bottom: 20px;"></i>
+            <div style="font-size: 1.3rem; font-weight: 500; color: var(--fg0); margin-bottom: 10px;">${fileName}</div>
+            <div style="font-size: 1rem; color: var(--fg3);">${mediaName} воспроизводится</div>
         `;
         document.querySelector('.player-control-header').style.borderColor = 'var(--green)';
         this.hideProgressBar();
     },
+
     showErrorState(message) {
         const placeholder = document.querySelector('.player-placeholder');
         placeholder.innerHTML = `
@@ -387,9 +485,11 @@ const PlayerManager = {
         document.querySelector('.player-control-header').style.borderColor = 'var(--red)';
         this.hideProgressBar();
     },
+
     retryOpen() {
         if (this.currentFile) this.playMedia(this.currentFile);
     },
+
     async togglePlayPause() {
         try {
             const endpoint = this.isPlaying ? 'pause' : 'play';
@@ -409,12 +509,14 @@ const PlayerManager = {
             Utils.showNotification('Ошибка при переключении: ' + error.message, 'error');
         }
     },
+
     updatePlayPauseButton() {
         const btn = document.getElementById('playPauseBtn');
         btn.innerHTML = this.isPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
         if (this.isPlaying) btn.classList.add('active');
         else btn.classList.remove('active');
     },
+
     async closeFile() {
         try {
             const url = `${this.getPlayerUrl()}/api/close`;
@@ -434,6 +536,7 @@ const PlayerManager = {
             Utils.showNotification('Ошибка при закрытии: ' + error.message, 'error');
         }
     },
+
     async checkStatus() {
         if (!this.currentFile) return;
         try {
@@ -454,13 +557,15 @@ const PlayerManager = {
             }
         } catch (error) {}
     },
+
     startStatusCheck() {
-      this.stopStatusCheck();
-      if (!this.isMobile) {
-          this.statusCheckInterval = setInterval(() => this.checkStatus(), 5000);
-      }
-      this.createStatusIndicator();
+        this.stopStatusCheck();
+        if (!this.isMobile) {
+            this.statusCheckInterval = setInterval(() => this.checkStatus(), 5000);
+        }
+        this.createStatusIndicator();
     },
+
     stopStatusCheck() {
         if (this.statusCheckInterval) {
             clearInterval(this.statusCheckInterval);
@@ -471,6 +576,7 @@ const PlayerManager = {
             indicator.remove();
         }
     },
+
     createStatusIndicator() {
         let indicator = document.querySelector('.status-indicator');
         if (!indicator) {
@@ -490,12 +596,21 @@ const PlayerManager = {
             document.querySelector('.player-control-header').appendChild(indicator);
         }
     },
+
     handleKeyPress(e) {
         if (!this.currentFile) return;
         switch(e.code) {
             case 'Space':
                 e.preventDefault();
                 this.togglePlayPause();
+                break;
+            case 'ArrowLeft':
+                e.preventDefault();
+                this.seekBackward();
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                this.seekForward();
                 break;
             case 'Delete':
             case 'Del':
@@ -511,6 +626,7 @@ const PlayerManager = {
                 break;
         }
     },
+
     async deleteFile() {
         if (!this.currentFile) {
             Utils.showNotification('Нет активного файла', 'error');
