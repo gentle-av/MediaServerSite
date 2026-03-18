@@ -191,159 +191,146 @@ const PlayerManager = {
         progressBar.querySelector('.loading-progress-bar').style.width = '0%';
     },
     async playMedia(path) {
+      try {
+          this.currentFile = path;
+          this.currentMediaType = Utils.getMediaTypeFromPath(path);
+          const fileName = path.split('/').pop();
+          const mediaType = this.currentMediaType;
+          document.getElementById('playerTrackName').textContent = fileName;
+          document.getElementById('playerTrackPath').textContent = path;
+          this.showControl(path, mediaType);
+          document.getElementById('currentFileName').textContent = fileName;
+          document.getElementById('currentFilePath').textContent = path;
+          console.log('Launching player for file:', path);
+          console.log('Media type:', mediaType);
+          console.log('Server host:', this.serverHost);
+          let isPlayerRunning = false;
+          try {
+              const url = `${this.getPlayerUrl()}/api/status`;
+              console.log('Checking player status at:', url);
+              const statusCheck = await fetch(url, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({}),
+                  signal: AbortSignal.timeout(2000)
+              });
+              if (statusCheck.ok) {
+                  const statusData = await statusCheck.json();
+                  isPlayerRunning = statusData.available === true;
+                  console.log('Player already running:', isPlayerRunning);
+              }
+          } catch (e) {
+              console.log('Player not running or API not responding');
+              isPlayerRunning = false;
+          }
+          if (!isPlayerRunning) {
+              console.log('Launching new player instance...');
+              await this.launchPlayerWithFile(path);
+              console.log('Player launched, waiting for API...');
+              await Utils.delay(2000);
+          } else {
+              console.log('Player already running, sending open file command...');
+              try {
+                  const url = `${this.getPlayerUrl()}/api/openfile`;
+                  console.log('Open file URL:', url);
+                  const openResponse = await fetch(url, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ path: path }),
+                      signal: AbortSignal.timeout(5000)
+                  });
+                  if (!openResponse.ok) throw new Error(`HTTP error: ${openResponse.status}`);
+                  const openData = await openResponse.json();
+                  console.log('Open file response:', openData);
+                  if (!openData.success) throw new Error(openData.error || 'Failed to open file');
+              } catch (err) {
+                  console.error('Error opening file:', err);
+                  console.log('Falling back to launching new instance...');
+                  await this.launchPlayerWithFile(path);
+                  await Utils.delay(2000);
+              }
+          }
+          console.log('Waiting for API...');
+          let apiReady = false;
+          for (let attempt = 1; attempt <= 30; attempt++) {
+              this.updateProgressBar(attempt, 30);
+              try {
+                  const statusUrl = `${this.getPlayerUrl()}/api/status`;
+                  const statusResponse = await fetch(statusUrl, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({}),
+                      signal: AbortSignal.timeout(3000)
+                  });
+                  if (statusResponse.ok) {
+                      const statusData = await statusResponse.json();
+                      if (statusData && statusData.available === true) {
+                          console.log(`API available on attempt ${attempt}`);
+                          apiReady = true;
+                          this.setPlayerActive(true);
+                          this.showSuccessState(mediaType);
+                          this.isPlaying = true;
+                          this.updatePlayPauseButton();
+                          this.updateTopBar();
+                          this.startStatusCheck();
+                          if (mediaType === 'video') {
+                              this.enableFullscreenAsync();
+                          }
+                          break;
+                      }
+                  }
+              } catch (error) {
+                  console.log(`Attempt ${attempt}: API not ready (${error.message})`);
+              }
+              await Utils.delay(this.retryDelay);
+          }
+          if (!apiReady) {
+              throw new Error('API плеера не отвечает после 30 попыток');
+          }
+          Utils.addToHistory(path, 'success');
+          console.log('Media playback started successfully');
+      } catch (error) {
+          console.error('Error in playMedia:', error);
+          this.setPlayerActive(false);
+          this.showErrorState(error.message);
+          Utils.addToHistory(this.currentFile || path, 'error');
+      }
+    },
+    enableFullscreenAsync() {
+      setTimeout(async () => {
         try {
-            this.currentFile = path;
-            this.currentMediaType = Utils.getMediaTypeFromPath(path);
-            const fileName = path.split('/').pop();
-            const mediaType = this.currentMediaType;
-            document.getElementById('playerTrackName').textContent = fileName;
-            document.getElementById('playerTrackPath').textContent = path;
-            this.showControl(path, mediaType);
-            document.getElementById('currentFileName').textContent = fileName;
-            document.getElementById('currentFilePath').textContent = path;
-            console.log('Launching player for file:', path);
-            console.log('Media type:', mediaType);
-            console.log('Server host:', this.serverHost);
-            let isPlayerRunning = false;
-            try {
-                const url = `${this.getPlayerUrl()}/api/status`;
-                console.log('Checking player status at:', url);
-                const statusCheck = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({}),
-                    signal: AbortSignal.timeout(2000)
-                });
-                if (statusCheck.ok) {
-                    const statusData = await statusCheck.json();
-                    isPlayerRunning = statusData.available === true;
-                    console.log('Player already running:', isPlayerRunning);
-                }
-            } catch (e) {
-                console.log('Player not running or API not responding');
-                isPlayerRunning = false;
+          console.log('Attempting to enable fullscreen mode...');
+          const fsUrl = `${this.getPlayerUrl()}/api/fullscreen`;
+          const fsResponse = await fetch(fsUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fullscreen: true })
+          });
+          if (fsResponse.ok) {
+            const fsData = await fsResponse.json();
+            if (fsData.success) {
+              console.log('Fullscreen enabled successfully');
+              this.isFullscreen = true;
+              this.updateFullscreenButton();
             }
-            if (!isPlayerRunning) {
-                console.log('Launching new player instance...');
-                await this.launchPlayerWithFile(path);
-                console.log('Player launched, waiting for API...');
-                await Utils.delay(2000);
-            } else {
-                console.log('Player already running, sending open file command...');
-                try {
-                    const url = `${this.getPlayerUrl()}/api/openfile`;
-                    console.log('Open file URL:', url);
-                    const openResponse = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ path: path }),
-                        signal: AbortSignal.timeout(5000)
-                    });
-                    if (!openResponse.ok) throw new Error(`HTTP error: ${openResponse.status}`);
-                    const openData = await openResponse.json();
-                    console.log('Open file response:', openData);
-                    if (!openData.success) throw new Error(openData.error || 'Failed to open file');
-                } catch (err) {
-                    console.error('Error opening file:', err);
-                    console.log('Falling back to launching new instance...');
-                    await this.launchPlayerWithFile(path);
-                    await Utils.delay(2000);
-                }
-            }
-            console.log('Waiting for API...');
-            let apiReady = false;
-            let fullscreenActivated = false;
-            for (let attempt = 1; attempt <= 30; attempt++) {
-                this.updateProgressBar(attempt, 30);
-                try {
-                    const statusUrl = `${this.getPlayerUrl()}/api/status`;
-                    const statusResponse = await fetch(statusUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({}),
-                        signal: AbortSignal.timeout(3000)
-                    });
-                    if (statusResponse.ok) {
-                        const statusData = await statusResponse.json();
-                        if (statusData && statusData.available === true) {
-                            console.log(`API available on attempt ${attempt}`);
-                            apiReady = true;
-                            if (mediaType === 'video' && !fullscreenActivated) {
-                                console.log(`Sending fullscreen command on attempt ${attempt}`);
-                                try {
-                                    const fsUrl = `${this.getPlayerUrl()}/api/fullscreen`;
-                                    const fsResponse = await fetch(fsUrl, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ fullscreen: true }),
-                                        signal: AbortSignal.timeout(3000)
-                                    });
-                                    if (fsResponse.ok) {
-                                        const fsData = await fsResponse.json();
-                                        if (fsData.success) {
-                                            console.log('Fullscreen command accepted');
-                                            fullscreenActivated = true;
-                                            this.isFullscreen = true;
-                                            this.updateFullscreenButton();
-                                        }
-                                    }
-                                } catch (fsError) {
-                                    console.log(`Fullscreen attempt ${attempt} failed:`, fsError.message);
-                                }
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.log(`Attempt ${attempt}: API not ready (${error.message})`);
-                }
-                await Utils.delay(this.retryDelay);
-            }
-            if (!apiReady) throw new Error('API плеера не отвечает после 30 попыток');
-            console.log('API ready, finalizing...');
-            if (mediaType === 'video' && !fullscreenActivated) {
-                console.log('Final fullscreen attempt...');
-                try {
-                    const fsUrl = `${this.getPlayerUrl()}/api/fullscreen`;
-                    await fetch(fsUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ fullscreen: true })
-                    });
-                    this.isFullscreen = true;
-                    this.updateFullscreenButton();
-                } catch (e) {
-                    console.log('Final fullscreen attempt failed:', e.message);
-                }
-            }
-            if (mediaType === 'video') {
-                this.fullscreenRetryInterval = setInterval(() => {
-                    if (this.currentFile && !this.isFullscreen) {
-                        console.log('Periodic fullscreen check - attempting to enable');
-                        fetch(`${this.getPlayerUrl()}/api/fullscreen`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ fullscreen: true })
-                        }).then(() => {
-                            this.isFullscreen = true;
-                            this.updateFullscreenButton();
-                        }).catch(e => {});
-                    }
-                }, 5000);
-            }
-            this.setPlayerActive(true);
-            this.showSuccessState(mediaType);
-            this.isPlaying = true;
-            this.updatePlayPauseButton();
-            this.updateTopBar();
-            this.startStatusCheck();
-            Utils.addToHistory(path, 'success');
-            console.log('Media playback started successfully');
-        } catch (error) {
-            console.error('Error in playMedia:', error);
-            this.setPlayerActive(false);
-            this.showErrorState(error.message);
-            Utils.addToHistory(this.currentFile || path, 'error');
+          }
+        } catch (e) {
+          console.log('Fullscreen attempt failed:', e.message);
         }
+      }, 500);
+      this.fullscreenRetryInterval = setInterval(() => {
+        if (this.currentFile && !this.isFullscreen) {
+          console.log('Periodic fullscreen check - attempting to enable');
+          fetch(`${this.getPlayerUrl()}/api/fullscreen`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fullscreen: true })
+          }).then(() => {
+          this.isFullscreen = true;
+          this.updateFullscreenButton();
+          }).catch(e => {});
+        }
+      }, 5000);
     },
     hideControl() {
         document.getElementById('playerControlPage').style.display = 'none';
@@ -468,18 +455,21 @@ const PlayerManager = {
         } catch (error) {}
     },
     startStatusCheck() {
-        this.stopStatusCheck();
-        if (!this.isMobile) {
-            this.statusCheckInterval = setInterval(() => this.checkStatus(), 5000);
-        }
-        this.createStatusIndicator();
+      this.stopStatusCheck();
+      if (!this.isMobile) {
+          this.statusCheckInterval = setInterval(() => this.checkStatus(), 5000);
+      }
+      this.createStatusIndicator();
     },
     stopStatusCheck() {
         if (this.statusCheckInterval) {
             clearInterval(this.statusCheckInterval);
             this.statusCheckInterval = null;
         }
-        document.querySelector('.status-indicator')?.remove();
+        const indicator = document.querySelector('.status-indicator');
+        if (indicator) {
+            indicator.remove();
+        }
     },
     createStatusIndicator() {
         let indicator = document.querySelector('.status-indicator');
