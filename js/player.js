@@ -525,15 +525,16 @@ const PlayerManager = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
-            const data = await response.json();
-            if (data.success) {
-                Utils.showNotification('Файл закрыт на сервере', 'success');
-                this.hideControl();
-            } else {
-                Utils.showNotification('Ошибка: ' + data.error, 'error');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    Utils.showNotification('Файл закрыт на сервере', 'success');
+                }
             }
         } catch (error) {
-            Utils.showNotification('Ошибка при закрытии: ' + error.message, 'error');
+            console.log('Player already closed or not responding:', error.message);
+        } finally {
+            this.hideControl();
         }
     },
 
@@ -629,7 +630,30 @@ const PlayerManager = {
 
     async deleteFile() {
         if (!this.currentFile) {
-            Utils.showNotification('Нет активного файла', 'error');
+            this.hideControl();
+            if (App && App.currentPath) App.loadDirectory(App.currentPath, this.currentMediaType);
+            return;
+        }
+        let isPlayerRunning = false;
+        try {
+            const statusUrl = `${this.getPlayerUrl()}/api/status`;
+            const statusResponse = await fetch(statusUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+                signal: AbortSignal.timeout(1000)
+            });
+            if (statusResponse.ok) {
+                const statusData = await statusResponse.json();
+                isPlayerRunning = statusData.available === true;
+            }
+        } catch (e) {
+            console.log('Player not running');
+            isPlayerRunning = false;
+        }
+        if (!isPlayerRunning) {
+            this.hideControl();
+            if (App && App.currentPath) App.loadDirectory(App.currentPath, this.currentMediaType);
             return;
         }
         if (!confirm('Вы уверены, что хотите переместить файл в корзину?')) return;
@@ -641,18 +665,21 @@ const PlayerManager = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
-            const data = await response.json();
-            console.log('Delete response:', data);
-            if (data.success) {
-                Utils.showNotification('Файл перемещён в корзину', 'success');
-                this.hideControl();
-                if (App && App.currentPath) App.loadDirectory(App.currentPath, this.currentMediaType);
-            } else {
-                Utils.showNotification('Ошибка: ' + (data.error || 'Не удалось удалить файл'), 'error');
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Delete response:', data);
+                if (data.success) {
+                    Utils.showNotification('Файл перемещён в корзину', 'success');
+                } else {
+                    Utils.showNotification('Файл закрыт, но не удалён', 'info');
+                }
             }
         } catch (error) {
             console.error('Error deleting file:', error);
-            Utils.showNotification('Ошибка при удалении файла: ' + error.message, 'error');
+            Utils.showNotification('Ошибка при удалении', 'error');
+        } finally {
+            this.hideControl();
+            if (App && App.currentPath) App.loadDirectory(App.currentPath, this.currentMediaType);
         }
     },
 };
