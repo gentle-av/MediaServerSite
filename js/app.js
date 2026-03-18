@@ -5,18 +5,40 @@ const App = {
     isDragging: false,
     startY: 0,
     scrollTop: 0,
+    pathHistory: [],
 
     init() {
         this.sliderWrapper = document.getElementById('sliderWrapper');
         PlayerManager.init();
         this.setupEventListeners();
         this.loadDirectory(CONFIG.ROOT_PATH, 'video');
+        this.updateBackButton();
     },
 
     setupEventListeners() {
         this.setupDragScroll();
         this.sliderWrapper.addEventListener('scroll', () => this.updateScrollIndicator());
+        document.getElementById('backBtn').addEventListener('click', () => this.goBack());
     },
+
+    goBack() {
+          if (this.pathHistory.length > 0) {
+              const previousPath = this.pathHistory.pop();
+              this.loadDirectory(previousPath, this.currentMediaType);
+          }
+          this.updateBackButton();
+     },
+
+     updateBackButton() {
+          const backBtn = document.getElementById('backBtn');
+          const currentPathEl = document.getElementById('currentPath');
+          if (backBtn) {
+              backBtn.disabled = this.pathHistory.length === 0;
+          }
+          if (currentPathEl) {
+              currentPathEl.textContent = this.currentPath;
+          }
+     },
 
     setupDragScroll() {
         this.sliderWrapper.addEventListener('mousedown', (e) => {
@@ -41,6 +63,9 @@ const App = {
     },
 
     async loadDirectory(path, mediaType = 'video') {
+        if (this.currentPath !== path) {
+            this.pathHistory.push(this.currentPath);
+        }
         this.currentPath = path;
         this.currentMediaType = mediaType;
         const sliderContent = document.getElementById('sliderContent');
@@ -61,6 +86,7 @@ const App = {
         } catch (error) {
             sliderContent.innerHTML = `<div class="error"><i class="fas fa-exclamation-circle" style="margin-right: 10px;"></i>Ошибка загрузки: ${error.message}</div>`;
         }
+        this.updateBackButton();
     },
 
     displayItems(items, mediaType = 'video') {

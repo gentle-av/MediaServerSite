@@ -61,13 +61,14 @@ body {
     height: 100vh;
 }
 
+
 .slider-wrapper {
+    padding: 110px 20px 20px 20px;
     overflow-y: auto;
     overflow-x: hidden;
     scroll-behavior: smooth;
     scrollbar-width: thin;
     scrollbar-color: var(--yellow) var(--bg2);
-    padding: 70px 20px 20px 20px;
     width: 100%;
     height: 100%;
     cursor: grab;
@@ -515,3 +516,57 @@ body {
     border-color: var(--orange);
     color: var(--yellow);
 }
+
+.navigation-bar {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--bg3);
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    z-index: 19;
+    gap: 10px;
+}
+
+.nav-btn {
+    background: var(--bg1);
+    border: 1px solid var(--bg3);
+    color: var(--fg1);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.nav-btn:hover {
+    background: var(--bg3);
+    border-color: var(--yellow);
+    color: var(--yellow);
+    transform: scale(1.05);
+}
+
+.nav-btn:disabled {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.current-path {
+    color: var(--fg3);
+    font-size: 0.9rem;
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
