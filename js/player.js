@@ -101,14 +101,15 @@ const PlayerManager = {
 
     setPlayerActive(active) {
         this.playerActive = active;
+        const topPlayerBar = document.getElementById('topPlayerBar');
         const topPlayBtn = document.getElementById('topPlayPauseBtn');
         const topSeekForwardBtn = document.getElementById('topSeekForwardBtn');
         const topSeekBackwardBtn = document.getElementById('topSeekBackwardBtn');
         const topCloseBtn = document.getElementById('topCloseFileBtn');
         const topDeleteBtn = document.getElementById('topDeleteFileBtn');
         const topFullscreenBtn = document.getElementById('topFullscreenBtn');
-
         if (active) {
+            if (topPlayerBar) topPlayerBar.classList.add('active');
             topPlayBtn.classList.add('active');
             topSeekForwardBtn.classList.add('active');
             topSeekBackwardBtn.classList.add('active');
@@ -116,7 +117,6 @@ const PlayerManager = {
             topDeleteBtn.classList.add('active');
             if (topFullscreenBtn) topFullscreenBtn.classList.add('active');
             if (this.isPlaying) topPlayBtn.classList.add('playing');
-
             topSeekForwardBtn.disabled = false;
             topSeekBackwardBtn.disabled = false;
             topPlayBtn.disabled = false;
@@ -124,6 +124,7 @@ const PlayerManager = {
             topDeleteBtn.disabled = false;
             if (topFullscreenBtn) topFullscreenBtn.disabled = false;
         } else {
+            if (topPlayerBar) topPlayerBar.classList.remove('active');
             topPlayBtn.classList.remove('active', 'playing');
             topSeekForwardBtn.classList.remove('active');
             topSeekBackwardBtn.classList.remove('active');
@@ -131,7 +132,6 @@ const PlayerManager = {
             topDeleteBtn.classList.remove('active');
             if (topFullscreenBtn) topFullscreenBtn.classList.remove('active');
             topPlayBtn.innerHTML = '<i class="fas fa-play"></i>';
-
             topSeekForwardBtn.disabled = true;
             topSeekBackwardBtn.disabled = true;
             topPlayBtn.disabled = true;
@@ -433,17 +433,11 @@ const PlayerManager = {
         this.setPlayerActive(false);
         this.isFullscreen = false;
         this.updateFullscreenButton();
-        const topDeleteBtn = document.getElementById('topDeleteFileBtn');
-        if (topDeleteBtn) topDeleteBtn.classList.remove('active');
         if (this.fullscreenRetryInterval) {
             clearInterval(this.fullscreenRetryInterval);
             this.fullscreenRetryInterval = null;
         }
         document.querySelector('.player-control-header').style.borderColor = '';
-        // document.getElementById('playerTrackName').textContent = '';
-        // document.getElementById('playerTrackPath').textContent = '';
-        // document.getElementById('currentFileName').textContent = 'Название файла';
-        // document.getElementById('currentFilePath').textContent = 'Путь к файлу';
     },
 
     showControl(filePath, mediaType = 'video') {
