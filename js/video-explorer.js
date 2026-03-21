@@ -8,28 +8,30 @@ const VideoExplorer = {
     },
 
     setupEventListeners() {
-        document.getElementById('videoBackBtn').addEventListener('click', () => this.goBack());
     },
 
-    async loadDirectory(path) {
-        if (this.currentPath !== path && this.currentPath) {
+    async loadDirectory(path, addToHistory = true) {
+        console.log('loadDirectory called with path:', path, 'addToHistory:', addToHistory);
+        console.log('Current path:', this.currentPath);
+        if (addToHistory && this.currentPath && this.currentPath !== path) {
             this.history.push(this.currentPath);
         }
         this.currentPath = path;
-        this.updateBackButton();
         this.updateBreadcrumbs();
-
         const content = document.getElementById('videoContent');
         content.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>';
-
+        const url = `http://${window.location.hostname}:8083/api/list`;
+        console.log('Fetching URL:', url);
+        console.log('Request body:', { path: path });
         try {
-            const response = await fetch(`http://${window.location.hostname}:8083/api/list`, {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path: path })
             });
+            console.log('Response status:', response.status);
             const data = await response.json();
-
+            console.log('loadDirectory response:', data);
             if (data.success) {
                 this.renderContent(data.items);
             } else {
@@ -37,39 +39,46 @@ const VideoExplorer = {
             }
         } catch (error) {
             console.error('Error loading directory:', error);
-            content.innerHTML = '<div class="empty"><i class="fas fa-wifi"></i> Ошибка подключения к серверу</div>';
+            content.innerHTML = '<div class="empty"><i class="fas fa-wifi"></i> Ошибка подключения к серверу: ' + error.message + '</div>';
         }
     },
 
     renderContent(items) {
+        console.log('renderContent called with items:', items);
         const content = document.getElementById('videoContent');
         const visibleItems = items.filter(item => !Utils.isHiddenFile(item.name));
-
+        console.log('visibleItems after filter:', visibleItems);
         if (visibleItems.length === 0) {
             content.innerHTML = '<div class="empty"><i class="fas fa-folder-open"></i> Папка пуста</div>';
             return;
         }
-
         content.innerHTML = visibleItems.map(item => `
             <div class="item-card" data-path="${item.path}" data-is-dir="${item.isDirectory}">
                 <i class="fas ${item.isDirectory ? 'fa-folder folder-icon' : 'fa-file-video video-icon'}"></i>
-                <div class="item-name" title="${Utils.escapeHtml(item.name)}">${Utils.escapeHtml(item.name)}</div>
+                <div class="item-name" title="${Utils.escapeHtml(this.shortenName(item.name))}">${Utils.escapeHtml(this.shortenName(item.name))}</div>
                 ${!item.isDirectory ? `<div class="item-size">${item.size || ''}</div>` : ''}
             </div>
         `).join('');
-
+        console.log('Rendered HTML length:', content.innerHTML.length);
         document.querySelectorAll('.item-card').forEach(card => {
             card.addEventListener('click', () => {
                 const path = card.dataset.path;
                 const isDir = card.dataset.isDir === 'true';
-
+                console.log('Card clicked:', { path, isDir });
                 if (isDir) {
-                    this.loadDirectory(path);
+                    this.loadDirectory(path, true);
                 } else {
                     this.playVideo(path);
                 }
             });
         });
+    },
+
+    shortenName(name) {
+        if (name.length > 35) {
+            return name.substring(0, 32) + '...';
+        }
+        return name;
     },
 
     async playVideo(path) {
@@ -95,39 +104,37 @@ const VideoExplorer = {
         }
     },
 
-    goBack() {
-        if (this.history.length > 0) {
-            const previousPath = this.history.pop();
-            this.loadDirectory(previousPath);
-        }
-        this.updateBackButton();
-    },
-
-    updateBackButton() {
-        const backBtn = document.getElementById('videoBackBtn');
-        backBtn.disabled = this.history.length === 0;
-    },
-
     updateBreadcrumbs() {
         const breadcrumbs = document.getElementById('videoBreadcrumbs');
         breadcrumbs.innerHTML = '';
-
         const rootPath = '/mnt/video';
-        const parts = this.currentPath.substring(rootPath.length).split('/').filter(p => p);
-
         const rootBreadcrumb = document.createElement('div');
-        rootBreadcrumb.className = 'breadcrumb';
-        rootBreadcrumb.innerHTML = '<i class="fas fa-home"></i> video';
-        rootBreadcrumb.addEventListener('click', () => this.loadDirectory(rootPath));
+        rootBreadcrumb.className = 'breadcrumb-root';
+        rootBreadcrumb.innerHTML = '<i class="fas fa-film" title="Корневая папка видео"></i>';
+        rootBreadcrumb.addEventListener('click', () => {
+            this.loadDirectory(rootPath, true);
+        });
         breadcrumbs.appendChild(rootBreadcrumb);
-
+        if (this.currentPath === rootPath) return;
+        let relativePath = this.currentPath.substring(rootPath.length);
+        if (relativePath.startsWith('/')) relativePath = relativePath.substring(1);
+        const pathParts = relativePath.split('/').filter(part => part.length > 0);
         let currentPath = rootPath;
-        for (const part of parts) {
+        for (let i = 0; i < pathParts.length; i++) {
+            const part = pathParts[i];
             currentPath += '/' + part;
             const crumb = document.createElement('div');
             crumb.className = 'breadcrumb';
-            crumb.innerHTML = part;
-            crumb.addEventListener('click', () => this.loadDirectory(currentPath));
+            if (i === pathParts.length - 1) {
+                crumb.innerHTML = `<i class="fas fa-folder"></i><span class="breadcrumb-text" title="${Utils.escapeHtml(part)}">${Utils.escapeHtml(this.shortenName(part))}</span>`;
+                crumb.classList.add('active');
+            } else {
+                crumb.innerHTML = `<i class="fas fa-folder"></i>`;
+                crumb.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.loadDirectory(currentPath, true);
+                });
+            }
             breadcrumbs.appendChild(crumb);
         }
     }

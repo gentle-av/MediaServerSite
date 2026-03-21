@@ -322,20 +322,25 @@ const PlayerManager = {
     },
 
     async playMedia(path) {
+        console.log('PlayerManager.playMedia called with path:', path);
         try {
             const isAvailable = await this.checkPlayerRunning();
+            console.log('Player running check result:', isAvailable);
             if (!isAvailable) {
                 console.log('Player not running, launching...');
                 const launchResult = await this.launchPlayerWithFile(path);
+                console.log('Launch result:', launchResult);
                 if (!launchResult) throw new Error('Failed to launch player');
                 await this.waitForPlayer(15000);
             } else {
                 console.log('Player running, opening file...');
                 const openResult = await this.callPlayerApi('/api/openfile', { path: path });
+                console.log('Open result:', openResult);
                 if (!openResult || !openResult.success) throw new Error(openResult?.error || 'Failed to open file');
                 await this.delay(2000);
             }
             const newStatus = await this.checkPlayerRunningWithStatus();
+            console.log('New status after opening:', newStatus);
             if (newStatus && newStatus.available === true) {
                 this.playerActive = true;
                 this.currentFile = newStatus.currentFile?.path || path;
