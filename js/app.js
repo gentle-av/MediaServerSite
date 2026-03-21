@@ -13,6 +13,7 @@ const App = {
         this.loadDirectory(CONFIG.ROOT_PATH, 'video');
         this.updateBackButton();
         this.updateBreadcrumbs();
+        setTimeout(() => PlayerManager.checkCurrentPlayback(), 1000);
     },
     setupEventListeners() {
         this.setupDragScroll();

@@ -633,4 +633,39 @@ const PlayerManager = {
             if (App && App.currentPath) App.loadDirectory(App.currentPath, this.currentMediaType);
         }
     },
+    async checkCurrentPlayback() {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            const url = `${this.getPlayerUrl()}/api/status`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (!response.ok) return;
+            const data = await response.json();
+            if (data && data.available && data.currentFile && data.currentFile.available) {
+                console.log('Player is already playing:', data.currentFile);
+                this.currentFile = data.currentFile.path;
+                this.currentMediaType = Utils.getMediaTypeFromPath(this.currentFile);
+                this.isPlaying = true;
+                this.isFullscreen = data.isFullScreen === true || data.isFullScreen === "true";
+                this.setPlayerActive(true);
+                this.showControl(this.currentFile, this.currentMediaType);
+                this.showSuccessState(this.currentMediaType);
+                this.updatePlayPauseButton();
+                this.updateTopBar();
+                this.updateFullscreenButton();
+                this.startStatusCheck();
+                if (this.currentMediaType === 'video' && !this.isFullscreen) {
+                    this.enableFullscreenAsync();
+                }
+            }
+        } catch (error) {
+            console.log('No active playback detected:', error.message);
+        }
+    },
 };
