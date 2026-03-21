@@ -261,7 +261,6 @@ const PlayerManager = {
         try {
             this.currentFile = path;
             this.currentMediaType = Utils.getMediaTypeFromPath(path);
-            const fileName = path.split('/').pop();
             const mediaType = this.currentMediaType;
             this.showControl(path, mediaType);
             console.log('Launching player for file:', path);
@@ -331,14 +330,16 @@ const PlayerManager = {
                             console.log(`API available on attempt ${attempt}`);
                             apiReady = true;
                             this.setPlayerActive(true);
-                            this.showSuccessState(mediaType);
-                            this.isPlaying = true;
+                            const isPlayingStatus = statusData.isPlaying === true;
+                            this.updatePlaybackStatus(isPlayingStatus);
                             this.updatePlayPauseButton();
                             this.updateTopBar();
+                            this.statusCheckDelay = Date.now();
                             this.startStatusCheck();
                             if (mediaType === 'video') {
                                 this.enableFullscreenAsync();
                             }
+                            this.hideProgressBar();
                             break;
                         }
                     }
@@ -357,6 +358,7 @@ const PlayerManager = {
             this.setPlayerActive(false);
             this.showErrorState(error.message);
             Utils.addToHistory(this.currentFile || path, 'error');
+            this.hideProgressBar();
         }
     },
     enableFullscreenAsync() {
@@ -422,15 +424,7 @@ const PlayerManager = {
         `;
     },
     showSuccessState(mediaType = 'video') {
-        const placeholder = document.querySelector('.player-placeholder');
-        const fileName = this.currentFile ? this.currentFile.split('/').pop() : 'Файл';
-        const mediaName = mediaType === 'audio' ? 'Аудио' : 'Видео';
-        placeholder.innerHTML = `
-            <i class="fas fa-check-circle" style="color: var(--green); font-size: 60px; margin-bottom: 20px;"></i>
-            <div style="font-size: 1.3rem; font-weight: 500; color: var(--fg0); margin-bottom: 10px;">${fileName}</div>
-            <div style="font-size: 1rem; color: var(--fg3);">${mediaName} воспроизводится</div>
-        `;
-        document.querySelector('.player-control-header').style.borderColor = 'var(--green)';
+        this.updatePlaybackStatus(true);
         this.hideProgressBar();
     },
     showErrorState(message) {
@@ -448,25 +442,6 @@ const PlayerManager = {
     },
     retryOpen() {
         if (this.currentFile) this.playMedia(this.currentFile);
-    },
-    async togglePlayPause() {
-        try {
-            const endpoint = this.isPlaying ? 'pause' : 'play';
-            const url = `${this.getPlayerUrl()}/api/${endpoint}`;
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
-            });
-            const data = await response.json();
-            if (data.success) {
-                this.isPlaying = !this.isPlaying;
-                this.updatePlayPauseButton();
-                this.updateTopBar();
-            }
-        } catch (error) {
-            Utils.showNotification('Ошибка при переключении: ' + error.message, 'error');
-        }
     },
     updatePlayPauseButton() {
         const btn = document.getElementById('playPauseBtn');
@@ -494,8 +469,39 @@ const PlayerManager = {
             this.hideControl();
         }
     },
+    async togglePlayPause() {
+        if (this.updatingStatus) return;
+        try {
+            this.updatingStatus = true;
+            const endpoint = this.isPlaying ? 'pause' : 'play';
+            const url = `${this.getPlayerUrl()}/api/${endpoint}`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            const data = await response.json();
+            if (data.success) {
+                const newState = !this.isPlaying;
+                this.isPlaying = newState;
+                this.updatePlaybackStatus(newState);
+                this.updatePlayPauseButton();
+                this.updateTopBar();
+                setTimeout(() => {
+                    this.updatingStatus = false;
+                }, 3000);
+            } else {
+                this.updatingStatus = false;
+            }
+        } catch (error) {
+            this.updatingStatus = false;
+            Utils.showNotification('Ошибка при переключении: ' + error.message, 'error');
+        }
+    },
     async checkStatus() {
+        if (this.updatingStatus) return;
         if (!this.currentFile) return;
+        if (this.statusCheckDelay && (Date.now() - this.statusCheckDelay) < 3000) return;
         try {
             const url = `${this.getPlayerUrl()}/api/status`;
             const response = await fetch(url, {
@@ -505,11 +511,17 @@ const PlayerManager = {
             });
             const data = await response.json();
             if (data && data.available) {
-                console.log('Server status:', data);
                 const isFullScreen = data.isFullScreen === true || data.isFullScreen === "true" || data.isFullScreen === 1;
                 if (this.isFullscreen !== isFullScreen) {
                     this.isFullscreen = isFullScreen;
                     this.updateFullscreenButton();
+                }
+                if (data.isPlaying !== undefined && this.isPlaying !== data.isPlaying) {
+                    console.log('Status mismatch, correcting:', {old: this.isPlaying, new: data.isPlaying});
+                    this.isPlaying = data.isPlaying;
+                    this.updatePlaybackStatus(this.isPlaying);
+                    this.updatePlayPauseButton();
+                    this.updateTopBar();
                 }
             }
         } catch (error) {}
@@ -651,11 +663,11 @@ const PlayerManager = {
                 console.log('Player is already playing:', data.currentFile);
                 this.currentFile = data.currentFile.path;
                 this.currentMediaType = Utils.getMediaTypeFromPath(this.currentFile);
-                this.isPlaying = true;
+                this.isPlaying = data.isPlaying === true;
                 this.isFullscreen = data.isFullScreen === true || data.isFullScreen === "true";
                 this.setPlayerActive(true);
                 this.showControl(this.currentFile, this.currentMediaType);
-                this.showSuccessState(this.currentMediaType);
+                this.updatePlaybackStatus(this.isPlaying);
                 this.updatePlayPauseButton();
                 this.updateTopBar();
                 this.updateFullscreenButton();
@@ -663,9 +675,54 @@ const PlayerManager = {
                 if (this.currentMediaType === 'video' && !this.isFullscreen) {
                     this.enableFullscreenAsync();
                 }
+                setTimeout(async () => {
+                    try {
+                        const checkUrl = `${this.getPlayerUrl()}/api/status`;
+                        const checkResponse = await fetch(checkUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({})
+                        });
+                        const checkData = await checkResponse.json();
+                        if (checkData && checkData.available && checkData.isPlaying !== undefined && checkData.isPlaying !== this.isPlaying) {
+                            console.log('Updating playback status after delay:', {old: this.isPlaying, new: checkData.isPlaying});
+                            this.isPlaying = checkData.isPlaying;
+                            this.updatePlaybackStatus(this.isPlaying);
+                            this.updatePlayPauseButton();
+                            this.updateTopBar();
+                        }
+                    } catch (e) {
+                        console.log('Delayed status check failed:', e);
+                    }
+                }, 2000);
+                return true;
             }
         } catch (error) {
             console.log('No active playback detected:', error.message);
         }
+        return false;
+    },
+    updatePlaybackStatus(isPlaying) {
+        this.isPlaying = isPlaying;
+        const placeholder = document.querySelector('.player-placeholder');
+        if (!placeholder) return;
+        const fileName = this.currentFile ? this.currentFile.split('/').pop() : 'Файл';
+        const mediaType = this.currentMediaType;
+        const mediaName = mediaType === 'audio' ? 'Аудио' : 'Видео';
+        const statusText = isPlaying ? 'Воспроизводится' : 'На паузе';
+        const statusIcon = isPlaying ? '<i class="fas fa-play-circle" style="color: var(--green); font-size: 60px;"></i>' : '<i class="fas fa-pause-circle" style="color: var(--orange); font-size: 60px;"></i>';
+        placeholder.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <div style="margin-bottom: 20px;">
+                    ${statusIcon}
+                </div>
+                <div style="font-size: 1.3rem; font-weight: 500; color: var(--fg0); margin-bottom: 10px; text-align: center; max-width: 80vw; word-break: break-word;">${fileName}</div>
+                <div style="font-size: 1rem; color: ${isPlaying ? 'var(--green)' : 'var(--orange)'}; margin-bottom: 5px;">
+                    ${statusText}
+                </div>
+                <div style="font-size: 0.9rem; color: var(--fg3);">${mediaName}</div>
+            </div>
+        `;
+        document.querySelector('.player-control-header').style.borderColor = isPlaying ? 'var(--green)' : 'var(--orange)';
     },
 };
