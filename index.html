@@ -30,45 +30,41 @@
             </div>
         </div>
 
-        <!-- Оверлей для мобильной версии -->
         <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-        <!-- Кнопка меню для мобильных устройств -->
         <button class="menu-toggle" id="menuToggle">
             <i class="fas fa-bars"></i>
         </button>
 
-        <!-- Основной контент -->
         <div class="main-content">
             <div class="page-container" id="pageContainer">
                 <div class="page" id="pageVideo">
-                    <div class="video-explorer">
-                        <div class="explorer-header">
-                            <div class="breadcrumbs" id="videoBreadcrumbs"></div>
-                        </div>
-                        <div class="content-grid" id="videoContent">
-                            <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>
-                        </div>
-                    </div>
-                </div>
+                  <div class="video-explorer">
+                      <div class="explorer-header">
+                          <div class="breadcrumbs" id="videoBreadcrumbs"></div>
+                      </div>
+                      <div class="content-grid" id="videoContent">
+                          <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>
+                      </div>
+                  </div>
+              </div>
 
-                <div class="page hidden" id="pageAudio">
-                    <div class="audio-library">
-                        <div class="library-header">
-                            <h2><i class="fas fa-album"></i> Альбомы</h2>
-                            <div class="search-box">
-                                <i class="fas fa-search"></i>
-                                <input type="text" id="albumSearch" placeholder="Поиск альбомов...">
-                            </div>
-                        </div>
-                        <div class="albums-grid" id="albumsGrid">
-                            <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка альбомов...</div>
-                        </div>
-                    </div>
-                </div>
+              <div class="page hidden" id="pageAudio">
+                  <div class="audio-library">
+                      <div class="library-header">
+                          <h2><i class="fas fa-album"></i> Альбомы</h2>
+                          <div class="search-box">
+                              <i class="fas fa-search"></i>
+                              <input type="text" id="albumSearch" placeholder="Поиск альбомов...">
+                          </div>
+                      </div>
+                      <div class="albums-grid" id="albumsGrid">
+                          <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка альбомов...</div>
+                      </div>
+                  </div>
+              </div>
             </div>
 
-            <!-- Аудио плеер (внизу) -->
             <div class="audio-player-bar" id="audioPlayerBar" style="display: none;">
                 <div class="player-album-art">
                     <img id="playerAlbumArt" src="" alt="Album art">
@@ -101,7 +97,6 @@
             </div>
         </div>
 
-        <!-- Модальное окно альбома -->
         <div id="albumModal" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
@@ -119,7 +114,6 @@
             </div>
         </div>
 
-        <!-- Панель управления плеером -->
         <div id="playerControlPage" class="player-control-page" style="display: none;">
             <div class="player-control-header">
                 <div class="player-controls-center">
@@ -159,18 +153,15 @@
         <div id="notification" class="notification" style="display: none;"></div>
     </div>
 
-    <!-- Core -->
     <script src="js/core/config.js"></script>
     <script src="js/core/utils.js"></script>
 
-    <!-- Modules -->
     <script src="js/modules/player-manager.js"></script>
     <script src="js/modules/audio-player.js"></script>
     <script src="js/modules/video-explorer.js"></script>
     <script src="js/modules/album-library.js"></script>
     <script src="js/modules/tree-manager.js"></script>
 
-    <!-- App -->
     <script src="js/app.js"></script>
 </body>
 </html>
