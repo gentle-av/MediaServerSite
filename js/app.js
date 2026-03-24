@@ -7,6 +7,9 @@ const App = {
     async init() {
         this.setupNavigation();
         this.setupMobileMenu();
+        if (typeof PlayerManager !== 'undefined') {
+            PlayerManager.init();
+        }
         const pageContainer = document.getElementById('pageContainer');
         if (pageContainer) {
             pageContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>';
