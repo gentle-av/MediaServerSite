@@ -380,3 +380,39 @@
         font-size: 1.1rem;
     }
 }
+
+@media (max-width: 1024px) {
+    .search-box {
+        max-width: 300px;
+        min-width: 200px;
+    }
+}
+
+@media (max-width: 768px) {
+    .library-header {
+        flex-direction: column;
+        align-items: flex-start;
+        margin-left: 48px;
+    }
+
+    .search-box {
+        max-width: none;
+        width: calc(100% - 48px);
+        margin-left: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .library-header {
+        margin-left: 56px;
+    }
+
+    .search-box {
+        width: calc(100% - 56px);
+        padding: 6px 12px;
+    }
+
+    .search-box textarea {
+        font-size: 0.9rem;
+    }
+}

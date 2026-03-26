@@ -22,6 +22,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .library-header h2 i {
@@ -36,8 +37,10 @@
     padding: 8px 16px;
     gap: 8px;
     border: 1px solid var(--bg3);
-    flex: 1;
-    min-width: 0;
+    max-width: 400px;
+    min-width: 250px;
+    width: auto;
+    flex-shrink: 0;
 }
 
 .search-box i {
@@ -52,9 +55,7 @@
     color: var(--fg1);
     font-size: 1rem;
     outline: none;
-    min-width: 0;
     width: 100%;
-    flex: 1;
     white-space: pre-wrap;
     word-wrap: break-word;
     word-break: break-word;
@@ -64,6 +65,8 @@
     overflow: hidden;
     font-family: inherit;
     height: auto;
+    min-height: 24px;
+    max-height: 120px;
 }
 
 .search-box textarea::placeholder {
