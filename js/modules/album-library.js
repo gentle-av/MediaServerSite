@@ -57,13 +57,13 @@ const AlbumLibrary = {
                 const data = await response.json();
                 if (data.status === 'success' && data.albums) {
                     for (const album of data.albums) {
-                        const albumKey = `${album.album}|${album.year}|${artist}`;
+                        const albumKey = `${album.album}|${album.artist}`;
                         if (!uniqueAlbums.has(albumKey)) {
-                            const tracks = await this.getTracksFromAlbum(album.album, artist);
-                            const coverUrl = await this.getAlbumCover(album.album, artist);
+                            const tracks = await this.getTracksFromAlbum(album.album, album.artist);
+                            const coverUrl = await this.getAlbumCover(album.album, album.artist);
                             uniqueAlbums.set(albumKey, {
                                 name: album.album,
-                                artist: artist,
+                                artist: album.artist,
                                 title: album.album,
                                 year: album.year || '',
                                 tracks: tracks,
