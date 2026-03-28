@@ -1,4 +1,3 @@
-// audio-player.js
 const AudioPlayer = {
     currentAlbum: null,
     currentTrackIndex: -1,
@@ -6,14 +5,211 @@ const AudioPlayer = {
     isPlaying: false,
     audioElement: null,
     playlist: [],
+    musiumUrl: null,
+    musiumAvailable: false,
+    pendingAction: null,
 
     getServerUrl() {
         return `http://${window.location.hostname}:${window.location.port}`;
     },
 
+    getMusiumUrl() {
+        if (this.musiumUrl) return this.musiumUrl;
+        return `http://${window.location.hostname}:8084`;
+    },
+
+    async checkMusiumAvailable() {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            const response = await fetch(`${this.getMusiumUrl()}/api/getStatus`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (response.ok) {
+                const data = await response.json();
+                this.musiumAvailable = data.success === true;
+                if (this.musiumAvailable && this.pendingAction) {
+                    const action = this.pendingAction;
+                    this.pendingAction = null;
+                    await action();
+                }
+                return this.musiumAvailable;
+            }
+        } catch (error) {
+            console.log('Musium not running');
+        }
+        this.musiumAvailable = false;
+        return false;
+    },
+
+    async waitForMusium(timeoutMs) {
+        const startTime = Date.now();
+        while (Date.now() - startTime < timeoutMs) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 1000);
+                const response = await fetch(`${this.getMusiumUrl()}/api/getStatus`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success === true) {
+                        this.musiumAvailable = true;
+                        return true;
+                    }
+                }
+            } catch (error) {
+            }
+            await this.delay(1000);
+        }
+        return false;
+    },
+
+    async launchMusiumWithTracks(tracks) {
+        try {
+            Utils.showNotification('Запуск аудиоплеера...', 'info');
+            const response = await fetch(`${this.getServerUrl()}/api/music/open`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tracks: tracks.map(t => t.path) })
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.status === 'success') {
+                const started = await this.waitForMusium(10000);
+                if (started) {
+                    Utils.showNotification('Аудиоплеер запущен', 'success');
+                    return true;
+                } else {
+                    Utils.showNotification('Аудиоплеер не запустился', 'error');
+                    return false;
+                }
+            }
+            return false;
+        } catch (error) {
+            console.error('Error launching Musium:', error);
+            Utils.showNotification('Ошибка запуска аудиоплеера', 'error');
+            return false;
+        }
+    },
+
+    async ensureMusiumRunning(tracks) {
+        const isAvailable = await this.checkMusiumAvailable();
+        if (isAvailable) return true;
+        return await this.launchMusiumWithTracks(tracks);
+    },
+
+    async sendToMusium(endpoint, data, method = 'POST') {
+        if (!this.musiumAvailable) return null;
+        try {
+            const url = `${this.getMusiumUrl()}${endpoint}`;
+            const options = {
+                method: method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (method === 'POST' && data) {
+                options.body = JSON.stringify(data);
+            }
+            const response = await fetch(url, options);
+            return await response.json();
+        } catch (error) {
+            console.error(`Musium API error: ${endpoint}`, error);
+            this.musiumAvailable = false;
+            return null;
+        }
+    },
+
+    async getMusiumPlaylist() {
+        return await this.sendToMusium('/api/getPlaylist', null, 'GET');
+    },
+
+    async getMusiumStatus() {
+        return await this.sendToMusium('/api/getStatus', null, 'GET');
+    },
+
+    async addToPlaylist(album, trackIndex = null) {
+        const tracksToAdd = trackIndex !== null ? [album.tracks[trackIndex]] : album.tracks;
+        const started = await this.ensureMusiumRunning(tracksToAdd);
+        if (!started) return;
+        for (const track of tracksToAdd) {
+            await this.sendToMusium('/api/add', { path: track.path });
+        }
+        Utils.showNotification(`Добавлено ${tracksToAdd.length} треков в плейлист`, 'success');
+    },
+
+    async replacePlaylist(album, trackIndex = null) {
+        const tracksToReplace = trackIndex !== null ? [album.tracks[trackIndex]] : album.tracks;
+        const started = await this.ensureMusiumRunning(tracksToReplace);
+        if (!started) return;
+        const trackPaths = tracksToReplace.map(t => t.path);
+        await this.sendToMusium('/api/replacePlaylist', { tracks: trackPaths });
+        await this.sendToMusium('/api/play', {});
+        Utils.showNotification(`Плейлист заменен ${tracksToReplace.length} треками`, 'success');
+    },
+
+    async addAfterCurrent(album, trackIndex) {
+        const track = album.tracks[trackIndex];
+        const started = await this.ensureMusiumRunning([track]);
+        if (!started) return;
+        await this.sendToMusium('/api/addAfterCurrent', { path: track.path });
+        Utils.showNotification(`Трек "${track.name}" добавлен после текущего`, 'success');
+    },
+
+    async playTrackInMusium(album, trackIndex) {
+        const track = album.tracks[trackIndex];
+        const started = await this.ensureMusiumRunning([track]);
+        if (!started) return;
+        await this.sendToMusium('/api/replacePlaylist', { tracks: [track.path] });
+        await this.sendToMusium('/api/play', {});
+        Utils.showNotification(`Воспроизведение: ${track.name}`, 'success');
+    },
+
+    async playAlbumInMusium(album) {
+        const started = await this.ensureMusiumRunning(album.tracks);
+        if (!started) return;
+        const trackPaths = album.tracks.map(t => t.path);
+        await this.sendToMusium('/api/replacePlaylist', { tracks: trackPaths });
+        await this.sendToMusium('/api/play', {});
+        Utils.showNotification(`Воспроизведение альбома: ${album.title}`, 'success');
+    },
+
+    async previousTrackMusium() {
+        if (!this.musiumAvailable) return;
+        await this.sendToMusium('/api/previous', {});
+    },
+
+    async nextTrackMusium() {
+        if (!this.musiumAvailable) return;
+        await this.sendToMusium('/api/next', {});
+    },
+
+    async pauseMusium() {
+        if (!this.musiumAvailable) return;
+        await this.sendToMusium('/api/pause', {});
+    },
+
+    async playMusium() {
+        if (!this.musiumAvailable) return;
+        await this.sendToMusium('/api/play', {});
+    },
+
+    async stopMusium() {
+        if (!this.musiumAvailable) return;
+        await this.sendToMusium('/api/stop', {});
+    },
+
     init() {
         this.setupEventListeners();
         this.createAudioElement();
+        this.checkMusiumAvailable();
     },
 
     createAudioElement() {
@@ -38,6 +234,7 @@ const AudioPlayer = {
     },
 
     async loadAlbum(album) {
+        await this.playAlbumInMusium(album);
         this.currentAlbum = album;
         this.tracks = [...album.tracks];
         this.currentTrackIndex = 0;
@@ -52,13 +249,12 @@ const AudioPlayer = {
         if (albumTitle) albumTitle.textContent = album.title;
         if (artistName) artistName.textContent = album.artist;
         if (playerBar) playerBar.style.display = 'flex';
-        if (this.tracks.length > 0) {
-            await this.playTrack(0);
-        }
-        Utils.showNotification(`🎵 Альбом: ${album.title}`, 'success');
     },
 
     async playTrack(index) {
+        if (this.currentAlbum) {
+            await this.playTrackInMusium(this.currentAlbum, index);
+        }
         if (index < 0 || index >= this.tracks.length) return;
         this.currentTrackIndex = index;
         const track = this.tracks[index];
@@ -71,8 +267,15 @@ const AudioPlayer = {
     },
 
     async togglePlayPause() {
-        if (!this.audioElement.src) return;
-        if (this.isPlaying) {
+        if (this.musiumAvailable) {
+            if (this.isPlaying) {
+                await this.pauseMusium();
+            } else {
+                await this.playMusium();
+            }
+        } else if (!this.audioElement.src) {
+            return;
+        } else if (this.isPlaying) {
             this.audioElement.pause();
             this.isPlaying = false;
         } else {
@@ -83,7 +286,9 @@ const AudioPlayer = {
     },
 
     async nextTrack() {
-        if (this.currentTrackIndex + 1 < this.tracks.length) {
+        if (this.musiumAvailable) {
+            await this.nextTrackMusium();
+        } else if (this.currentTrackIndex + 1 < this.tracks.length) {
             await this.playTrack(this.currentTrackIndex + 1);
         } else {
             this.stop();
@@ -91,7 +296,9 @@ const AudioPlayer = {
     },
 
     async previousTrack() {
-        if (this.currentTrackIndex - 1 >= 0) {
+        if (this.musiumAvailable) {
+            await this.previousTrackMusium();
+        } else if (this.currentTrackIndex - 1 >= 0) {
             await this.playTrack(this.currentTrackIndex - 1);
         } else {
             this.audioElement.currentTime = 0;
@@ -99,6 +306,9 @@ const AudioPlayer = {
     },
 
     async stop() {
+        if (this.musiumAvailable) {
+            await this.stopMusium();
+        }
         this.audioElement.pause();
         this.audioElement.src = '';
         this.isPlaying = false;
@@ -141,43 +351,52 @@ const AudioPlayer = {
     },
 
     addAlbumToPlaylist(album) {
-        this.playlist.push(...album.tracks);
-        Utils.showNotification(`Добавлено ${album.tracks.length} треков в плейлист`, 'info');
+        this.addToPlaylist(album);
     },
 
     replacePlaylistWithAlbum(album) {
-        this.playlist = [...album.tracks];
-        Utils.showNotification(`Плейлист заменен альбомом: ${album.title}`, 'success');
+        this.replacePlaylist(album);
     },
 
     replacePlaylistWithTrack(album, trackIndex) {
-        const track = album.tracks[trackIndex];
-        if (track) {
-            this.playlist = [track];
-            Utils.showNotification(`Плейлист заменен треком: ${track.name}`, 'success');
-        }
+        this.replacePlaylist(album, trackIndex);
     },
 
     addTrackAfterCurrent(album, trackIndex) {
-        const track = album.tracks[trackIndex];
-        if (track && this.currentTrackIndex >= 0) {
-            this.playlist.splice(this.currentTrackIndex + 1, 0, track);
-            Utils.showNotification(`Трек "${track.name}" добавлен после текущего`, 'success');
-        } else if (track) {
-            this.playlist.push(track);
-            Utils.showNotification(`Трек "${track.name}" добавлен в конец плейлиста`, 'success');
-        }
+        this.addAfterCurrent(album, trackIndex);
     },
 
     showPlaylist() {
-        if (this.playlist.length === 0) {
+        if (this.musiumAvailable) {
+            this.getMusiumPlaylist().then(data => {
+                if (data && data.success && data.data && data.data.playlist) {
+                    const playlist = data.data.playlist;
+                    if (playlist.length === 0) {
+                        Utils.showNotification('Плейлист пуст', 'info');
+                        return;
+                    }
+                    let playlistText = 'Плейлист:\n';
+                    playlist.forEach((track, idx) => {
+                        playlistText += `${idx + 1}. ${track.name}\n`;
+                    });
+                    alert(playlistText);
+                } else {
+                    Utils.showNotification('Не удалось загрузить плейлист', 'info');
+                }
+            });
+        } else if (this.playlist.length === 0) {
             Utils.showNotification('Плейлист пуст', 'info');
             return;
+        } else {
+            let playlistText = 'Плейлист:\n';
+            this.playlist.forEach((track, idx) => {
+                playlistText += `${idx + 1}. ${track.name}\n`;
+            });
+            alert(playlistText);
         }
-        let playlistText = 'Плейлист:\n';
-        this.playlist.forEach((track, idx) => {
-            playlistText += `${idx + 1}. ${track.name}\n`;
-        });
-        alert(playlistText);
+    },
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 };
