@@ -537,3 +537,38 @@
         height: 28px;
     }
 }
+
+.playlist-current-track {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--fg0);
+    margin-bottom: 10px;
+    word-break: break-word;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.playlist-current-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.playlist-current-name {
+    font-weight: 600;
+    color: var(--yellow);
+}
+
+.playlist-current-artist {
+    font-size: 0.8rem;
+    color: var(--fg3);
+}
+
+.playlist-track-name {
+    flex: 1;
+    color: var(--fg1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
