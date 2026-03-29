@@ -34,15 +34,24 @@
             <i class="fas fa-bars"></i>
         </button>
         <div class="main-content">
-            <!-- ФИКСИРОВАННАЯ ШАПКА САЙТА -->
             <div class="app-header" id="appHeader">
                 <div class="header-title-section">
                     <h1 class="page-title" id="pageTitle">Видео</h1>
                 </div>
                 <div class="header-controls-section">
+                    <div class="mobile-nav-buttons" id="mobileNavButtons">
+                        <button class="header-btn nav-video-btn active" id="navVideoBtn">
+                            <i class="fas fa-video"></i>
+                            <span>Видео</span>
+                        </button>
+                        <button class="header-btn nav-audio-btn" id="navAudioBtn">
+                            <i class="fas fa-music"></i>
+                            <span>Аудио</span>
+                        </button>
+                    </div>
                     <div class="search-box" id="globalSearchBox" style="display: none;">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="globalSearchInput" placeholder="Поиск...">
+                        <input type="text" id="globalSearchInput" placeholder="Поиск альбомов...">
                     </div>
                     <button class="header-btn playlist-toggle-header" id="headerPlaylistBtn" title="Плейлист" style="display: none;">
                         <i class="fas fa-list"></i>
@@ -54,7 +63,6 @@
                     </button>
                 </div>
             </div>
-            <!-- ПРОКРУЧИВАЕМАЯ ОБЛАСТЬ С КОНТЕНТОМ -->
             <div class="scrollable-content" id="scrollableContent">
                 <div class="page-container" id="pageContainer"></div>
             </div>
