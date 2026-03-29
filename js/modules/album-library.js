@@ -250,48 +250,6 @@ const AlbumLibrary = {
         if (progressSpan) progressSpan.textContent = this.loadedArtists;
     },
 
-    async loadArtistAlbums(artist, uniqueAlbums, progressSpan, foundSpan, loadedCount) {
-        try {
-            const url = `${this.getServerUrl()}/api/music/albums?artist=${encodeURIComponent(artist)}`;
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const data = await response.json();
-            if (data.status === 'success' && data.albums) {
-                const newAlbums = [];
-                for (const album of data.albums) {
-                    const albumKey = `${album.album}|${album.artist}`;
-                    if (!uniqueAlbums.has(albumKey)) {
-                        const tracks = await this.getTracksFromAlbum(album.album, album.artist);
-                        const coverUrl = await this.getAlbumCover(album.album, album.artist);
-                        const albumData = {
-                            name: album.album,
-                            artist: album.artist,
-                            title: album.album,
-                            year: album.year || '',
-                            tracks: tracks,
-                            coverUrl: coverUrl,
-                            trackCount: tracks.length
-                        };
-                        uniqueAlbums.set(albumKey, albumData);
-                        newAlbums.push(albumData);
-                    }
-                }
-                if (newAlbums.length > 0) {
-                    this.albums.push(...newAlbums);
-                    this.filteredAlbums = [...this.albums];
-                    this.renderAlbumsIncremental();
-                    if (foundSpan) foundSpan.textContent = this.albums.length;
-                }
-            }
-        } catch (error) {
-            console.error(`Error loading albums for artist ${artist}:`, error);
-        }
-        this.loadedArtists = loadedCount;
-        if (progressSpan) progressSpan.textContent = this.loadedArtists;
-    },
-
     attachAlbumCardEvents() {
         document.querySelectorAll('.album-card').forEach(card => {
             card.removeEventListener('click', this.handleAlbumClick);

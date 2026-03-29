@@ -20,6 +20,7 @@ const App = {
         }
         this.setupNavigation();
         this.setupMobileMenu();
+        this.setupHeaderControls();
         this.showProfileIndicator();
         if (typeof PlayerManager !== 'undefined') {
             PlayerManager.init();
@@ -29,6 +30,51 @@ const App = {
             pageContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>';
         }
         await this.loadPage('video');
+    },
+    setupHeaderControls() {
+        const headerPlaylistBtn = document.getElementById('headerPlaylistBtn');
+        if (headerPlaylistBtn) {
+            headerPlaylistBtn.addEventListener('click', () => {
+                if (typeof AlbumLibrary !== 'undefined') {
+                    AlbumLibrary.openPlaylistSidebar();
+                }
+            });
+        }
+        const headerRefreshBtn = document.getElementById('headerRefreshBtn');
+        if (headerRefreshBtn) {
+            headerRefreshBtn.addEventListener('click', () => {
+                if (typeof AlbumLibrary !== 'undefined') {
+                    AlbumLibrary.refreshDatabase();
+                }
+            });
+        }
+        const globalSearchInput = document.getElementById('globalSearchInput');
+        if (globalSearchInput) {
+            globalSearchInput.addEventListener('input', (e) => {
+                if (this.currentPage === 'audio' && typeof AlbumLibrary !== 'undefined') {
+                    AlbumLibrary.filterAlbums(e.target.value);
+                }
+            });
+        }
+    },
+    updateHeaderForPage(page) {
+        const pageTitle = document.getElementById('pageTitle');
+        const searchBox = document.getElementById('globalSearchBox');
+        const playlistBtn = document.getElementById('headerPlaylistBtn');
+        const refreshBtn = document.getElementById('headerRefreshBtn');
+        if (page === 'video') {
+            if (pageTitle) pageTitle.innerHTML = '<i class="fas fa-video"></i> Видео';
+            if (searchBox) searchBox.style.display = 'none';
+            if (playlistBtn) playlistBtn.style.display = 'none';
+            if (refreshBtn) refreshBtn.style.display = 'none';
+        } else if (page === 'audio') {
+            if (pageTitle) pageTitle.innerHTML = '<i class="fas fa-album"></i> Альбомы';
+            if (searchBox) searchBox.style.display = 'flex';
+            if (playlistBtn) playlistBtn.style.display = 'flex';
+            if (refreshBtn) refreshBtn.style.display = 'flex';
+            const searchInput = document.getElementById('globalSearchInput');
+            if (searchInput) searchInput.value = '';
+        }
     },
     async checkServerAvailability() {
         try {
@@ -65,6 +111,8 @@ const App = {
     async loadPage(page) {
         const pageContainer = document.getElementById('pageContainer');
         if (!pageContainer) return;
+        this.currentPage = page;
+        this.updateHeaderForPage(page);
         const navVideo = document.getElementById('navVideo');
         const navAudio = document.getElementById('navAudio');
         if (navVideo) navVideo.classList.toggle('active', page === 'video');
