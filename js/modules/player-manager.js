@@ -12,21 +12,28 @@ const PlayerManager = {
     fullscreenRetryInterval: null,
     currentMediaType: 'video',
     updatingStatus: false,
+    consecutiveErrors: 0,
+    maxConsecutiveErrors: 5,
+
     init() {
         this.setupEventListeners();
         this.checkMobile();
         console.log('PlayerManager initialized, server port:', this.serverPort);
         this.checkPlayerAvailability();
     },
+
     getPlayerUrl() {
         return `http://${this.serverHost}:8082`;
     },
+
     getServerUrl() {
         return `http://${this.serverHost}:${this.serverPort}`;
     },
+
     checkMobile() {
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     },
+
     setupEventListeners() {
         const elements = {
             playPauseBtn: 'playPauseBtn',
@@ -52,6 +59,7 @@ const PlayerManager = {
         }
         document.addEventListener('keydown', (e) => this.handleKeyPress(e));
     },
+
     async checkPlayerAvailability() {
         try {
             const controller = new AbortController();
@@ -81,6 +89,7 @@ const PlayerManager = {
             this.showLibrary();
         }
     },
+
     showLibrary() {
         const pageContainer = document.querySelector('.page-container');
         const audioPlayerBar = document.getElementById('audioPlayerBar');
@@ -88,13 +97,16 @@ const PlayerManager = {
         if (audioPlayerBar) audioPlayerBar.style.display = 'none';
         this.playerActive = false;
         this.currentFile = null;
+        this.consecutiveErrors = 0;
     },
+
     hideLibrary() {
         const pageContainer = document.querySelector('.page-container');
         const audioPlayerBar = document.getElementById('audioPlayerBar');
         if (pageContainer) pageContainer.style.display = 'none';
         if (audioPlayerBar) audioPlayerBar.style.display = 'none';
     },
+
     async callPlayerApi(endpoint, data = {}) {
         if (!this.playerActive) return null;
         try {
@@ -108,42 +120,78 @@ const PlayerManager = {
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
-            return await response.json();
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const result = await response.json();
+            this.consecutiveErrors = 0;
+            return result;
         } catch (error) {
             console.error(`API error on ${endpoint}:`, error);
-            this.handlePlayerDisconnected();
+            this.consecutiveErrors++;
+            console.log(`Consecutive errors: ${this.consecutiveErrors}/${this.maxConsecutiveErrors}`);
+            if (this.consecutiveErrors >= this.maxConsecutiveErrors) {
+                this.handlePlayerDisconnected();
+            }
             return null;
         }
     },
+
     handlePlayerDisconnected() {
-        console.log('Player disconnected, returning to library');
-        this.playerActive = false;
-        this.hideControl();
-        this.showLibrary();
-        // Utils.showNotification('Плеер закрыт, возврат в библиотеку', 'info');
+        console.log('Player disconnected (multiple consecutive errors), returning to library');
+        this.checkPlayerAlive().then(isAlive => {
+            if (!isAlive) {
+                this.playerActive = false;
+                this.hideControl();
+                this.showLibrary();
+            } else {
+                console.log('Player is still alive, resetting error counter');
+                this.consecutiveErrors = 0;
+            }
+        });
     },
+
+    async checkPlayerAlive() {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            const response = await fetch(`${this.getPlayerUrl()}/api/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (response.ok) {
+                const status = await response.json();
+                return status.available === true;
+            }
+        } catch (error) {}
+        return false;
+    },
+
     async seekForward() {
         if (!this.playerActive) return;
         const result = await this.callPlayerApi('/api/seekforward', { seconds: 10 });
         if (result && result.success) {
-            // Utils.showNotification('Вперед 10 секунд', 'success');
+        } else if (result === null && this.consecutiveErrors < this.maxConsecutiveErrors) {
+            console.log('Temporary error, ignoring');
         } else if (result === null) {
             this.handlePlayerDisconnected();
-        } else {
-            Utils.showNotification('Ошибка перемотки', 'error');
         }
     },
+
     async seekBackward() {
         if (!this.playerActive) return;
         const result = await this.callPlayerApi('/api/seekbackward', { seconds: 10 });
         if (result && result.success) {
-            // Utils.showNotification('Назад 10 секунд', 'success');
+        } else if (result === null && this.consecutiveErrors < this.maxConsecutiveErrors) {
+            console.log('Temporary error, ignoring');
         } else if (result === null) {
             this.handlePlayerDisconnected();
-        } else {
-            Utils.showNotification('Ошибка перемотки', 'error');
         }
     },
+
     async toggleFullscreen() {
         if (!this.playerActive) return;
         const newState = !this.isFullscreen;
@@ -151,23 +199,23 @@ const PlayerManager = {
         if (result && result.success) {
             this.isFullscreen = newState;
             this.updateFullscreenButton();
-            // Utils.showNotification(newState ? 'Полноэкранный режим включен' : 'Полноэкранный режим выключен', 'success');
-        } else if (result === null) {
-            this.handlePlayerDisconnected();
         }
     },
+
     updateFullscreenButton() {
         const fullscreenBtn = document.getElementById('fullscreenBtn');
         if (fullscreenBtn) {
             fullscreenBtn.innerHTML = this.isFullscreen ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
         }
     },
+
     updatePlayPauseButton() {
         const btn = document.getElementById('playPauseBtn');
         if (btn) {
             btn.innerHTML = this.isPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
         }
     },
+
     async togglePlayPause() {
         if (!this.playerActive) return;
         if (this.updatingStatus) return;
@@ -178,8 +226,6 @@ const PlayerManager = {
                 this.isPlaying = !this.isPlaying;
                 this.updatePlayPauseButton();
                 this.updatePlaybackStatus(this.isPlaying);
-            } else if (result === null) {
-                this.handlePlayerDisconnected();
             }
         } catch (error) {
             console.error('Toggle play/pause error:', error);
@@ -187,6 +233,7 @@ const PlayerManager = {
             setTimeout(() => { this.updatingStatus = false; }, 500);
         }
     },
+
     async closeFile() {
         if (!this.playerActive) {
             this.hideControl();
@@ -195,11 +242,11 @@ const PlayerManager = {
         }
         const result = await this.callPlayerApi('/api/close');
         if (result && result.success) {
-            // Utils.showNotification('Файл закрыт', 'success');
         }
         this.hideControl();
         this.showLibrary();
     },
+
     async deleteFile() {
         if (!this.playerActive) {
             this.hideControl();
@@ -209,18 +256,14 @@ const PlayerManager = {
         if (!confirm('Вы уверены, что хотите переместить файл в корзину?')) return;
         const result = await this.callPlayerApi('/api/closefile');
         if (result && result.success) {
-            // Utils.showNotification(result.message || 'Файл перемещён в корзину', 'success');
             if (typeof VideoExplorer !== 'undefined' && VideoExplorer.currentPath) {
                 VideoExplorer.loadDirectory(VideoExplorer.currentPath);
             }
-        } else if (result === null) {
-            Utils.showNotification('Плеер закрыт, файл не удалён', 'info');
-        } else {
-            Utils.showNotification(result?.error || 'Ошибка при удалении', 'error');
         }
         this.hideControl();
         this.showLibrary();
     },
+
     async getStatus() {
         if (!this.playerActive) return false;
         try {
@@ -235,10 +278,14 @@ const PlayerManager = {
             });
             clearTimeout(timeoutId);
             if (!response.ok) {
-                this.handlePlayerDisconnected();
+                this.consecutiveErrors++;
+                if (this.consecutiveErrors >= this.maxConsecutiveErrors) {
+                    this.handlePlayerDisconnected();
+                }
                 return false;
             }
             const status = await response.json();
+            this.consecutiveErrors = 0;
             if (status && status.available === true) {
                 this.isPlaying = status.isPlaying === true;
                 this.isFullscreen = status.isFullScreen === "true" || status.isFullScreen === true;
@@ -254,15 +301,22 @@ const PlayerManager = {
                 this.updateFullscreenButton();
                 return true;
             } else if (status && status.available === false) {
-                this.handlePlayerDisconnected();
+                this.consecutiveErrors++;
+                if (this.consecutiveErrors >= this.maxConsecutiveErrors) {
+                    this.handlePlayerDisconnected();
+                }
                 return false;
             }
         } catch (error) {
-            console.log('Status check failed, player may be closed');
-            this.handlePlayerDisconnected();
+            console.log('Status check failed:', error.message);
+            this.consecutiveErrors++;
+            if (this.consecutiveErrors >= this.maxConsecutiveErrors) {
+                this.handlePlayerDisconnected();
+            }
         }
         return false;
     },
+
     async checkCurrentPlayback() {
         try {
             const controller = new AbortController();
@@ -297,6 +351,7 @@ const PlayerManager = {
                 if (!this.isFullscreen) {
                     setTimeout(() => this.toggleFullscreen(), 1000);
                 }
+                this.consecutiveErrors = 0;
                 return true;
             } else {
                 console.log('Player not running');
@@ -313,6 +368,7 @@ const PlayerManager = {
             return false;
         }
     },
+
     async playMedia(path) {
         console.log('PlayerManager.playMedia called with path:', path);
         try {
@@ -344,8 +400,8 @@ const PlayerManager = {
                 this.updatePlayPauseButton();
                 this.updateFullscreenButton();
                 this.startStatusPolling();
+                this.consecutiveErrors = 0;
                 if (!this.isFullscreen) setTimeout(() => this.toggleFullscreen(), 1500);
-                // Utils.showNotification(`Воспроизведение: ${path.split('/').pop()}`, 'success');
             } else {
                 throw new Error('Player did not load the file');
             }
@@ -356,6 +412,7 @@ const PlayerManager = {
             this.showLibrary();
         }
     },
+
     async checkPlayerRunning() {
         try {
             const controller = new AbortController();
@@ -374,6 +431,7 @@ const PlayerManager = {
         } catch (error) {}
         return false;
     },
+
     async checkPlayerRunningWithStatus() {
         try {
             const controller = new AbortController();
@@ -391,6 +449,7 @@ const PlayerManager = {
         } catch (error) {}
         return null;
     },
+
     async waitForPlayer(timeoutMs) {
         const startTime = Date.now();
         while (Date.now() - startTime < timeoutMs) {
@@ -404,6 +463,7 @@ const PlayerManager = {
         }
         throw new Error('Player did not start within timeout');
     },
+
     async launchPlayerWithFile(path) {
         try {
             const response = await fetch(`${this.getServerUrl()}/api/open`, {
@@ -418,10 +478,12 @@ const PlayerManager = {
             return false;
         }
     },
+
     showControl() {
         const playerControlPage = document.getElementById('playerControlPage');
         if (playerControlPage) playerControlPage.style.display = 'flex';
     },
+
     hideControl() {
         const playerControlPage = document.getElementById('playerControlPage');
         if (playerControlPage) playerControlPage.style.display = 'none';
@@ -429,22 +491,26 @@ const PlayerManager = {
         this.stopStatusPolling();
         this.playerActive = false;
         this.isFullscreen = false;
+        this.consecutiveErrors = 0;
         this.updateFullscreenButton();
         if (this.fullscreenRetryInterval) {
             clearInterval(this.fullscreenRetryInterval);
             this.fullscreenRetryInterval = null;
         }
     },
+
     startStatusPolling() {
         this.stopStatusPolling();
-        this.statusCheckInterval = setInterval(() => this.getStatus(), 3000);
+        this.statusCheckInterval = setInterval(() => this.getStatus(), 5000);
     },
+
     stopStatusPolling() {
         if (this.statusCheckInterval) {
             clearInterval(this.statusCheckInterval);
             this.statusCheckInterval = null;
         }
     },
+
     handleKeyPress(e) {
         if (!this.playerActive) return;
         switch(e.code) {
@@ -469,6 +535,7 @@ const PlayerManager = {
                 break;
         }
     },
+
     updatePlaybackStatus(isPlaying) {
         this.isPlaying = isPlaying;
         const placeholder = document.querySelector('.player-placeholder');
@@ -485,12 +552,14 @@ const PlayerManager = {
             </div>
         `;
     },
+
     escapeHtml(str) {
         if (!str) return '';
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
     },
+
     delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
