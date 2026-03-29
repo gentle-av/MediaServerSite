@@ -14,8 +14,31 @@ const AlbumLibrary = {
     async init() {
         const grid = document.getElementById('albumsGrid');
         if (!grid) return;
-        await this.loadArtists();
+        grid.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка артистов...</div>';
+        this.loadArtistsInBackground();
         this.setupEventListeners();
+    },
+
+    async loadArtistsInBackground() {
+        try {
+            const response = await fetch(`${this.getServerUrl()}/api/music/artists`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (data.status === 'success' && data.artists) {
+                this.artists = data.artists;
+                this.totalArtists = this.artists.length;
+                await this.loadAlbumsSequentially();
+            } else {
+                const grid = document.getElementById('albumsGrid');
+                if (grid) grid.innerHTML = '<div class="empty"><i class="fas fa-folder-open"></i> Не удалось загрузить артистов</div>';
+            }
+        } catch (error) {
+            console.error('Error loading artists:', error);
+            const grid = document.getElementById('albumsGrid');
+            if (grid) grid.innerHTML = '<div class="empty"><i class="fas fa-exclamation-triangle"></i> Ошибка загрузки артистов</div>';
+        }
     },
 
     closePlaylistSidebar() {
@@ -166,42 +189,15 @@ const AlbumLibrary = {
         `;
         const progressSpan = document.getElementById('albumProgress');
         const foundSpan = document.getElementById('albumsFound');
+        const loadPromises = [];
         for (let i = 0; i < this.artists.length; i++) {
             const artist = this.artists[i];
-            try {
-                const url = `${this.getServerUrl()}/api/music/albums?artist=${encodeURIComponent(artist)}`;
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await response.json();
-                if (data.status === 'success' && data.albums) {
-                    for (const album of data.albums) {
-                        const albumKey = `${album.album}|${album.artist}`;
-                        if (!uniqueAlbums.has(albumKey)) {
-                            const tracks = await this.getTracksFromAlbum(album.album, album.artist);
-                            const coverUrl = await this.getAlbumCover(album.album, album.artist);
-                            uniqueAlbums.set(albumKey, {
-                                name: album.album,
-                                artist: album.artist,
-                                title: album.album,
-                                year: album.year || '',
-                                tracks: tracks,
-                                coverUrl: coverUrl,
-                                trackCount: tracks.length
-                            });
-                            this.albums = Array.from(uniqueAlbums.values());
-                            this.filteredAlbums = [...this.albums];
-                            this.renderAlbumsIncremental();
-                            if (foundSpan) foundSpan.textContent = this.albums.length;
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error(`Error loading albums for artist ${artist}:`, error);
+            const loadPromise = this.loadArtistAlbums(artist, uniqueAlbums, progressSpan, foundSpan, i + 1);
+            loadPromises.push(loadPromise);
+            if (loadPromises.length >= 5 || i === this.artists.length - 1) {
+                await Promise.all(loadPromises);
+                loadPromises.length = 0;
             }
-            this.loadedArtists = i + 1;
-            if (progressSpan) progressSpan.textContent = this.loadedArtists;
         }
         this.albums.sort((a, b) => {
             if (a.artist !== b.artist) return a.artist.localeCompare(b.artist);
@@ -212,34 +208,88 @@ const AlbumLibrary = {
         this.renderAlbums();
     },
 
-    renderAlbumsIncremental() {
-        const grid = document.getElementById('albumsGrid');
-        if (!grid) return;
-        const loadingDiv = grid.querySelector('.loading');
-        if (this.albums.length === 0) return;
-        const albumsHtml = this.albums.map(album => `
-            <div class="album-card" data-artist="${Utils.escapeHtml(album.artist)}" data-album="${Utils.escapeHtml(album.title)}">
-                <div class="album-cover">
-                    ${album.coverUrl ?
-                        `<img src="${album.coverUrl}" alt="${Utils.escapeHtml(album.title)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` :
-                        `<i class="fas fa-album fallback-icon"></i>`
+    async loadArtistAlbums(artist, uniqueAlbums, progressSpan, foundSpan, loadedCount) {
+        try {
+            const url = `${this.getServerUrl()}/api/music/albums?artist=${encodeURIComponent(artist)}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (data.status === 'success' && data.albums) {
+                const newAlbums = [];
+                for (const album of data.albums) {
+                    const albumKey = `${album.album}|${album.artist}`;
+                    if (!uniqueAlbums.has(albumKey)) {
+                        const tracks = await this.getTracksFromAlbum(album.album, album.artist);
+                        const coverUrl = await this.getAlbumCover(album.album, album.artist);
+                        const albumData = {
+                            name: album.album,
+                            artist: album.artist,
+                            title: album.album,
+                            year: album.year || '',
+                            tracks: tracks,
+                            coverUrl: coverUrl,
+                            trackCount: tracks.length
+                        };
+                        uniqueAlbums.set(albumKey, albumData);
+                        newAlbums.push(albumData);
                     }
-                    ${album.coverUrl ? `<i class="fas fa-album fallback-icon" style="display: none;"></i>` : ''}
-                </div>
-                <div class="album-info">
-                    <div class="album-title" title="${Utils.escapeHtml(album.title)}">${Utils.escapeHtml(album.title)}</div>
-                    <div class="album-artist">${Utils.escapeHtml(album.artist || 'Unknown')}</div>
-                    <div class="album-year">${album.year}</div>
-                    <div class="track-count"><i class="fas fa-headphones"></i> ${album.trackCount} треков</div>
-                </div>
-            </div>
-        `).join('');
-        if (loadingDiv) {
-            grid.innerHTML = albumsHtml + loadingDiv.outerHTML;
-        } else {
-            grid.innerHTML = albumsHtml;
+                }
+                if (newAlbums.length > 0) {
+                    this.albums.push(...newAlbums);
+                    this.filteredAlbums = [...this.albums];
+                    this.renderAlbumsIncremental();
+                    if (foundSpan) foundSpan.textContent = this.albums.length;
+                }
+            }
+        } catch (error) {
+            console.error(`Error loading albums for artist ${artist}:`, error);
         }
-        this.attachAlbumCardEvents();
+        this.loadedArtists = loadedCount;
+        if (progressSpan) progressSpan.textContent = this.loadedArtists;
+    },
+
+    async loadArtistAlbums(artist, uniqueAlbums, progressSpan, foundSpan, loadedCount) {
+        try {
+            const url = `${this.getServerUrl()}/api/music/albums?artist=${encodeURIComponent(artist)}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (data.status === 'success' && data.albums) {
+                const newAlbums = [];
+                for (const album of data.albums) {
+                    const albumKey = `${album.album}|${album.artist}`;
+                    if (!uniqueAlbums.has(albumKey)) {
+                        const tracks = await this.getTracksFromAlbum(album.album, album.artist);
+                        const coverUrl = await this.getAlbumCover(album.album, album.artist);
+                        const albumData = {
+                            name: album.album,
+                            artist: album.artist,
+                            title: album.album,
+                            year: album.year || '',
+                            tracks: tracks,
+                            coverUrl: coverUrl,
+                            trackCount: tracks.length
+                        };
+                        uniqueAlbums.set(albumKey, albumData);
+                        newAlbums.push(albumData);
+                    }
+                }
+                if (newAlbums.length > 0) {
+                    this.albums.push(...newAlbums);
+                    this.filteredAlbums = [...this.albums];
+                    this.renderAlbumsIncremental();
+                    if (foundSpan) foundSpan.textContent = this.albums.length;
+                }
+            }
+        } catch (error) {
+            console.error(`Error loading albums for artist ${artist}:`, error);
+        }
+        this.loadedArtists = loadedCount;
+        if (progressSpan) progressSpan.textContent = this.loadedArtists;
     },
 
     attachAlbumCardEvents() {
