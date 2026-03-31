@@ -10,6 +10,7 @@ const AudioPlayer = {
     pendingAction: null,
     panelUpdateInterval: null,
     lastPlaylistLength: 0,
+    lastCurrentFilePath: null,
 
     getServerUrl() {
         return `http://${window.location.hostname}:${window.location.port}`;
@@ -174,7 +175,8 @@ const AudioPlayer = {
         if (typeof PlaylistViewer !== 'undefined') {
             PlaylistViewer.refresh();
         }
-        this.refreshPanel();
+        await this.delay(300);
+        await this.updateUI();
     },
 
     async replacePlaylist(album, trackIndex = null) {
@@ -187,9 +189,10 @@ const AudioPlayer = {
         const trackPaths = tracksToReplace.map(t => t.path);
         console.log('[DEBUG] Sending replacePlaylist with paths:', trackPaths);
         await this.sendToMusium('/api/replacePlaylist', { tracks: trackPaths });
-        await this.sendToMusium('/api/play', {});
+        await this.delay(300);
         Utils.showNotification(`Плейлист заменен ${tracksToReplace.length} треками`, 'success');
-        this.refreshPanel();
+        await this.delay(300);
+        await this.updateUI();
     },
 
     async addAfterCurrent(album, trackIndex) {
@@ -198,14 +201,16 @@ const AudioPlayer = {
         if (!started) return;
         await this.sendToMusium('/api/addAfterCurrent', { path: track.path });
         Utils.showNotification(`Трек "${track.name}" добавлен после текущего`, 'success');
-        this.refreshPanel();
+        await this.delay(300);
+        await this.updateUI();
     },
 
     async clearPlaylist() {
         await this.sendToMusium('/api/clear');
         if (typeof PlaylistViewer !== 'undefined') PlaylistViewer.refresh();
         Utils.showNotification('Плейлист очищен', 'success');
-        this.refreshPanel();
+        await this.delay(300);
+        await this.updateUI();
     },
 
     async playTrackInMusium(album, trackIndex) {
@@ -213,9 +218,11 @@ const AudioPlayer = {
         const started = await this.ensureMusiumRunning([track]);
         if (!started) return;
         await this.sendToMusium('/api/replacePlaylist', { tracks: [track.path] });
+        await this.delay(300);
         await this.sendToMusium('/api/play', {});
         Utils.showNotification(`Воспроизведение: ${track.name}`, 'success');
-        this.refreshPanel();
+        await this.delay(300);
+        await this.updateUI();
     },
 
     async playSingleTrack(album, trackIndex) {
@@ -223,13 +230,12 @@ const AudioPlayer = {
         const track = album.tracks[trackIndex];
         const started = await this.ensureMusiumRunning([track]);
         if (!started) return;
-
         const playlist = await this.getMusiumPlaylist();
         console.log('[DEBUG] Current playlist:', playlist);
-
         if (!playlist || !playlist.data || !playlist.data.playlist || playlist.data.playlist.length === 0) {
             console.log('[DEBUG] Playlist empty, replacing');
             await this.sendToMusium('/api/replacePlaylist', { tracks: [track.path] });
+            await this.delay(300);
             await this.sendToMusium('/api/play', {});
             Utils.showNotification(`Воспроизведение: ${track.name}`, 'success');
         } else {
@@ -258,7 +264,6 @@ const AudioPlayer = {
             }
             Utils.showNotification(`Воспроизведение: ${track.name}`, 'success');
         }
-
         this.currentAlbum = album;
         this.tracks = [...album.tracks];
         this.currentTrackIndex = trackIndex;
@@ -273,8 +278,8 @@ const AudioPlayer = {
         if (albumTitle) albumTitle.textContent = album.title;
         if (artistName) artistName.textContent = album.artist;
         if (playerBar) playerBar.style.display = 'flex';
-        this.updateTrackInfo();
-        this.refreshPanel();
+        await this.delay(300);
+        await this.updateUI();
     },
 
     async playAlbumInMusium(album) {
@@ -283,39 +288,43 @@ const AudioPlayer = {
         if (!started) return;
         const trackPaths = album.tracks.map(t => t.path);
         await this.sendToMusium('/api/replacePlaylist', { tracks: trackPaths });
+        await this.delay(300);
         await this.sendToMusium('/api/play', {});
         Utils.showNotification(`Воспроизведение альбома: ${album.title}`, 'success');
-        this.refreshPanel();
+        await this.delay(300);
+        await this.updateUI();
     },
 
     async previousTrackMusium() {
         if (!this.musiumAvailable) return;
         await this.sendToMusium('/api/previous', {});
-        this.refreshPanel();
+        await this.delay(200);
+        await this.updateUI();
     },
 
     async nextTrackMusium() {
         if (!this.musiumAvailable) return;
         await this.sendToMusium('/api/next', {});
-        this.refreshPanel();
+        await this.delay(200);
+        await this.updateUI();
     },
 
     async pauseMusium() {
         if (!this.musiumAvailable) return;
         await this.sendToMusium('/api/pause', {});
-        this.refreshPanel();
+        await this.updateUI();
     },
 
     async playMusium() {
         if (!this.musiumAvailable) return;
         await this.sendToMusium('/api/play', {});
-        this.refreshPanel();
+        await this.updateUI();
     },
 
     async stopMusium() {
         if (!this.musiumAvailable) return;
         await this.sendToMusium('/api/stop', {});
-        this.refreshPanel();
+        await this.updateUI();
     },
 
     init() {
@@ -323,9 +332,7 @@ const AudioPlayer = {
         this.setupEventListeners();
         this.createAudioElement();
         this.checkMusiumAvailable();
-        this.initPanel();
-        const panel = document.getElementById('audioPlayerControlPanel');
-        if (panel) panel.classList.remove('active');
+        this.initUI();
     },
 
     createAudioElement() {
@@ -379,7 +386,6 @@ const AudioPlayer = {
         this.audioElement.play().catch(e => console.error('Play error:', e));
         this.isPlaying = true;
         this.updatePlayerUI();
-        this.updateTrackInfo();
     },
 
     async togglePlayPause() {
@@ -446,15 +452,6 @@ const AudioPlayer = {
         this.audioElement.volume = percent / 100;
     },
 
-    updateTrackInfo() {
-        const trackName = document.getElementById('playerTrack');
-        if (trackName && this.currentTrackIndex >= 0 && this.tracks[this.currentTrackIndex]) {
-            trackName.textContent = this.tracks[this.currentTrackIndex].name;
-        } else if (trackName) {
-            trackName.textContent = '—';
-        }
-    },
-
     updateProgress() {
         if (this.audioElement.duration) {
             const percent = (this.audioElement.currentTime / this.audioElement.duration) * 100;
@@ -466,7 +463,6 @@ const AudioPlayer = {
         if (playBtn) {
             playBtn.innerHTML = this.isPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
         }
-        this.updateTrackInfo();
     },
 
     addAlbumToPlaylist(album) {
@@ -530,7 +526,7 @@ const AudioPlayer = {
         return new Promise(resolve => setTimeout(resolve, ms));
     },
 
-    initPanel() {
+    initUI() {
         this.panelPlayPauseBtn = document.getElementById('panelPlayPauseBtn');
         this.panelPrevBtn = document.getElementById('panelPrevBtn');
         this.panelNextBtn = document.getElementById('panelNextBtn');
@@ -542,6 +538,7 @@ const AudioPlayer = {
         this.panelTimeCurrent = document.getElementById('panelTimeCurrent');
         this.panelTimeTotal = document.getElementById('panelTimeTotal');
         this.panelProgressFill = document.getElementById('panelProgressFill');
+        this.lastCurrentFilePath = null;
         if (this.panelPlayPauseBtn) this.panelPlayPauseBtn.addEventListener('click', () => this.togglePlayPause());
         if (this.panelPrevBtn) this.panelPrevBtn.addEventListener('click', () => this.previousTrack());
         if (this.panelNextBtn) this.panelNextBtn.addEventListener('click', () => this.nextTrack());
@@ -553,9 +550,13 @@ const AudioPlayer = {
         if (this.panelTrackName) this.panelTrackName.textContent = 'Плейлист пуст';
         if (this.panelTrackArtist) this.panelTrackArtist.textContent = '';
         this.lastPlaylistLength = 0;
+        if (this.panelUpdateInterval) {
+            clearInterval(this.panelUpdateInterval);
+        }
+        this.panelUpdateInterval = setInterval(() => this.updateUI(), 1000);
     },
 
-    async refreshPanel() {
+    async updateUI() {
         if (!this.musiumAvailable) {
             const panel = document.getElementById('audioPlayerControlPanel');
             if (panel && panel.classList.contains('active')) {
@@ -565,62 +566,102 @@ const AudioPlayer = {
             if (this.panelTrackArtist) this.panelTrackArtist.textContent = '';
             return;
         }
-        const playlistData = await this.getMusiumPlaylist();
-        const hasTracks = playlistData && playlistData.data && playlistData.data.playlist && playlistData.data.playlist.length > 0;
+        const stateResponse = await this.sendToMusium('/api/playbackState', null, 'GET');
+        if (!stateResponse || !stateResponse.success) {
+            return;
+        }
+        const hasTracks = stateResponse.data.hasTrack || (stateResponse.data.playlistSize > 0);
         const panel = document.getElementById('audioPlayerControlPanel');
         if (!hasTracks) {
             if (panel && panel.classList.contains('active')) {
                 panel.classList.remove('active');
             }
-            if (this.panelTrackName && this.panelTrackName.textContent !== 'Плейлист пуст') {
-                this.panelTrackName.textContent = 'Плейлист пуст';
-            }
+            if (this.panelTrackName) this.panelTrackName.textContent = 'Плейлист пуст';
             if (this.panelTrackArtist) this.panelTrackArtist.textContent = '';
             this.lastPlaylistLength = 0;
+            this.lastCurrentFilePath = null;
             return;
         }
         if (panel && !panel.classList.contains('active')) {
             panel.classList.add('active');
         }
-        const status = await this.getMusiumStatus();
-        if (status && status.data) {
-            const currentTrack = status.data.currentTrack;
-            if (currentTrack) {
-                if (this.panelTrackName) this.panelTrackName.textContent = currentTrack.title || currentTrack.name || '—';
-                if (this.panelTrackArtist) this.panelTrackArtist.textContent = currentTrack.artist || '';
-                if (this.panelTimeCurrent) this.panelTimeCurrent.textContent = this.formatTime(status.data.position);
-                if (this.panelTimeTotal) this.panelTimeTotal.textContent = this.formatTime(status.data.duration);
-                if (this.panelProgressFill && status.data.duration > 0) {
-                    const percent = (status.data.position / status.data.duration) * 100;
-                    this.panelProgressFill.style.width = percent + '%';
-                }
-                if (this.panelPlayPauseBtn) {
-                    if (status.data.isPlaying) {
-                        this.panelPlayPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-                        this.panelPlayPauseBtn.title = 'Пауза';
-                    } else {
-                        this.panelPlayPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-                        this.panelPlayPauseBtn.title = 'Воспроизвести';
-                    }
-                }
-            } else {
-                if (this.panelTrackName) this.panelTrackName.textContent = 'Нет трека';
-                if (this.panelTrackArtist) this.panelTrackArtist.textContent = '';
+        const trackResponse = await this.sendToMusium('/api/currentTrack', null, 'GET');
+        const timeResponse = await this.sendToMusium('/api/currentTime', null, 'GET');
+        let trackPath = '';
+        if (trackResponse && trackResponse.success && trackResponse.data.path) {
+            trackPath = trackResponse.data.path;
+        } else {
+            const playlistData = await this.getMusiumPlaylist();
+            if (playlistData && playlistData.data && playlistData.data.playlist && playlistData.data.playlist.length > 0) {
+                trackPath = playlistData.data.playlist[0].path;
             }
         }
-        this.lastPlaylistLength = playlistData?.data?.playlist?.length || 0;
+        if (trackPath) {
+            const metadata = await this.fetchTrackMetadata(trackPath);
+            let trackName = '';
+            let trackArtist = '';
+            if (metadata) {
+                trackName = metadata.name || '';
+                trackArtist = metadata.artist || '';
+            } else {
+                trackName = trackPath.split('/').pop() || '';
+                trackArtist = '';
+            }
+            if (this.panelTrackName) this.panelTrackName.textContent = trackName || '—';
+            if (this.panelTrackArtist) this.panelTrackArtist.textContent = trackArtist || '';
+            this.lastCurrentFilePath = trackPath;
+        } else {
+            if (this.panelTrackName) this.panelTrackName.textContent = '—';
+            if (this.panelTrackArtist) this.panelTrackArtist.textContent = '';
+        }
+        if (timeResponse && timeResponse.success) {
+            if (this.panelTimeCurrent) this.panelTimeCurrent.textContent = this.formatTime(timeResponse.data.position || 0);
+            if (this.panelTimeTotal) this.panelTimeTotal.textContent = this.formatTime(timeResponse.data.duration || 0);
+            if (this.panelProgressFill && timeResponse.data.duration > 0) {
+                const percent = timeResponse.data.progressPercent || 0;
+                this.panelProgressFill.style.width = percent + '%';
+            } else if (this.panelProgressFill) {
+                this.panelProgressFill.style.width = '0%';
+            }
+        }
+        if (stateResponse && stateResponse.data) {
+            if (this.panelPlayPauseBtn) {
+                if (stateResponse.data.isPlaying) {
+                    this.panelPlayPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                    this.panelPlayPauseBtn.title = 'Пауза';
+                } else {
+                    this.panelPlayPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    this.panelPlayPauseBtn.title = 'Воспроизвести';
+                }
+            }
+        }
+        this.lastPlaylistLength = stateResponse.data.playlistSize || 0;
     },
 
-    seekTo(event) {
-        const rect = this.panelProgressBar.getBoundingClientRect();
-        const percent = (event.clientX - rect.left) / rect.width;
-        this.getMusiumStatus().then(status => {
-            if (status && status.data && status.data.duration) {
-                const position = percent * status.data.duration;
-                this.sendToMusium('/api/seek', { position: position });
-                setTimeout(() => this.refreshPanel(), 100);
+    async fetchTrackMetadata(path) {
+        try {
+            const url = `${this.getServerUrl()}/api/music/list`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (data.status === 'success' && data.files) {
+                for (const file of data.files) {
+                    if (file.path === path) {
+                        return {
+                            name: file.title || file.filename,
+                            artist: file.artist || 'Unknown',
+                            track: file.track
+                        };
+                    }
+                }
             }
-        });
+            return null;
+        } catch (error) {
+            console.error('Error fetching metadata:', error);
+            return null;
+        }
     },
 
     formatTime(seconds) {
