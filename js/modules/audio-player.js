@@ -19,6 +19,7 @@ const AudioPlayer = {
     },
 
     async checkMusiumAvailable() {
+        console.log('[DEBUG] checkMusiumAvailable called, URL:', this.getMusiumUrl());
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 2000);
@@ -28,8 +29,10 @@ const AudioPlayer = {
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
+            console.log('[DEBUG] checkMusiumAvailable response status:', response.status);
             if (response.ok) {
                 const data = await response.json();
+                console.log('[DEBUG] checkMusiumAvailable data:', data);
                 this.musiumAvailable = data.success === true;
                 if (this.musiumAvailable && this.pendingAction) {
                     const action = this.pendingAction;
@@ -39,15 +42,19 @@ const AudioPlayer = {
                 return this.musiumAvailable;
             }
         } catch (error) {
-            console.log('Musium not running');
+            console.log('[DEBUG] Musium not running, error:', error.message);
         }
         this.musiumAvailable = false;
         return false;
     },
 
     async waitForMusium(timeoutMs) {
+        console.log('[DEBUG] waitForMusium started, timeout:', timeoutMs);
         const startTime = Date.now();
+        let attempt = 0;
         while (Date.now() - startTime < timeoutMs) {
+            attempt++;
+            console.log(`[DEBUG] waitForMusium attempt ${attempt}`);
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 1000);
@@ -59,30 +66,40 @@ const AudioPlayer = {
                 clearTimeout(timeoutId);
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('[DEBUG] waitForMusium response:', data);
                     if (data.success === true) {
                         this.musiumAvailable = true;
+                        console.log('[DEBUG] Musium is now available!');
                         return true;
                     }
                 }
             } catch (error) {
+                console.log(`[DEBUG] waitForMusium attempt ${attempt} failed:`, error.message);
             }
             await this.delay(1000);
         }
+        console.log('[DEBUG] waitForMusium timeout, Musium not started');
         return false;
     },
 
     async launchMusiumWithTracks(tracks) {
+        console.log('[DEBUG] launchMusiumWithTracks called, tracks count:', tracks.length);
+        console.log('[DEBUG] First track path:', tracks[0]?.path);
         try {
             Utils.showNotification('Запуск аудиоплеера...', 'info');
-            const response = await fetch(`${this.getServerUrl()}/api/music/open`, {
+            const url = `${this.getServerUrl()}/api/music/open`;
+            console.log('[DEBUG] Launch URL:', url);
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tracks: tracks.map(t => t.path) })
             });
+            console.log('[DEBUG] Launch response status:', response.status);
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
             const data = await response.json();
+            console.log('[DEBUG] Launch response data:', data);
             if (data.status === 'success') {
                 const started = await this.waitForMusium(10000);
                 if (started) {
@@ -95,20 +112,27 @@ const AudioPlayer = {
             }
             return false;
         } catch (error) {
-            console.error('Error launching Musium:', error);
-            Utils.showNotification('Ошибка запуска аудиоплеера', 'error');
+            console.error('[ERROR] Error launching Musium:', error);
+            Utils.showNotification('Ошибка запуска аудиоплеера: ' + error.message, 'error');
             return false;
         }
     },
 
     async ensureMusiumRunning(tracks) {
+        console.log('[DEBUG] ensureMusiumRunning called');
         const isAvailable = await this.checkMusiumAvailable();
+        console.log('[DEBUG] Musium available:', isAvailable);
         if (isAvailable) return true;
+        console.log('[DEBUG] Launching Musium...');
         return await this.launchMusiumWithTracks(tracks);
     },
 
     async sendToMusium(endpoint, data, method = 'POST') {
-        if (!this.musiumAvailable) return null;
+        console.log(`[DEBUG] sendToMusium: ${endpoint}, data:`, data);
+        if (!this.musiumAvailable) {
+            console.log('[DEBUG] Musium not available, skipping request');
+            return null;
+        }
         try {
             const url = `${this.getMusiumUrl()}${endpoint}`;
             const options = {
@@ -119,7 +143,9 @@ const AudioPlayer = {
                 options.body = JSON.stringify(data);
             }
             const response = await fetch(url, options);
-            return await response.json();
+            const result = await response.json();
+            console.log(`[DEBUG] sendToMusium response from ${endpoint}:`, result);
+            return result;
         } catch (error) {
             console.error(`Musium API error: ${endpoint}`, error);
             this.musiumAvailable = false;
@@ -149,10 +175,14 @@ const AudioPlayer = {
     },
 
     async replacePlaylist(album, trackIndex = null) {
+        console.log('[DEBUG] replacePlaylist called, album:', album?.title, 'trackIndex:', trackIndex);
         const tracksToReplace = trackIndex !== null ? [album.tracks[trackIndex]] : album.tracks;
+        console.log('[DEBUG] tracksToReplace count:', tracksToReplace.length);
         const started = await this.ensureMusiumRunning(tracksToReplace);
+        console.log('[DEBUG] ensureMusiumRunning result:', started);
         if (!started) return;
         const trackPaths = tracksToReplace.map(t => t.path);
+        console.log('[DEBUG] Sending replacePlaylist with paths:', trackPaths);
         await this.sendToMusium('/api/replacePlaylist', { tracks: trackPaths });
         await this.sendToMusium('/api/play', {});
         Utils.showNotification(`Плейлист заменен ${tracksToReplace.length} треками`, 'success');
@@ -175,7 +205,66 @@ const AudioPlayer = {
         Utils.showNotification(`Воспроизведение: ${track.name}`, 'success');
     },
 
+    async playSingleTrack(album, trackIndex) {
+        console.log('[DEBUG] playSingleTrack called, trackIndex:', trackIndex);
+        const track = album.tracks[trackIndex];
+        const started = await this.ensureMusiumRunning([track]);
+        if (!started) return;
+
+        const playlist = await this.getMusiumPlaylist();
+        console.log('[DEBUG] Current playlist:', playlist);
+
+        if (!playlist || !playlist.data || !playlist.data.playlist || playlist.data.playlist.length === 0) {
+            console.log('[DEBUG] Playlist empty, replacing');
+            await this.sendToMusium('/api/replacePlaylist', { tracks: [track.path] });
+            await this.sendToMusium('/api/play', {});
+            Utils.showNotification(`Воспроизведение: ${track.name}`, 'success');
+        } else {
+            let trackIndexInPlaylist = -1;
+            for (let i = 0; i < playlist.data.playlist.length; i++) {
+                if (playlist.data.playlist[i].path === track.path) {
+                    trackIndexInPlaylist = i;
+                    break;
+                }
+            }
+            if (trackIndexInPlaylist >= 0) {
+                console.log('[DEBUG] Track found in playlist at index:', trackIndexInPlaylist);
+                await this.sendToMusium('/api/playIndex', { index: trackIndexInPlaylist });
+            } else {
+                console.log('[DEBUG] Track not in playlist, adding after current');
+                await this.sendToMusium('/api/addAfterCurrent', { path: track.path });
+                const newPlaylist = await this.getMusiumPlaylist();
+                if (newPlaylist && newPlaylist.data && newPlaylist.data.playlist) {
+                    for (let i = 0; i < newPlaylist.data.playlist.length; i++) {
+                        if (newPlaylist.data.playlist[i].path === track.path) {
+                            await this.sendToMusium('/api/playIndex', { index: i });
+                            break;
+                        }
+                    }
+                }
+            }
+            Utils.showNotification(`Воспроизведение: ${track.name}`, 'success');
+        }
+
+        this.currentAlbum = album;
+        this.tracks = [...album.tracks];
+        this.currentTrackIndex = trackIndex;
+        const albumArt = document.getElementById('playerAlbumArt');
+        const albumTitle = document.getElementById('playerAlbum');
+        const artistName = document.getElementById('playerArtist');
+        const playerBar = document.getElementById('audioPlayerBar');
+        if (albumArt) {
+            albumArt.src = album.coverUrl || '';
+            albumArt.onerror = () => { albumArt.src = ''; };
+        }
+        if (albumTitle) albumTitle.textContent = album.title;
+        if (artistName) artistName.textContent = album.artist;
+        if (playerBar) playerBar.style.display = 'flex';
+        this.updateTrackInfo();
+    },
+
     async playAlbumInMusium(album) {
+        console.log('[DEBUG] playAlbumInMusium called, album:', album.title);
         const started = await this.ensureMusiumRunning(album.tracks);
         if (!started) return;
         const trackPaths = album.tracks.map(t => t.path);
@@ -210,6 +299,7 @@ const AudioPlayer = {
     },
 
     init() {
+        console.log('[DEBUG] AudioPlayer.init called');
         this.setupEventListeners();
         this.createAudioElement();
         this.checkMusiumAvailable();
@@ -371,6 +461,7 @@ const AudioPlayer = {
     },
 
     replacePlaylistWithAlbum(album) {
+        console.log('[DEBUG] replacePlaylistWithAlbum called');
         this.replacePlaylist(album);
     },
 

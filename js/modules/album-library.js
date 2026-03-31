@@ -208,6 +208,33 @@ const AlbumLibrary = {
         this.renderAlbums();
     },
 
+    renderAlbumsIncremental() {
+        const grid = document.getElementById('albumsGrid');
+        if (!grid) return;
+        if (this.filteredAlbums.length === 0) {
+            grid.innerHTML = '<div class="empty"><i class="fas fa-music"></i> Альбомы не найдены</div>';
+            return;
+        }
+        grid.innerHTML = this.filteredAlbums.map(album => `
+            <div class="album-card" data-artist="${Utils.escapeHtml(album.artist)}" data-album="${Utils.escapeHtml(album.title)}">
+                <div class="album-cover">
+                    ${album.coverUrl ?
+                        `<img src="${album.coverUrl}" alt="${Utils.escapeHtml(album.title)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` :
+                        `<i class="fas fa-album fallback-icon"></i>`
+                    }
+                    ${album.coverUrl ? `<i class="fas fa-album fallback-icon" style="display: none;"></i>` : ''}
+                </div>
+                <div class="album-info">
+                    <div class="album-title" title="${Utils.escapeHtml(album.title)}">${Utils.escapeHtml(album.title)}</div>
+                    <div class="album-artist">${Utils.escapeHtml(album.artist || 'Unknown')}</div>
+                    <div class="album-year">${album.year}</div>
+                    <div class="track-count"><i class="fas fa-headphones"></i> ${album.trackCount} треков</div>
+                </div>
+            </div>
+        `).join('');
+        this.attachAlbumCardEvents();
+    },
+
     async loadArtistAlbums(artist, uniqueAlbums, progressSpan, foundSpan, loadedCount) {
         try {
             const url = `${this.getServerUrl()}/api/music/albums?artist=${encodeURIComponent(artist)}`;
@@ -443,10 +470,7 @@ const AlbumLibrary = {
                     if (!e.target.closest('.track-control-btn')) {
                         console.log('Track item clicked, playing track:', trackName);
                         if (typeof AudioPlayer !== 'undefined') {
-                            AudioPlayer.loadAlbum(album);
-                            setTimeout(function() {
-                                AudioPlayer.playTrack(idx);
-                            }, 500);
+                            AudioPlayer.playSingleTrack(album, idx);
                             modal.classList.remove('active');
                         }
                     }
