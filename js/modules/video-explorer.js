@@ -1,6 +1,7 @@
 const VideoExplorer = {
     currentPath: '/mnt/video',
     history: [],
+    isPlayingVideo: false,
 
     getServerUrl() {
         return `http://${window.location.hostname}:${window.location.port}`;

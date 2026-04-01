@@ -377,20 +377,32 @@ const PlayerManager = {
             console.log('Already playing this file, skipping duplicate request');
             return;
         }
+        if (this.playerStarting) {
+            console.log('Player is already starting, waiting...');
+            return;
+        }
         this.pendingPlayPath = path;
+        this.playerStarting = true;
         try {
             const isAvailable = await this.checkPlayerRunning();
             if (isAvailable) {
                 console.log('Player already running, opening file directly');
                 const openResult = await this.openFileInPlayer(path);
                 if (openResult && openResult.success) {
-                    await this.delay(500);
-                    const newStatus = await this.checkPlayerRunningWithStatus();
-                    if (newStatus && newStatus.available === true) {
+                    await this.delay(1000);
+                    let retries = 0;
+                    let status = null;
+                    while (retries < 10 && (!status || !status.currentFile || !status.currentFile.available)) {
+                        await this.delay(500);
+                        status = await this.checkPlayerRunningWithStatus();
+                        retries++;
+                        console.log(`Waiting for file to load, attempt ${retries}`);
+                    }
+                    if (status && status.available === true) {
                         this.playerActive = true;
-                        this.currentFile = newStatus.currentFile?.path || path;
-                        this.isPlaying = newStatus.isPlaying === true;
-                        this.isFullscreen = newStatus.isFullScreen === "true" || newStatus.isFullScreen === true;
+                        this.currentFile = status.currentFile?.path || path;
+                        this.isPlaying = status.isPlaying === true;
+                        this.isFullscreen = status.isFullScreen === "true" || status.isFullScreen === true;
                         this.hideLibrary();
                         this.showControl();
                         this.updatePlaybackStatus(this.isPlaying);
@@ -405,6 +417,7 @@ const PlayerManager = {
                     }
                 }
                 this.pendingPlayPath = null;
+                this.playerStarting = false;
                 return;
             }
             console.log('Player not running, launching and opening file');
@@ -412,24 +425,33 @@ const PlayerManager = {
             if (!launchResult) {
                 Utils.showNotification('Не удалось запустить плеер', 'error');
                 this.pendingPlayPath = null;
+                this.playerStarting = false;
                 return;
             }
             const started = await this.waitForPlayer(10000);
             if (!started) {
                 Utils.showNotification('Плеер не запустился', 'error');
                 this.pendingPlayPath = null;
+                this.playerStarting = false;
                 return;
             }
             await this.delay(500);
             const openResult = await this.openFileInPlayer(path);
             if (openResult && openResult.success) {
-                await this.delay(500);
-                const newStatus = await this.checkPlayerRunningWithStatus();
-                if (newStatus && newStatus.available === true) {
+                await this.delay(1000);
+                let retries = 0;
+                let status = null;
+                while (retries < 10 && (!status || !status.currentFile || !status.currentFile.available)) {
+                    await this.delay(500);
+                    status = await this.checkPlayerRunningWithStatus();
+                    retries++;
+                    console.log(`Waiting for file to load, attempt ${retries}`);
+                }
+                if (status && status.available === true) {
                     this.playerActive = true;
-                    this.currentFile = newStatus.currentFile?.path || path;
-                    this.isPlaying = newStatus.isPlaying === true;
-                    this.isFullscreen = newStatus.isFullScreen === "true" || newStatus.isFullScreen === true;
+                    this.currentFile = status.currentFile?.path || path;
+                    this.isPlaying = status.isPlaying === true;
+                    this.isFullscreen = status.isFullScreen === "true" || status.isFullScreen === true;
                     this.hideLibrary();
                     this.showControl();
                     this.updatePlaybackStatus(this.isPlaying);
@@ -450,6 +472,7 @@ const PlayerManager = {
             this.showLibrary();
         } finally {
             this.pendingPlayPath = null;
+            this.playerStarting = false;
         }
     },
 
@@ -473,9 +496,11 @@ const PlayerManager = {
     async openFileInPlayer(path) {
         try {
             console.log('Opening file in player via /api/openfile');
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-            clearTimeout(timeoutId);
+            const response = await fetch(`${this.getPlayerUrl()}/api/openfile`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: path })
+            });
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
