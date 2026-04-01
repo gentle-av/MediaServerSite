@@ -60,7 +60,7 @@ const VideoExplorer = {
         content.innerHTML = visibleItems.map(item => `
             <div class="item-card" data-path="${item.path}" data-is-dir="${item.isDirectory}" data-name="${Utils.escapeHtml(item.name)}">
                 <i class="fas ${item.isDirectory ? 'fa-folder folder-icon' : 'fa-file-video video-icon'}"></i>
-                <div class="item-name" title="${Utils.escapeHtml(item.name)}">${Utils.escapeHtml(Utils.shortenName(item.name))}</div>
+                <div class="item-name" title="${Utils.escapeHtml(item.name)}">${Utils.escapeHtml(item.name)}</div>
                 ${!item.isDirectory ? `<div class="item-size">${item.size || ''}</div>` : ''}
             </div>
         `).join('');

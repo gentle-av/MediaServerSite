@@ -2,6 +2,7 @@ const Utils = {
     isHiddenFile(name) {
         return name.startsWith('.');
     },
+
     formatFileSize(bytes) {
         if (bytes === 0) return '0 B';
         const k = 1024;
@@ -9,6 +10,7 @@ const Utils = {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     },
+
     showNotification(message, type = 'info') {
         const notification = document.getElementById('notification');
         if (!notification) return;
@@ -19,22 +21,19 @@ const Utils = {
             notification.style.display = 'none';
         }, 3000);
     },
+
     delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     },
+
     getServerUrl() {
         return `http://${window.location.hostname}:${window.location.port}`;
     },
+
     escapeHtml(str) {
         if (!str) return '';
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
     },
-    shortenName(name, maxLength = 35) {
-        if (name.length > maxLength) {
-            return name.substring(0, maxLength - 3) + '...';
-        }
-        return name;
-    }
 };
