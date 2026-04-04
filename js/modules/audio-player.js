@@ -113,7 +113,7 @@ const AudioPlayer = {
           this.musiumUrl = data.musiumUrl;
           console.log("[DEBUG] Musium URL from response:", this.musiumUrl);
         }
-        const started = await this.waitForMusium(10000);
+        const started = await this.waitForMusium(15000);
         if (started) {
           Utils.showNotification("Аудиоплеер запущен", "success");
           return true;
@@ -139,7 +139,14 @@ const AudioPlayer = {
     console.log("[DEBUG] Musium available:", isAvailable);
     if (isAvailable) return true;
     console.log("[DEBUG] Launching Musium...");
-    return await this.launchMusiumWithTracks(tracks);
+    const launched = await this.launchMusiumWithTracks(tracks);
+    if (launched) {
+      await this.delay(1500);
+      const nowAvailable = await this.checkMusiumAvailable();
+      console.log("[DEBUG] Musium available after delay:", nowAvailable);
+      return nowAvailable;
+    }
+    return false;
   },
 
   async sendToMusium(endpoint, data, method = "POST") {
@@ -177,22 +184,47 @@ const AudioPlayer = {
   },
 
   async addToPlaylist(album, trackIndex = null) {
+    console.log(
+      "[DEBUG] addToPlaylist called, album:",
+      album?.title,
+      "trackIndex:",
+      trackIndex,
+    );
     const tracksToAdd =
       trackIndex !== null ? [album.tracks[trackIndex]] : album.tracks;
+    console.log("[DEBUG] tracksToAdd count:", tracksToAdd.length);
+    this.pendingTracks = tracksToAdd;
     const started = await this.ensureMusiumRunning(tracksToAdd);
-    if (!started) return;
+    if (!started) {
+      Utils.showNotification("Не удалось запустить аудиоплеер", "error");
+      return;
+    }
+    await this.delay(500);
+    let addedCount = 0;
     for (const track of tracksToAdd) {
-      await this.sendToMusium("/api/add", { path: track.path });
+      const result = await this.sendToMusium("/api/add", { path: track.path });
+      if (result && result.success) {
+        addedCount++;
+      }
+      await this.delay(100);
     }
     Utils.showNotification(
-      `Добавлено ${tracksToAdd.length} треков в плейлист`,
+      `Добавлено ${addedCount} из ${tracksToAdd.length} треков в плейлист`,
       "success",
     );
     if (typeof PlaylistViewer !== "undefined") {
+      await this.delay(500);
       PlaylistViewer.refresh();
     }
     await this.delay(300);
     await this.updateUI();
+  },
+
+  async verifyMusiumConnection() {
+    if (!this.musiumAvailable) {
+      await this.checkMusiumAvailable();
+    }
+    return this.musiumAvailable;
   },
 
   async replacePlaylist(album, trackIndex = null) {
@@ -206,29 +238,70 @@ const AudioPlayer = {
       trackIndex !== null ? [album.tracks[trackIndex]] : album.tracks;
     console.log("[DEBUG] tracksToReplace count:", tracksToReplace.length);
     const started = await this.ensureMusiumRunning(tracksToReplace);
-    console.log("[DEBUG] ensureMusiumRunning result:", started);
-    if (!started) return;
+    if (!started) {
+      Utils.showNotification("Не удалось запустить аудиоплеер", "error");
+      return;
+    }
+    await this.delay(500);
     const trackPaths = tracksToReplace.map((t) => t.path);
     console.log("[DEBUG] Sending replacePlaylist with paths:", trackPaths);
-    await this.sendToMusium("/api/replacePlaylist", { tracks: trackPaths });
-    await this.delay(300);
-    Utils.showNotification(
-      `Плейлист заменен ${tracksToReplace.length} треками`,
-      "success",
-    );
-    await this.delay(300);
+    const result = await this.sendToMusium("/api/replacePlaylist", {
+      tracks: trackPaths,
+    });
+    if (result && result.success) {
+      Utils.showNotification(
+        `Плейлист заменен ${tracksToReplace.length} треками`,
+        "success",
+      );
+    } else {
+      Utils.showNotification("Ошибка при замене плейлиста", "error");
+    }
+    await this.delay(500);
     await this.updateUI();
+    if (typeof PlaylistViewer !== "undefined") {
+      PlaylistViewer.refresh();
+    }
   },
 
   async addAfterCurrent(album, trackIndex) {
-    const track = album.tracks[trackIndex];
-    const started = await this.ensureMusiumRunning([track]);
-    if (!started) return;
-    await this.sendToMusium("/api/addAfterCurrent", { path: track.path });
-    Utils.showNotification(
-      `Трек "${track.name}" добавлен после текущего`,
-      "success",
+    console.log(
+      "[DEBUG] addAfterCurrent called, album:",
+      album?.title,
+      "trackIndex:",
+      trackIndex,
     );
+    const track = album.tracks[trackIndex];
+    if (!track) {
+      console.error("[DEBUG] Track not found");
+      return;
+    }
+    console.log("[DEBUG] Track to add:", track.name, track.path);
+    const started = await this.ensureMusiumRunning([track]);
+    if (!started) {
+      Utils.showNotification("Не удалось запустить аудиоплеер", "error");
+      return;
+    }
+    await this.delay(500);
+    const result = await this.sendToMusium("/api/addAfterCurrent", {
+      path: track.path,
+    });
+    if (result && result.success) {
+      Utils.showNotification(
+        `Трек "${track.name}" добавлен после текущего`,
+        "success",
+      );
+    } else {
+      console.log("[DEBUG] addAfterCurrent failed, trying regular add");
+      await this.sendToMusium("/api/add", { path: track.path });
+      Utils.showNotification(
+        `Трек "${track.name}" добавлен в конец плейлиста`,
+        "success",
+      );
+    }
+    if (typeof PlaylistViewer !== "undefined") {
+      await this.delay(500);
+      PlaylistViewer.refresh();
+    }
     await this.delay(300);
     await this.updateUI();
   },
