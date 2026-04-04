@@ -103,7 +103,7 @@
   }
 
   .menu-toggle {
-    display: flex;
+    display: none;
     position: fixed;
     top: 12px;
     left: 12px;
