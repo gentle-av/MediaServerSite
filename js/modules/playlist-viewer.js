@@ -203,9 +203,18 @@ const PlaylistViewer = {
 
   async removeTrack(index) {
     console.log(`Remove track at index: ${index}`);
+    const trackElement = document.getElementById(`track-${index}`);
+    let scrollPosition = 0;
+    if (trackElement) {
+      scrollPosition = trackElement.offsetTop;
+    }
     await this.sendCommand("/api/remove", { index: index });
     await this.fetchPlaylist();
     await this.updateDisplay();
+    const container = document.getElementById("playlistContainer");
+    if (container && scrollPosition > 0) {
+      container.scrollTop = scrollPosition;
+    }
   },
 
   async clearPlaylist() {
@@ -282,6 +291,7 @@ const PlaylistViewer = {
       console.log("playlistContainer not found");
       return;
     }
+    const savedScrollTop = container.scrollTop;
     let playlistData = await this.fetchPlaylist();
     const status = await this.fetchStatus();
     if (!playlistData || playlistData.playlist.length === 0) {
@@ -291,6 +301,7 @@ const PlaylistViewer = {
     playlistData = await this.enrichPlaylistWithMetadata(playlistData);
     let currentTrackName = "—";
     let currentArtistName = "";
+    let currentTrackId = null;
     if (
       playlistData.currentIndex >= 0 &&
       playlistData.playlist[playlistData.currentIndex]
@@ -300,8 +311,9 @@ const PlaylistViewer = {
         currentTrack.title || currentTrack.name || currentTrack.filename || "—";
       if (currentTrack.artist && currentTrack.artist !== "Unknown")
         currentArtistName = currentTrack.artist;
+      currentTrackId = `track-${playlistData.currentIndex}`;
     }
-    let html = `<div class="playlist-controls"><button class="playlist-control-btn" id="playlistPlayPauseBtn" title="${status && status.isPlaying ? "Пауза" : "Воспроизвести"}"><i class="fas ${status && status.isPlaying ? "fa-pause" : "fa-play"}"></i></button><button class="playlist-control-btn" id="playlistPrevBtn" title="Предыдущий"><i class="fas fa-step-backward"></i></button><button class="playlist-control-btn" id="playlistNextBtn" title="Следующий"><i class="fas fa-step-forward"></i></button><button class="playlist-control-btn" id="playlistStopBtn" title="Стоп"><i class="fas fa-stop"></i></button><button class="playlist-control-btn" id="playlistClearBtn" title="Очистить плейлист"><i class="fas fa-trash-alt"></i></button></div><div class="playlist-info"><div class="playlist-current-track"><i class="fas fa-headphones"></i><div class="playlist-current-info"><div class="playlist-current-name">${this.escapeHtml(currentTrackName)}</div>${currentArtistName ? `<div class="playlist-current-artist">${this.escapeHtml(currentArtistName)}</div>` : ""}</div></div><div class="playlist-progress"><span id="playlistCurrentTime">${this.formatTime(status ? status.position : 0)}</span><div class="progress-bar" id="playlistProgressBar"><div class="progress-fill" id="playlistProgressFill" style="width: ${status && status.duration ? (status.position / status.duration) * 100 : 0}%"></div></div><span id="playlistTotalTime">${this.formatTime(status ? status.duration : 0)}</span></div></div><div class="playlist-tracks">`;
+    let html = `<div class="playlist-controls"><button class="playlist-control-btn" id="playlistPlayPauseBtn" title="${status && status.isPlaying ? "Пауза" : "Воспроизвести"}"><i class="fas ${status && status.isPlaying ? "fa-pause" : "fa-play"}"></i></button><button class="playlist-control-btn" id="playlistPrevBtn" title="Предыдущий"><i class="fas fa-step-backward"></i></button><button class="playlist-control-btn" id="playlistNextBtn" title="Следующий"><i class="fas fa-step-forward"></i></button><button class="playlist-control-btn" id="playlistStopBtn" title="Стоп"><i class="fas fa-stop"></i></button><button class="playlist-control-btn" id="playlistClearBtn" title="Очистить плейлист"><i class="fas fa-trash-alt"></i></button></div><div class="playlist-info"><div class="playlist-current-track"><i class="fas fa-headphones"></i><div class="playlist-current-info"><div class="playlist-current-name" id="playlistCurrentName">${this.escapeHtml(currentTrackName)}</div>${currentArtistName ? `<div class="playlist-current-artist" id="playlistCurrentArtist">${this.escapeHtml(currentArtistName)}</div>` : ""}</div></div><div class="playlist-progress"><span id="playlistCurrentTime">${this.formatTime(status ? status.position : 0)}</span><div class="progress-bar" id="playlistProgressBar"><div class="progress-fill" id="playlistProgressFill" style="width: ${status && status.duration ? (status.position / status.duration) * 100 : 0}%"></div></div><span id="playlistTotalTime">${this.formatTime(status ? status.duration : 0)}</span></div></div><div class="playlist-tracks" id="playlistTracksList">`;
     for (let idx = 0; idx < playlistData.playlist.length; idx++) {
       const track = playlistData.playlist[idx];
       const isCurrent = idx === playlistData.currentIndex;
@@ -312,10 +324,22 @@ const PlaylistViewer = {
         track.artist && track.artist !== "Unknown" ? track.artist : "";
       let trackDisplay = `${trackNumber} - ${trackName}`;
       if (trackArtist) trackDisplay += ` - ${trackArtist}`;
-      html += `<div class="playlist-track ${isCurrent ? "current" : ""}" data-index="${idx}"><div class="playlist-track-name" title="${this.escapeHtml(trackDisplay)}">${this.escapeHtml(trackDisplay)}</div><div class="playlist-track-controls"><button class="playlist-track-play" data-index="${idx}" title="Воспроизвести"><i class="fas fa-play"></i></button></div></div>`;
+      const currentClass = isCurrent ? "current" : "";
+      html += `<div class="playlist-track ${currentClass}" data-index="${idx}" id="track-${idx}"><div class="playlist-track-name" title="${this.escapeHtml(trackDisplay)}">${this.escapeHtml(trackDisplay)}</div><div class="playlist-track-controls"><button class="playlist-track-play" data-index="${idx}" title="Воспроизвести"><i class="fas fa-play"></i></button><button class="playlist-track-remove" data-index="${idx}" title="Удалить"><i class="fas fa-trash-alt"></i></button></div></div>`;
     }
     html += `</div>`;
     container.innerHTML = html;
+    if (currentTrackId) {
+      const currentTrackElement = document.getElementById(currentTrackId);
+      if (currentTrackElement) {
+        currentTrackElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    } else if (savedScrollTop > 0) {
+      container.scrollTop = savedScrollTop;
+    }
     this.attachEventListeners();
     console.log("updateDisplay finished");
   },
@@ -342,17 +366,30 @@ const PlaylistViewer = {
       clearBtn.addEventListener("click", () => this.clearPlaylist());
     }
     document.querySelectorAll(".playlist-track-play").forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
+      btn.removeEventListener("click", this.handlePlayClick);
+      this.handlePlayClick = async (e) => {
         e.stopPropagation();
         const index = parseInt(btn.dataset.index);
         await this.playTrack(index);
-      });
+      };
+      btn.addEventListener("click", this.handlePlayClick);
+    });
+    document.querySelectorAll(".playlist-track-remove").forEach((btn) => {
+      btn.removeEventListener("click", this.handleRemoveClick);
+      this.handleRemoveClick = async (e) => {
+        e.stopPropagation();
+        const index = parseInt(btn.dataset.index);
+        await this.removeTrack(index);
+      };
+      btn.addEventListener("click", this.handleRemoveClick);
     });
     document.querySelectorAll(".playlist-track").forEach((track) => {
-      track.addEventListener("click", async () => {
+      track.removeEventListener("click", this.handleTrackClick);
+      this.handleTrackClick = async () => {
         const index = parseInt(track.dataset.index);
         await this.playTrack(index);
-      });
+      };
+      track.addEventListener("click", this.handleTrackClick);
     });
   },
 
