@@ -448,7 +448,19 @@ const PlaylistViewer = {
     }
   },
 
+  reset() {
+    this.initialized = false;
+    this.musiumAvailable = false;
+    this.playlist = [];
+    this.currentIndex = -1;
+  },
+
   async init() {
+    console.log("[PlaylistViewer] init called, initialized:", this.initialized);
+    if (this.initialized) {
+      console.log("[PlaylistViewer] Already initialized, skipping");
+      return;
+    }
     if (this.initialized) return;
     this.initialized = true;
     console.log("PlaylistViewer.init called");

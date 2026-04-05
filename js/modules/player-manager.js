@@ -7,13 +7,35 @@ const PlayerManager = {
   serverPort: window.location.port,
   statusCheckInterval: null,
   initialized: false,
+  playerAvailable: false,
 
-  init() {
+  async init() {
     if (this.initialized) return;
     this.initialized = true;
     this.setupEventListeners();
-    this.startStatusPolling();
     console.log("PlayerManager initialized");
+  },
+
+  async checkPlayerAvailability() {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const response = await fetch(`${this.getPlayerUrl()}/api/playbackState`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      this.playerAvailable = response.ok;
+      if (this.playerAvailable) {
+        this.startStatusPolling();
+      }
+      return this.playerAvailable;
+    } catch (error) {
+      console.log("Video player not available:", error.message);
+      this.playerAvailable = false;
+      return false;
+    }
   },
 
   getPlayerUrl() {
@@ -50,6 +72,7 @@ const PlayerManager = {
   },
 
   async callApi(endpoint, data = {}) {
+    if (!this.playerAvailable) return null;
     try {
       const response = await fetch(`${this.getPlayerUrl()}${endpoint}`, {
         method: "POST",
@@ -62,11 +85,14 @@ const PlayerManager = {
       return await response.json();
     } catch (error) {
       console.error(`API error ${endpoint}:`, error);
+      this.playerAvailable = false;
+      this.stopStatusPolling();
       return null;
     }
   },
 
   async getPlaybackState() {
+    if (!this.playerAvailable) return null;
     const result = await this.callApi("/api/playbackState");
     if (result && result.success) {
       this.isPlaying = result.data.isPlaying;
@@ -100,6 +126,9 @@ const PlayerManager = {
       `Воспроизведение: ${path.split("/").pop()}`,
       "success",
     );
+    setTimeout(async () => {
+      await this.checkPlayerAvailability();
+    }, 2000);
   },
 
   async launchPlayerWithFile(path) {
@@ -118,13 +147,13 @@ const PlayerManager = {
   },
 
   async togglePlayPause() {
-    if (!this.playerActive) return;
+    if (!this.playerActive || !this.playerAvailable) return;
     await this.callApi("/api/playpause");
     await this.getPlaybackState();
   },
 
   async toggleFullscreen() {
-    if (!this.playerActive) return;
+    if (!this.playerActive || !this.playerAvailable) return;
     await this.callApi("/api/fullscreen", {
       fullscreen: !this.isFullscreen,
     });
@@ -132,13 +161,13 @@ const PlayerManager = {
   },
 
   async seekForward() {
-    if (!this.playerActive) return;
+    if (!this.playerActive || !this.playerAvailable) return;
     await this.callApi("/api/seekforward", { seconds: 10 });
     await this.getPlaybackState();
   },
 
   async seekBackward() {
-    if (!this.playerActive) return;
+    if (!this.playerActive || !this.playerAvailable) return;
     await this.callApi("/api/seekbackward", { seconds: 10 });
     await this.getPlaybackState();
   },
@@ -163,7 +192,6 @@ const PlayerManager = {
     const confirmed = confirm(`Удалить файл "${fileName}"?`);
     if (!confirmed) return;
     try {
-      console.log("Step 1: Calling closefile first");
       const closeFileUrl = `${this.getPlayerUrl()}/api/closefile`;
       const response = await fetch(closeFileUrl, {
         method: "POST",
@@ -171,13 +199,11 @@ const PlayerManager = {
         body: JSON.stringify({ path: this.currentFile }),
       });
       const data = await response.json();
-      console.log("Step 2: closefile response:", data);
       if (data.success) {
         Utils.showNotification(
           `Файл "${fileName}" перемещен в корзину`,
           "success",
         );
-        console.log("Step 3: Calling /api/close");
         await this.callApi("/api/close");
         this.playerActive = false;
         this.currentFile = null;
@@ -257,7 +283,11 @@ const PlayerManager = {
 
   startStatusPolling() {
     this.stopStatusPolling();
-    this.statusCheckInterval = setInterval(() => this.getPlaybackState(), 5000);
+    this.statusCheckInterval = setInterval(() => {
+      if (this.playerAvailable) {
+        this.getPlaybackState();
+      }
+    }, 5000);
   },
 
   stopStatusPolling() {
@@ -268,7 +298,7 @@ const PlayerManager = {
   },
 
   handleKeyPress(e) {
-    if (!this.playerActive) return;
+    if (!this.playerActive || !this.playerAvailable) return;
     switch (e.code) {
       case "Space":
         e.preventDefault();

@@ -434,6 +434,11 @@ const AudioPlayer = {
   },
 
   init() {
+    console.log("[AudioPlayer] init called, initialized:", this.initialized);
+    if (this.initialized) {
+      console.log("[AudioPlayer] Already initialized, skipping");
+      return;
+    }
     if (this.initialized) return;
     this.initialized = true;
     console.log("[DEBUG] AudioPlayer.init called");

@@ -9,6 +9,8 @@ const AlbumLibrary = {
   searchMode: "albums",
   allTracks: [],
   initialized: false,
+  loadingTaskId: null,
+  isInitialLoad: true,
 
   async collectAllTracks() {
     if (this.allTracks.length > 0) return this.allTracks;
@@ -63,8 +65,29 @@ const AlbumLibrary = {
     return `http://${window.location.hostname}:${window.location.port}`;
   },
 
+  reset() {
+    this.albums = [];
+    this.filteredAlbums = [];
+    this.artists = [];
+    this.allTracks = [];
+    this.loadedArtists = 0;
+    this.totalArtists = 0;
+    this.initialized = false;
+    if (this.loadingTaskId) {
+      cancelIdleCallback(this.loadingTaskId);
+      this.loadingTaskId = null;
+    }
+  },
+
   async init() {
-    if (this.initialized) return;
+    console.log("[AlbumLibrary] init called, initialized:", this.initialized);
+    if (this.initialized) {
+      console.log("[AlbumLibrary] Already initialized, skipping");
+      return;
+    }
+    if (this.initialized) {
+      return;
+    }
     this.initialized = true;
     const grid = document.getElementById("albumsGrid");
     if (!grid) return;
@@ -257,26 +280,57 @@ const AlbumLibrary = {
                 <div style="margin-top: 10px;">
                     <span id="albumsFound">0</span> альбомов найдено
                 </div>
+                <div class="loading-progress-container">
+                    <div class="loading-progress-bar-fill" id="loadingProgressFill"></div>
+                </div>
             </div>
         `;
     const progressSpan = document.getElementById("albumProgress");
     const foundSpan = document.getElementById("albumsFound");
-    const loadPromises = [];
-    for (let i = 0; i < this.artists.length; i++) {
-      const artist = this.artists[i];
-      const loadPromise = this.loadArtistAlbums(
-        artist,
-        uniqueAlbums,
-        progressSpan,
-        foundSpan,
-        i + 1,
-      );
-      loadPromises.push(loadPromise);
-      if (loadPromises.length >= 5 || i === this.artists.length - 1) {
-        await Promise.all(loadPromises);
-        loadPromises.length = 0;
-      }
+    const progressFill = document.getElementById("loadingProgressFill");
+    if (this.loadingTaskId) {
+      cancelIdleCallback(this.loadingTaskId);
+      this.loadingTaskId = null;
     }
+    let currentIndex = 0;
+    const loadNextBatch = async (deadline) => {
+      const grid = document.getElementById("albumsGrid");
+      if (!grid || !this.initialized) {
+        return;
+      }
+      let batchSize = 0;
+      while (
+        (deadline.timeRemaining() > 0 || batchSize < 2) &&
+        currentIndex < this.artists.length
+      ) {
+        const artist = this.artists[currentIndex];
+        await this.loadArtistAlbumsNonBlocking(artist, uniqueAlbums, foundSpan);
+        currentIndex++;
+        batchSize++;
+        if (progressSpan) {
+          progressSpan.textContent = currentIndex;
+        }
+        if (progressFill && this.totalArtists > 0) {
+          const percent = (currentIndex / this.totalArtists) * 100;
+          progressFill.style.width = percent + "%";
+        }
+        if (batchSize % 2 === 0) {
+          await this.delay(10);
+        }
+      }
+      if (currentIndex < this.artists.length) {
+        this.loadingTaskId = requestIdleCallback(loadNextBatch, {
+          timeout: 100,
+        });
+      } else {
+        this.finalizeLoading();
+        this.loadingTaskId = null;
+      }
+    };
+    this.loadingTaskId = requestIdleCallback(loadNextBatch, { timeout: 100 });
+  },
+
+  finalizeLoading() {
     this.albums.sort((a, b) => {
       if (a.artist !== b.artist) return a.artist.localeCompare(b.artist);
       if (a.year !== b.year) return a.year.localeCompare(b.year);
@@ -284,48 +338,10 @@ const AlbumLibrary = {
     });
     this.filteredAlbums = [...this.albums];
     this.renderAlbums();
+    this.isInitialLoad = true;
   },
 
-  renderAlbumsIncremental() {
-    const grid = document.getElementById("albumsGrid");
-    if (!grid) return;
-    if (this.filteredAlbums.length === 0) {
-      grid.innerHTML =
-        '<div class="empty"><i class="fas fa-music"></i> Альбомы не найдены</div>';
-      return;
-    }
-    grid.innerHTML = this.filteredAlbums
-      .map(
-        (album) => `
-            <div class="album-card" data-artist="${Utils.escapeHtml(album.artist)}" data-album="${Utils.escapeHtml(album.title)}">
-                <div class="album-cover">
-                    ${
-                      album.coverUrl
-                        ? `<img src="${album.coverUrl}" alt="${Utils.escapeHtml(album.title)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
-                        : `<i class="fas fa-album fallback-icon"></i>`
-                    }
-                    ${album.coverUrl ? `<i class="fas fa-album fallback-icon" style="display: none;"></i>` : ""}
-                </div>
-                <div class="album-info">
-                    <div class="album-title" title="${Utils.escapeHtml(album.title)}">${Utils.escapeHtml(album.title)}</div>
-                    <div class="album-artist">${Utils.escapeHtml(album.artist || "Unknown")}</div>
-                    <div class="album-year">${album.year}</div>
-                    <div class="track-count"><i class="fas fa-headphones"></i> ${album.trackCount} треков</div>
-                </div>
-            </div>
-        `,
-      )
-      .join("");
-    this.attachAlbumCardEvents();
-  },
-
-  async loadArtistAlbums(
-    artist,
-    uniqueAlbums,
-    progressSpan,
-    foundSpan,
-    loadedCount,
-  ) {
+  async loadArtistAlbumsNonBlocking(artist, uniqueAlbums, foundSpan) {
     try {
       const url = `${this.getServerUrl()}/api/music/albums?artist=${encodeURIComponent(artist)}`;
       const response = await fetch(url, {
@@ -338,14 +354,10 @@ const AlbumLibrary = {
         for (const album of data.albums) {
           const albumKey = `${album.album}|${album.artist}`;
           if (!uniqueAlbums.has(albumKey)) {
-            const tracks = await this.getTracksFromAlbum(
-              album.album,
-              album.artist,
-            );
-            const coverUrl = await this.getAlbumCover(
-              album.album,
-              album.artist,
-            );
+            const [tracks, coverUrl] = await Promise.all([
+              this.getTracksFromAlbum(album.album, album.artist),
+              this.getAlbumCover(album.album, album.artist),
+            ]);
             const albumData = {
               name: album.album,
               artist: album.artist,
@@ -363,14 +375,57 @@ const AlbumLibrary = {
           this.albums.push(...newAlbums);
           this.filteredAlbums = [...this.albums];
           this.renderAlbumsIncremental();
-          if (foundSpan) foundSpan.textContent = this.albums.length;
+          if (foundSpan) {
+            foundSpan.textContent = this.albums.length;
+          }
         }
       }
     } catch (error) {
       console.error(`Error loading albums for artist ${artist}:`, error);
     }
-    this.loadedArtists = loadedCount;
-    if (progressSpan) progressSpan.textContent = this.loadedArtists;
+  },
+
+  renderAlbumsIncremental() {
+    const grid = document.getElementById("albumsGrid");
+    if (!grid) return;
+    if (this.isInitialLoad) {
+      this.renderAlbums();
+      this.isInitialLoad = false;
+      return;
+    }
+    const existingCards = grid.querySelectorAll(".album-card");
+    const existingKeys = new Set();
+    existingCards.forEach((card) => {
+      existingKeys.add(`${card.dataset.artist}|${card.dataset.album}`);
+    });
+    const newAlbumsHtml = [];
+    for (const album of this.filteredAlbums) {
+      const key = `${album.artist}|${album.title}`;
+      if (!existingKeys.has(key)) {
+        newAlbumsHtml.push(this.generateAlbumCardHtml(album));
+      }
+    }
+    if (newAlbumsHtml.length > 0) {
+      grid.insertAdjacentHTML("beforeend", newAlbumsHtml.join(""));
+      this.attachAlbumCardEvents();
+    }
+  },
+
+  generateAlbumCardHtml(album) {
+    return `
+            <div class="album-card" data-artist="${Utils.escapeHtml(album.artist)}" data-album="${Utils.escapeHtml(album.title)}">
+                <div class="album-cover">
+                    ${album.coverUrl ? `<img src="${album.coverUrl}" alt="${Utils.escapeHtml(album.title)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : `<i class="fas fa-album fallback-icon"></i>`}
+                    ${album.coverUrl ? `<i class="fas fa-album fallback-icon" style="display: none;"></i>` : ""}
+                </div>
+                <div class="album-info">
+                    <div class="album-title" title="${Utils.escapeHtml(album.title)}">${Utils.escapeHtml(album.title)}</div>
+                    <div class="album-artist">${Utils.escapeHtml(album.artist || "Unknown")}</div>
+                    <div class="album-year">${album.year}</div>
+                    <div class="track-count"><i class="fas fa-headphones"></i> ${album.trackCount} треков</div>
+                </div>
+            </div>
+        `;
   },
 
   attachAlbumCardEvents() {
@@ -403,11 +458,7 @@ const AlbumLibrary = {
         (album) => `
             <div class="album-card" data-artist="${Utils.escapeHtml(album.artist)}" data-album="${Utils.escapeHtml(album.title)}">
                 <div class="album-cover">
-                    ${
-                      album.coverUrl
-                        ? `<img src="${album.coverUrl}" alt="${Utils.escapeHtml(album.title)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
-                        : `<i class="fas fa-album fallback-icon"></i>`
-                    }
+                    ${album.coverUrl ? `<img src="${album.coverUrl}" alt="${Utils.escapeHtml(album.title)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : `<i class="fas fa-album fallback-icon"></i>`}
                     ${album.coverUrl ? `<i class="fas fa-album fallback-icon" style="display: none;"></i>` : ""}
                 </div>
                 <div class="album-info">
@@ -593,11 +644,7 @@ const AlbumLibrary = {
     modalContent.innerHTML = `
             <div class="album-modal-header">
                 <div class="album-cover-container">
-                    ${
-                      album.coverUrl
-                        ? `<img src="${album.coverUrl}" alt="${Utils.escapeHtml(album.title)}" class="album-cover-modal">`
-                        : `<div class="album-cover-placeholder"><i class="fas fa-album"></i></div>`
-                    }
+                    ${album.coverUrl ? `<img src="${album.coverUrl}" alt="${Utils.escapeHtml(album.title)}" class="album-cover-modal">` : `<div class="album-cover-placeholder"><i class="fas fa-album"></i></div>`}
                 </div>
                 <div class="album-info-container">
                     <h2 class="modal-album-title">${Utils.escapeHtml(album.artist)} — ${Utils.escapeHtml(album.title)}</h2>
@@ -879,11 +926,7 @@ const AlbumLibrary = {
         (albumData) => `
             <div class="album-card track-search-result" data-artist="${Utils.escapeHtml(albumData.artist)}" data-album="${Utils.escapeHtml(albumData.album)}">
                 <div class="album-cover">
-                    ${
-                      albumData.coverUrl
-                        ? `<img src="${albumData.coverUrl}" alt="${Utils.escapeHtml(albumData.album)}">`
-                        : `<i class="fas fa-album fallback-icon"></i>`
-                    }
+                    ${albumData.coverUrl ? `<img src="${albumData.coverUrl}" alt="${Utils.escapeHtml(albumData.album)}">` : `<i class="fas fa-album fallback-icon"></i>`}
                 </div>
                 <div class="album-info">
                     <div class="album-title">${Utils.escapeHtml(albumData.album)}</div>
@@ -927,11 +970,7 @@ const AlbumLibrary = {
         (artist) => `
             <div class="artist-card" data-artist="${Utils.escapeHtml(artist.name)}">
                 <div class="artist-cover">
-                    ${
-                      artist.coverUrl
-                        ? `<img src="${artist.coverUrl}" alt="${Utils.escapeHtml(artist.name)}">`
-                        : `<i class="fas fa-user-circle fallback-icon"></i>`
-                    }
+                    ${artist.coverUrl ? `<img src="${artist.coverUrl}" alt="${Utils.escapeHtml(artist.name)}">` : `<i class="fas fa-user-circle fallback-icon"></i>`}
                 </div>
                 <div class="artist-info">
                     <div class="artist-name">${Utils.escapeHtml(artist.name)}</div>
@@ -957,5 +996,9 @@ const AlbumLibrary = {
       this.updateSearchModeIndicator();
       this.filterAlbums(artistName);
     }
+  },
+
+  delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   },
 };
