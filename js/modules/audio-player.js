@@ -652,6 +652,7 @@ const AudioPlayer = {
   },
 
   replacePlaylistWithTrack(album, trackIndex) {
+    console.log("[DEBUG] replacePlaylistWithTrack called");
     this.replacePlaylist(album, trackIndex);
   },
 

@@ -713,36 +713,21 @@ const AlbumLibrary = {
           replacePlaylistBtn.addEventListener("click", function (e) {
             e.stopPropagation();
             e.preventDefault();
-            console.log("replacePlaylist clicked for album:", album.title);
+            const trackIdx = parseInt(item.dataset.trackIndex);
+            const trackName = item.dataset.trackName;
+            console.log(
+              "replacePlaylistWithTrack clicked for track:",
+              trackName,
+            );
             if (typeof AudioPlayer !== "undefined") {
-              AudioPlayer.replacePlaylistWithAlbum(album);
+              AudioPlayer.replacePlaylistWithTrack(album, trackIdx);
               Utils.showNotification(
-                `Плейлист заменен альбомом: ${album.title}`,
+                `Плейлист заменен треком: ${trackName}`,
                 "success",
               );
               setTimeout(() => {
                 modal.classList.remove("active");
               }, 500);
-            }
-          });
-        }
-        if (addAfterCurrentBtn) {
-          addAfterCurrentBtn.addEventListener("click", function (e) {
-            e.stopPropagation();
-            e.preventDefault();
-            console.log("addAfterCurrent clicked for track:", trackName);
-            if (typeof AudioPlayer !== "undefined") {
-              AudioPlayer.addTrackAfterCurrent(album, idx);
-              Utils.showNotification(
-                `Трек добавлен после текущего: ${trackName}`,
-                "success",
-              );
-              if (
-                typeof AlbumLibrary !== "undefined" &&
-                AlbumLibrary.showPlaylistSection
-              ) {
-                AlbumLibrary.showPlaylistSection();
-              }
             }
           });
         }
