@@ -28,10 +28,15 @@ const AudioPlayer = {
       this.getMusiumUrl(),
     );
     try {
-      const response = await fetch(`${this.getMusiumUrl()}/api/getStatus`, {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const response = await fetch(`${this.getMusiumUrl()}/api/playbackState`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        mode: "cors",
       });
+      clearTimeout(timeoutId);
       console.log(
         "[DEBUG] checkMusiumAvailable response status:",
         response.status,
@@ -62,10 +67,14 @@ const AudioPlayer = {
       attempt++;
       console.log(`[DEBUG] waitForMusium attempt ${attempt}`);
       try {
-        const response = await fetch(`${this.getMusiumUrl()}/api/getStatus`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
+        const response = await fetch(
+          `${this.getMusiumUrl()}/api/playbackState`,
+          {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            mode: "cors",
+          },
+        );
         if (response.ok) {
           const data = await response.json();
           console.log("[DEBUG] waitForMusium response:", data);
@@ -160,6 +169,7 @@ const AudioPlayer = {
       const options = {
         method: method,
         headers: { "Content-Type": "application/json" },
+        mode: "cors",
       };
       if (method === "POST" && data) {
         options.body = JSON.stringify(data);
@@ -180,7 +190,7 @@ const AudioPlayer = {
   },
 
   async getMusiumStatus() {
-    return await this.sendToMusium("/api/getStatus", null, "GET");
+    return await this.sendToMusium("/api/playbackState", null, "GET");
   },
 
   async addToPlaylist(album, trackIndex = null) {
@@ -459,7 +469,6 @@ const AudioPlayer = {
       console.log("[AudioPlayer] Already initialized, skipping");
       return;
     }
-    if (this.initialized) return;
     this.initialized = true;
     console.log("[DEBUG] AudioPlayer.init called");
     this.setupEventListeners();

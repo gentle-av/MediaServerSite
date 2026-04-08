@@ -161,11 +161,27 @@ export const AlbumLibrary = {
   finalizeLoading() {
     this.albums.sort((a, b) => {
       if (a.artist !== b.artist) return a.artist.localeCompare(b.artist);
-      if (a.year !== b.year) return a.year.localeCompare(b.year);
+      if (a.year !== b.year) return (a.year || "").localeCompare(b.year || "");
       return a.title.localeCompare(b.title);
     });
     this.filteredAlbums = [...this.albums];
-    this.uiRenderer.renderAlbums();
+    if (this.uiRenderer) {
+      this.uiRenderer.renderAlbums();
+    }
+    const grid = document.getElementById("albumsGrid");
+    if (grid && this.filteredAlbums.length > 0) {
+      let html = "";
+      for (const album of this.filteredAlbums) {
+        html += this.uiRenderer.generateAlbumCardHtml(album);
+      }
+      grid.innerHTML = html;
+      if (this.uiRenderer) {
+        this.uiRenderer.attachAlbumCardEvents();
+      }
+    } else if (grid && this.filteredAlbums.length === 0) {
+      grid.innerHTML =
+        '<div class="empty"><i class="fas fa-music"></i> Альбомы не найдены</div>';
+    }
     this.isInitialLoad = true;
   },
 

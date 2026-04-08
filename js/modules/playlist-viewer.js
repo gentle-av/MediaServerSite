@@ -6,6 +6,8 @@ const PlaylistViewer = {
   updateInterval: null,
   mediaServerUrl: null,
   initialized: false,
+  retryCount: 0,
+  maxRetries: 5,
 
   getMusiumUrl() {
     if (this.musiumUrl) return this.musiumUrl;
@@ -18,7 +20,67 @@ const PlaylistViewer = {
 
   setMusiumUrl(url) {
     this.musiumUrl = url;
-    console.log("PlaylistViewer: Musium URL set to", url);
+  },
+
+  async callMusium(endpoint, method = "GET", data = null) {
+    try {
+      const url = `${this.getMusiumUrl()}${endpoint}`;
+      const options = {
+        method: method,
+        headers: { "Content-Type": "application/json" },
+      };
+      if (method === "POST" && data) {
+        options.body = JSON.stringify(data);
+      }
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error(`Musium error for ${endpoint}:`, error);
+      return null;
+    }
+  },
+
+  async fetchTrackMetadata(path) {
+    try {
+      const url = `${this.getMediaServerUrl()}/api/music/info?path=${encodeURIComponent(path)}`;
+      const response = await fetch(url, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await response.json();
+      if (data.status === "success") {
+        return {
+          name: data.title || data.filename,
+          artist: data.artist || "Unknown",
+          duration: data.duration || 0,
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching metadata:", error);
+      return null;
+    }
+  },
+
+  async getTrackDuration(filePath) {
+    try {
+      const url = `${this.getMediaServerUrl()}/api/music/info?path=${encodeURIComponent(filePath)}`;
+      const response = await fetch(url, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await response.json();
+      if (data.status === "success" && data.duration) {
+        return data.duration;
+      }
+      return 0;
+    } catch (error) {
+      console.error("Error fetching duration:", error);
+      return 0;
+    }
   },
 
   getMediaServerUrl() {
@@ -26,56 +88,35 @@ const PlaylistViewer = {
     return `http://${window.location.hostname}:${window.location.port}`;
   },
 
-  async fetchTrackMetadata(path) {
-    try {
-      const url = `${this.getMediaServerUrl()}/api/music/list`;
-      const response = await fetch(url, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-      const data = await response.json();
-      if (data.status === "success" && data.files) {
-        for (const file of data.files) {
-          if (file.path === path) {
-            return {
-              name: file.title || file.filename,
-              artist: file.artist || "Unknown",
-              track: file.track,
-              duration: file.duration || 0,
-            };
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching metadata:", error);
-    }
-    return null;
+  setMediaServerUrl(url) {
+    this.mediaServerUrl = url;
   },
 
   async enrichPlaylistWithMetadata(playlistData) {
     if (!playlistData || !playlistData.playlist) return playlistData;
     for (let i = 0; i < playlistData.playlist.length; i++) {
       const track = playlistData.playlist[i];
-      if (
-        !track.artist ||
-        track.artist === "Unknown" ||
-        !track.title ||
-        !track.duration
-      ) {
-        const metadata = await this.fetchTrackMetadata(track.path);
-        if (metadata) {
-          track.title = metadata.name || track.title;
-          if (track.title && track.title.match(/\.(flac|mp3|m4a|wav)$/i)) {
-            track.title = track.title.replace(/\.(flac|mp3|m4a|wav)$/i, "");
-          }
-          track.name = metadata.name || track.name;
-          track.artist = metadata.artist || track.artist;
-          if (metadata.track) track.track = metadata.track;
-          if (metadata.duration) track.duration = metadata.duration;
+      if (track.duration && track.duration > 0) {
+        continue;
+      }
+      try {
+        const url = `${this.getMediaServerUrl()}/api/music/file-metadata?path=${encodeURIComponent(track.path)}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.status === "success" && data.data && data.data.file) {
+          track.duration = data.data.file.duration || 0;
+          if (!track.title && data.data.file.title)
+            track.title = data.data.file.title;
+          if (!track.artist && data.data.file.artist)
+            track.artist = data.data.file.artist;
         }
-      } else if (track.title && track.title.match(/\.(flac|mp3|m4a|wav)$/i)) {
-        track.title = track.title.replace(/\.(flac|mp3|m4a|wav)$/i, "");
-        track.name = track.title;
+        await this.delay(50);
+      } catch (e) {
+        console.error("Failed to get metadata for:", track.path, e);
+      }
+      if (track.name && track.name.match(/\.(flac|mp3|m4a|wav)$/i)) {
+        track.name = track.name.replace(/\.(flac|mp3|m4a|wav)$/i, "");
+        track.title = track.name;
       }
     }
     return playlistData;
@@ -83,24 +124,12 @@ const PlaylistViewer = {
 
   async checkMusiumAvailable() {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
-      const response = await fetch(`${this.getMusiumUrl()}/api/getStatus`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      if (response.ok) {
-        const data = await response.json();
-        this.musiumAvailable = data.success === true;
-        if (this.musiumAvailable) {
-          this.startAutoUpdate();
-          this.retryCount = 0;
-        } else {
-          this.stopAutoUpdate();
-        }
-        return this.musiumAvailable;
+      const result = await this.callMusium("/api/playbackState", "GET");
+      if (result && result.success) {
+        this.musiumAvailable = true;
+        this.retryCount = 0;
+        this.startAutoUpdate();
+        return true;
       }
     } catch (error) {
       console.log("Musium not running:", error.message);
@@ -108,6 +137,36 @@ const PlaylistViewer = {
     this.musiumAvailable = false;
     this.stopAutoUpdate();
     return false;
+  },
+
+  setupCloseHandler() {
+    const closeBtn = document.getElementById("playlistSidebarClose");
+    const overlay = document.getElementById("playlistOverlay");
+    if (closeBtn) {
+      const newCloseBtn = closeBtn.cloneNode(true);
+      closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+      newCloseBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closePlaylist();
+      });
+    }
+    if (overlay) {
+      const newOverlay = overlay.cloneNode(true);
+      overlay.parentNode.replaceChild(newOverlay, overlay);
+      newOverlay.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closePlaylist();
+      });
+    }
+  },
+
+  closePlaylist() {
+    const sidebar = document.getElementById("playlistSidebar");
+    const overlay = document.getElementById("playlistOverlay");
+    if (sidebar) sidebar.classList.remove("open");
+    if (overlay) overlay.classList.remove("open");
   },
 
   async refresh() {
@@ -141,67 +200,28 @@ const PlaylistViewer = {
 
   async fetchPlaylist() {
     if (!this.musiumAvailable) return null;
-    try {
-      const response = await fetch(`${this.getMusiumUrl()}/api/getPlaylist`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      const data = await response.json();
-      if (data.success && data.data) {
-        this.playlist = data.data.playlist || [];
-        this.currentIndex = data.data.currentIndex || -1;
-        return data.data;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error fetching playlist:", error);
-      this.musiumAvailable = false;
-      return null;
+    const result = await this.callMusium("/api/getPlaylist", "GET");
+    if (result && result.success && result.data) {
+      this.playlist = result.data.playlist || [];
+      this.currentIndex = result.data.currentIndex || -1;
+      return result.data;
     }
+    return null;
   },
 
   async fetchStatus() {
     if (!this.musiumAvailable) return null;
-    try {
-      const response = await fetch(`${this.getMusiumUrl()}/api/getStatus`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      const data = await response.json();
-      if (data.success && data.data) {
-        return data.data;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error fetching status:", error);
-      return null;
+    const result = await this.callMusium("/api/playbackState", "GET");
+    if (result && result.success && result.data) {
+      return result.data;
     }
+    return null;
   },
 
   async sendCommand(endpoint, data = {}) {
     if (!this.musiumAvailable) return null;
-    try {
-      console.log(`Sending command to ${endpoint}:`, data);
-      const response = await fetch(`${this.getMusiumUrl()}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      const result = await response.json();
-      console.log(`Response from ${endpoint}:`, result);
-      return result;
-    } catch (error) {
-      console.error(`Error sending command ${endpoint}:`, error);
-      this.musiumAvailable = false;
-      this.stopAutoUpdate();
-      return null;
-    }
+    const result = await this.callMusium(endpoint, "POST", data);
+    return result;
   },
 
   async playTrack(index) {
@@ -264,16 +284,11 @@ const PlaylistViewer = {
   async playPause() {
     console.log("playPause called");
     const status = await this.fetchStatus();
-    console.log("Current status:", status);
     if (status && status.isPlaying) {
-      console.log("Currently playing, sending pause");
       await this.sendCommand("/api/pause");
     } else {
-      console.log("Currently paused, sending play");
       await this.sendCommand("/api/play");
     }
-    const newStatus = await this.fetchStatus();
-    console.log("New status after command:", newStatus);
     await this.updateProgress();
   },
 
@@ -298,10 +313,8 @@ const PlaylistViewer = {
   },
 
   async updateDisplay() {
-    console.log("updateDisplay called");
     const container = document.getElementById("playlistContainer");
     if (!container) {
-      console.log("playlistContainer not found");
       return;
     }
     const savedScrollTop = container.scrollTop;
@@ -312,7 +325,6 @@ const PlaylistViewer = {
       return;
     }
     playlistData = await this.enrichPlaylistWithMetadata(playlistData);
-    let currentTrackNumber = "";
     let currentTrackDisplay = "—";
     let currentArtistName = "";
     let currentTrackId = null;
@@ -344,21 +356,28 @@ const PlaylistViewer = {
     }
     let globalTrackIndex = 0;
     for (const [artist, tracks] of tracksByArtist) {
-      html += `<div class="playlist-artist-group"><div class="playlist-artist-header" data-artist="${this.escapeHtml(artist)}"><i class="fas fa-user group-icon"></i><span class="playlist-artist-name">${this.escapeHtml(artist)}</span></div><div class="playlist-artist-tracks">`;
+      html += `<div class="playlist-artist-group"><div class="playlist-artist-header" data-artist="${this.escapeHtml(artist)}"><i class="fas fa-user group-icon"></i><span class="playlist-artist-name">${this.escapeHtml(artist)}</span><i class="fas fa-chevron-down group-arrow"></i></div><div class="playlist-artist-tracks">`;
       for (const { idx, track } of tracks) {
         const isCurrent = idx === playlistData.currentIndex;
         const trackNumber = track.track || globalTrackIndex + 1;
-        const trackName =
+        let trackName =
           track.title ||
           track.name ||
           track.filename ||
           `Трек ${globalTrackIndex + 1}`;
+        if (trackName && trackName.match(/\.(flac|mp3|m4a|wav)$/i)) {
+          trackName = trackName.replace(/\.(flac|mp3|m4a|wav)$/i, "");
+        }
         const trackDuration = track.duration || 0;
         const currentClass = isCurrent ? "current" : "";
         html += `<div class="playlist-track ${currentClass}" data-index="${idx}" id="track-${idx}">
             <div class="playlist-track-number">${trackNumber}</div>
             <div class="playlist-track-name" title="${this.escapeHtml(trackName)}">${this.escapeHtml(trackName)}</div>
             <div class="playlist-track-duration">${this.formatTime(trackDuration)}</div>
+            <div class="playlist-track-controls">
+              <button class="playlist-track-play" data-index="${idx}" title="Воспроизвести"><i class="fas fa-play"></i></button>
+              <button class="playlist-track-remove" data-index="${idx}" title="Удалить"><i class="fas fa-trash"></i></button>
+            </div>
         </div>`;
         globalTrackIndex++;
       }
@@ -379,7 +398,6 @@ const PlaylistViewer = {
     }
     this.attachEventListeners();
     this.attachGroupToggleListeners();
-    console.log("updateDisplay finished");
   },
 
   attachGroupToggleListeners() {
@@ -401,50 +419,39 @@ const PlaylistViewer = {
         }
       };
       header.addEventListener("click", this.handleGroupToggle);
-      const tracksContainer = header.nextElementSibling;
-      const isCurrentGroup =
-        tracksContainer &&
-        tracksContainer.querySelector(".playlist-track.current");
-      if (!isCurrentGroup) {
-        header.classList.add("collapsed");
-        if (tracksContainer) tracksContainer.classList.add("collapsed");
-        const arrow = header.querySelector(".group-arrow");
-        if (arrow) arrow.classList.add("rotated");
-      }
     });
-  },
-
-  getTracksWord(count) {
-    if (count % 10 === 1 && count % 100 !== 11) return "трек";
-    if (
-      count % 10 >= 2 &&
-      count % 10 <= 4 &&
-      (count % 100 < 10 || count % 100 >= 20)
-    )
-      return "трека";
-    return "треков";
   },
 
   attachEventListeners() {
     const playPauseBtn = document.getElementById("playlistPlayPauseBtn");
     if (playPauseBtn) {
-      playPauseBtn.addEventListener("click", () => this.playPause());
+      playPauseBtn.removeEventListener("click", this.playPauseHandler);
+      this.playPauseHandler = () => this.playPause();
+      playPauseBtn.addEventListener("click", this.playPauseHandler);
     }
     const prevBtn = document.getElementById("playlistPrevBtn");
     if (prevBtn) {
-      prevBtn.addEventListener("click", () => this.previousTrack());
+      prevBtn.removeEventListener("click", this.prevHandler);
+      this.prevHandler = () => this.previousTrack();
+      prevBtn.addEventListener("click", this.prevHandler);
     }
     const nextBtn = document.getElementById("playlistNextBtn");
     if (nextBtn) {
-      nextBtn.addEventListener("click", () => this.nextTrack());
+      nextBtn.removeEventListener("click", this.nextHandler);
+      this.nextHandler = () => this.nextTrack();
+      nextBtn.addEventListener("click", this.nextHandler);
     }
     const stopBtn = document.getElementById("playlistStopBtn");
     if (stopBtn) {
-      stopBtn.addEventListener("click", () => this.stopPlayback());
+      stopBtn.removeEventListener("click", this.stopHandler);
+      this.stopHandler = () => this.stopPlayback();
+      stopBtn.addEventListener("click", this.stopHandler);
     }
     const clearBtn = document.getElementById("playlistClearBtn");
     if (clearBtn) {
-      clearBtn.addEventListener("click", () => this.clearPlaylist());
+      clearBtn.removeEventListener("click", this.clearHandler);
+      this.clearHandler = () => this.clearPlaylist();
+      clearBtn.addEventListener("click", this.clearHandler);
     }
     document.querySelectorAll(".playlist-track-play").forEach((btn) => {
       btn.removeEventListener("click", this.handlePlayClick);
@@ -582,12 +589,12 @@ const PlaylistViewer = {
       console.log("[PlaylistViewer] Already initialized, skipping");
       return;
     }
-    if (this.initialized) return;
     this.initialized = true;
     console.log("PlaylistViewer.init called");
     if (typeof AudioPlayer !== "undefined" && AudioPlayer.musiumUrl) {
       this.setMusiumUrl(AudioPlayer.musiumUrl);
     }
+    this.setupCloseHandler();
     await this.refresh();
   },
 };

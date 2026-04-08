@@ -62,7 +62,10 @@ export class AlbumUIRenderer {
   renderAlbums() {
     const grid = document.getElementById("albumsGrid");
     if (!grid) return;
-    if (this.library.filteredAlbums.length === 0) {
+    if (
+      !this.library.filteredAlbums ||
+      this.library.filteredAlbums.length === 0
+    ) {
       grid.innerHTML =
         '<div class="empty"><i class="fas fa-music"></i> Альбомы не найдены</div>';
       return;

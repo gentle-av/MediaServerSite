@@ -14,16 +14,23 @@ export class AlbumDataManager {
       if (data.status === "success" && data.albums) {
         const newAlbums = [];
         for (const album of data.albums) {
-          const albumKey = `${album.album}|${album.artist}`;
+          const albumKey = `${album.album || album.title}|${album.artist}`;
+          const albumName = album.album || album.title;
           if (!uniqueAlbums.has(albumKey)) {
+            const existingAlbum = this.library.albums.find(
+              (a) => a.artist === album.artist && a.title === albumName,
+            );
+            if (existingAlbum) {
+              continue;
+            }
             const [tracks, coverUrl] = await Promise.all([
-              this.getTracksFromAlbum(album.album, album.artist),
-              this.getAlbumCover(album.album, album.artist),
+              this.getTracksFromAlbum(albumName, album.artist),
+              this.getAlbumCover(albumName, album.artist),
             ]);
             const albumData = {
-              name: album.album,
+              name: albumName,
               artist: album.artist,
-              title: album.album,
+              title: albumName,
               year: album.year || "",
               tracks: tracks,
               coverUrl: coverUrl,
@@ -36,7 +43,9 @@ export class AlbumDataManager {
         if (newAlbums.length > 0) {
           this.library.albums.push(...newAlbums);
           this.library.filteredAlbums = [...this.library.albums];
-          this.library.uiRenderer.renderAlbumsIncremental();
+          if (this.library.uiRenderer) {
+            this.library.uiRenderer.renderAlbumsIncremental();
+          }
           if (foundSpan) foundSpan.textContent = this.library.albums.length;
         }
       }
@@ -54,29 +63,40 @@ export class AlbumDataManager {
       });
       const data = await response.json();
       if (data.status === "success" && data.tracks) {
-        const tracksWithDuration = await Promise.all(
-          data.tracks.map(async (track, idx) => {
-            let duration = track.duration || 0;
-            if (!duration && track.path) {
-              duration = await this.getTrackDuration(track.path);
-            }
-            return {
-              name:
-                track.title ||
-                track.filename?.replace(/\.(flac|mp3|m4a|wav)$/i, "") ||
-                `Track ${idx + 1}`,
-              path: track.path,
-              number: track.track || idx + 1,
-              duration: duration,
-            };
-          }),
-        );
+        const tracksWithDuration = data.tracks.map((track, idx) => {
+          let duration = track.duration || 0;
+          return {
+            name:
+              track.title ||
+              track.name ||
+              track.filename?.replace(/\.(flac|mp3|m4a|wav)$/i, "") ||
+              `Track ${idx + 1}`,
+            path: track.path,
+            number: track.track || idx + 1,
+            duration: duration,
+          };
+        });
         return tracksWithDuration;
       }
       return [];
     } catch (error) {
       console.error("Error loading tracks:", error);
       return [];
+    }
+  }
+
+  async getAlbumCover(albumName, artist) {
+    try {
+      const url = `${this.library.getServerUrl()}/api/music/albumart/album/${encodeURIComponent(albumName)}?artist=${encodeURIComponent(artist)}`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const blob = await response.blob();
+        return URL.createObjectURL(blob);
+      }
+      return null;
+    } catch (error) {
+      console.error("Error loading cover:", error);
+      return null;
     }
   }
 
@@ -96,19 +116,6 @@ export class AlbumDataManager {
       console.error("Error fetching track duration:", error);
       return 0;
     }
-  }
-  async getAlbumCover(albumName, artist) {
-    try {
-      const url = `${this.library.getServerUrl()}/api/music/albumart/album/${encodeURIComponent(albumName)}${artist ? `?artist=${encodeURIComponent(artist)}` : ""}`;
-      const response = await fetch(url);
-      if (response.ok) {
-        const blob = await response.blob();
-        if (blob.size > 0 && blob.type.startsWith("image/")) return url;
-      }
-    } catch (error) {
-      console.debug("No album art found");
-    }
-    return "";
   }
 
   async collectAllTracks() {
