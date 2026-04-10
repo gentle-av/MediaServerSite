@@ -29,7 +29,6 @@ const PlaylistViewer = {
     try {
       const response = await fetch(`${this.getServerUrl()}/api/getPlaylist`);
       const data = await response.json();
-      console.log("[PlaylistViewer] Playlist response:", data);
       return data;
     } catch (error) {
       console.error("Error getting playlist:", error);
@@ -37,15 +36,14 @@ const PlaylistViewer = {
     }
   },
 
-  async getCurrentTrack() {
+  async getPlaybackState() {
     if (!this.playerAvailable) return null;
     try {
-      const response = await fetch(`${this.getServerUrl()}/api/currentTrack`);
+      const response = await fetch(`${this.getServerUrl()}/api/playbackState`);
       const data = await response.json();
-      console.log("[PlaylistViewer] Current track response:", data);
       return data;
     } catch (error) {
-      console.error("Error getting current track:", error);
+      console.error("Error getting playback state:", error);
       return null;
     }
   },
@@ -57,18 +55,12 @@ const PlaylistViewer = {
       return;
     }
     const playlistData = await this.getPlaylist();
-    const currentTrackData = await this.getCurrentTrack();
+    const playbackState = await this.getPlaybackState();
     let currentTrackPath = null;
-    console.log("[PlaylistViewer] Full currentTrackData:", currentTrackData);
-    if (currentTrackData && currentTrackData.data) {
-      if (currentTrackData.data.track) {
-        currentTrackPath = currentTrackData.data.track;
-      } else if (typeof currentTrackData.data === "string") {
-        currentTrackPath = currentTrackData.data;
-      }
-      console.log("[PlaylistViewer] Current track path:", currentTrackPath);
+    if (playbackState && playbackState.success && playbackState.data) {
+      currentTrackPath = playbackState.data.currentTrack;
     }
-    if (playlistData && playlistData.data) {
+    if (playlistData && playlistData.success && playlistData.data) {
       let tracks = playlistData.data;
       if (
         typeof tracks === "object" &&
@@ -78,9 +70,26 @@ const PlaylistViewer = {
         tracks = tracks.tracks;
       }
       this.renderPlaylist(tracks, currentTrackPath);
+      this.updateTrackCount(tracks.length);
     } else {
       this.showEmptyPlaylist("Плейлист пуст");
+      this.updateTrackCount(0);
     }
+  },
+
+  updateTrackCount(count) {
+    const countElement = document.getElementById("playlistTrackCount");
+    if (countElement) {
+      const tracksText = this.getTracksText(count);
+      countElement.textContent = tracksText;
+    }
+  },
+
+  getTracksText(count) {
+    if (count === 0) return "0 треков";
+    if (count === 1) return "1 трек";
+    if (count >= 2 && count <= 4) return `${count} трека`;
+    return `${count} треков`;
   },
 
   renderPlaylist(playlist, currentTrackPath) {
@@ -95,15 +104,10 @@ const PlaylistViewer = {
       const trackPath = playlist[i];
       const trackName = trackPath.split("/").pop();
       const isCurrent = trackPath === currentTrackPath;
-      console.log(
-        `[PlaylistViewer] Track ${i}: ${trackPath}, isCurrent: ${isCurrent}`,
-      );
       html += `
         <div class="playlist-track-item ${isCurrent ? "current" : ""}" data-index="${i}" data-path="${this.escapeHtml(trackPath)}">
           <div class="playlist-track-number">${String(i + 1).padStart(2, "0")}</div>
-          <div class="playlist-track-info">
-            <div class="playlist-track-name" title="${this.escapeHtml(trackName)}">${this.escapeHtml(trackName)}</div>
-          </div>
+          <div class="playlist-track-name" title="${this.escapeHtml(trackName)}">${this.escapeHtml(trackName)}</div>
           <div class="playlist-track-remove-btn" data-index="${i}">
             <i class="fas fa-trash"></i>
           </div>
@@ -167,41 +171,63 @@ const PlaylistViewer = {
     if (!container) return;
     container.innerHTML = `
       <div class="playlist-empty">
-        <i class="fas fa-music" style="font-size: 48px; opacity: 0.5;"></i>
+        <i class="fas fa-music"></i>
         <p>${message}</p>
-        <small>Нажмите на альбом, чтобы начать воспроизведение</small>
       </div>
     `;
   },
 
-  showPlaylistSection() {
-    const modal = document.getElementById("albumModal");
-    if (modal && modal.classList.contains("active")) {
-      modal.classList.remove("active");
+  openPlaylist() {
+    const popup = document.getElementById("playlistPopup");
+    if (popup) {
+      popup.classList.add("open");
+      this.refresh();
     }
-    const playlistSection = document.getElementById("playlistSection");
-    if (playlistSection) {
-      playlistSection.style.display = "block";
-      const playlistToggleBtn = document.getElementById("playlistToggleBtn");
-      if (playlistToggleBtn) playlistToggleBtn.classList.add("active");
-      this.init();
-      setTimeout(() => this.refresh(), 100);
-      setTimeout(() => {
-        if (
-          playlistSection &&
-          typeof playlistSection.scrollIntoView === "function"
-        ) {
-          try {
-            playlistSection.scrollIntoView({
-              behavior: "smooth",
-              block: "start",
-            });
-          } catch (e) {
-            console.error("scrollIntoView error:", e);
-          }
+  },
+
+  closePlaylist() {
+    const popup = document.getElementById("playlistPopup");
+    if (popup) {
+      popup.classList.remove("open");
+    }
+  },
+
+  async clearPlaylist() {
+    try {
+      await fetch(`${this.getServerUrl()}/api/clear`, { method: "POST" });
+      await this.refresh();
+      if (typeof AudioPlayer !== "undefined") {
+        AudioPlayer.updateUI();
+      }
+      Utils.showNotification("Плейлист очищен", "success");
+    } catch (error) {
+      console.error("Error clearing playlist:", error);
+      Utils.showNotification("Ошибка очистки плейлиста", "error");
+    }
+  },
+
+  setupEventListeners() {
+    const closeBtn = document.getElementById("playlistPopupClose");
+    const clearBtn = document.getElementById("playlistClearBtn");
+    if (closeBtn) {
+      const newCloseBtn = closeBtn.cloneNode(true);
+      closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+      newCloseBtn.addEventListener("click", () => this.closePlaylist());
+    }
+    if (clearBtn) {
+      const newClearBtn = clearBtn.cloneNode(true);
+      clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
+      newClearBtn.addEventListener("click", () => this.clearPlaylist());
+    }
+    document.addEventListener("click", (e) => {
+      const popup = document.getElementById("playlistPopup");
+      const playlistBtn = document.getElementById("headerPlaylistBtn");
+      if (popup && popup.classList.contains("open")) {
+        if (!popup.contains(e.target) && !playlistBtn?.contains(e.target)) {
+          this.closePlaylist();
         }
-      }, 200);
-    }
+      }
+    });
   },
 
   startPolling() {
@@ -216,7 +242,7 @@ const PlaylistViewer = {
   async init() {
     if (this.initialized) return;
     this.initialized = true;
-    this.showEmptyPlaylist("Плейлист пуст");
+    this.setupEventListeners();
     await this.refresh();
     this.startPolling();
   },

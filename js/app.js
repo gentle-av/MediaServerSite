@@ -46,19 +46,6 @@ const App = {
   },
 
   setupHeaderControls() {
-    const headerPlaylistBtn = document.getElementById("headerPlaylistBtn");
-    if (headerPlaylistBtn) {
-      const newPlaylistBtn = headerPlaylistBtn.cloneNode(true);
-      headerPlaylistBtn.parentNode.replaceChild(
-        newPlaylistBtn,
-        headerPlaylistBtn,
-      );
-      newPlaylistBtn.addEventListener("click", () => {
-        if (typeof AlbumLibrary !== "undefined") {
-          AlbumLibrary.openPlaylistSidebar();
-        }
-      });
-    }
     const headerRefreshBtn = document.getElementById("headerRefreshBtn");
     if (headerRefreshBtn) {
       const newRefreshBtn = headerRefreshBtn.cloneNode(true);
@@ -82,6 +69,19 @@ const App = {
           : null;
         if (currentPage === "audio" && typeof AlbumLibrary !== "undefined") {
           AlbumLibrary.performSearch(e.target.value);
+        }
+      });
+    }
+    const headerPlaylistBtn = document.getElementById("headerPlaylistBtn");
+    if (headerPlaylistBtn) {
+      const newPlaylistBtn = headerPlaylistBtn.cloneNode(true);
+      headerPlaylistBtn.parentNode.replaceChild(
+        newPlaylistBtn,
+        headerPlaylistBtn,
+      );
+      newPlaylistBtn.addEventListener("click", () => {
+        if (typeof PlaylistViewer !== "undefined") {
+          PlaylistViewer.openPlaylist();
         }
       });
     }

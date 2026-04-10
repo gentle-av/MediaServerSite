@@ -1,12 +1,23 @@
-const PlaylistViewer = {
+const AudioPlayer = {
+  currentAlbum: null,
+  currentTrackIndex: -1,
+  tracks: [],
+  isPlaying: false,
+  audioElement: null,
   playlist: [],
-  currentIndex: -1,
-  updateInterval: null,
-  initialized: false,
+  serverUrl: null,
   playerAvailable: false,
+  pendingAction: null,
+  panelUpdateInterval: null,
+  lastPlaylistLength: 0,
+  lastCurrentFilePath: null,
+  initialized: false,
 
   getServerUrl() {
-    return `http://${window.location.hostname}:${window.location.port}`;
+    if (!this.serverUrl) {
+      this.serverUrl = `http://${window.location.hostname}:${window.location.port}`;
+    }
+    return this.serverUrl;
   },
 
   async checkPlayerAvailable() {
@@ -18,209 +29,408 @@ const PlaylistViewer = {
         return this.playerAvailable;
       }
     } catch (error) {
-      console.log("[PlaylistViewer] Player not available");
+      console.log("[AudioPlayer] Player not available:", error.message);
     }
     this.playerAvailable = false;
     return false;
   },
 
-  async getPlaylist() {
-    if (!this.playerAvailable) return null;
+  async sendToPlayer(endpoint, data = null, method = "POST") {
+    if (!this.playerAvailable) {
+      await this.checkPlayerAvailable();
+      if (!this.playerAvailable) return null;
+    }
     try {
-      const response = await fetch(`${this.getServerUrl()}/api/getPlaylist`);
-      const data = await response.json();
-      console.log("[PlaylistViewer] Playlist response:", data);
-      return data;
+      const url = `${this.getServerUrl()}${endpoint}`;
+      const options = {
+        method: method,
+        headers: { "Content-Type": "application/json" },
+      };
+      if (data && method === "POST") {
+        options.body = JSON.stringify(data);
+      }
+      const response = await fetch(url, options);
+      const result = await response.json();
+      return result;
     } catch (error) {
-      console.error("Error getting playlist:", error);
+      console.error(`Player API error: ${endpoint}`, error);
+      this.playerAvailable = false;
       return null;
     }
   },
 
   async getPlaybackState() {
-    if (!this.playerAvailable) return null;
-    try {
-      const response = await fetch(`${this.getServerUrl()}/api/playbackState`);
-      const data = await response.json();
-      console.log("[PlaylistViewer] PlaybackState response:", data);
-      return data;
-    } catch (error) {
-      console.error("Error getting playback state:", error);
-      return null;
-    }
+    return await this.sendToPlayer("/api/playbackState", null, "GET");
   },
 
-  async refresh() {
+  async getPlaylist() {
+    return await this.sendToPlayer("/api/getPlaylist", null, "GET");
+  },
+
+  async getCurrentTime() {
+    return await this.sendToPlayer("/api/currentTime", null, "GET");
+  },
+
+  async play() {
+    return await this.sendToPlayer("/api/play");
+  },
+
+  async pause() {
+    return await this.sendToPlayer("/api/pause");
+  },
+
+  async stop() {
+    return await this.sendToPlayer("/api/stop");
+  },
+
+  async next() {
+    const result = await this.sendToPlayer("/api/next");
+    if (result && result.success) {
+      await this.delay(200);
+      await this.updateUI();
+      if (typeof PlaylistViewer !== "undefined") {
+        PlaylistViewer.refresh();
+      }
+    }
+    return result;
+  },
+
+  async previous() {
+    const result = await this.sendToPlayer("/api/previous");
+    if (result && result.success) {
+      await this.delay(200);
+      await this.updateUI();
+      if (typeof PlaylistViewer !== "undefined") {
+        PlaylistViewer.refresh();
+      }
+    }
+    return result;
+  },
+
+  async setPlaylist(tracks) {
+    const result = await this.sendToPlayer("/api/setPlaylist", {
+      tracks: tracks,
+    });
+    if (result && result.success) {
+      await this.updateUI();
+      if (typeof PlaylistViewer !== "undefined") {
+        PlaylistViewer.refresh();
+      }
+    }
+    return result;
+  },
+
+  async addToPlaylist(track) {
+    const result = await this.sendToPlayer("/api/addToPlaylist", {
+      track: track,
+    });
+    if (result && result.success) {
+      if (typeof PlaylistViewer !== "undefined") {
+        await this.delay(300);
+        PlaylistViewer.refresh();
+      }
+    }
+    return result;
+  },
+
+  async addAfterCurrent(track) {
+    const result = await this.sendToPlayer("/api/addAfterCurrent", {
+      track: track,
+    });
+    if (result && result.success) {
+      if (typeof PlaylistViewer !== "undefined") {
+        await this.delay(300);
+        PlaylistViewer.refresh();
+      }
+    }
+    return result;
+  },
+
+  async clearPlaylist() {
+    const result = await this.sendToPlayer("/api/clear");
+    if (result && result.success) {
+      if (typeof PlaylistViewer !== "undefined") {
+        PlaylistViewer.refresh();
+      }
+      Utils.showNotification("Плейлист очищен", "success");
+      await this.updateUI();
+    }
+    return result;
+  },
+
+  async playIndex(index) {
+    return await this.sendToPlayer("/api/playIndex", { index: index });
+  },
+
+  async replacePlaylistWithTrack(track) {
+    const result = await this.sendToPlayer("/api/track", { track: track });
+    if (result && result.success) {
+      await this.updateUI();
+      if (typeof PlaylistViewer !== "undefined") {
+        PlaylistViewer.refresh();
+      }
+    }
+    return result;
+  },
+
+  async ensurePlayerRunning() {
     const available = await this.checkPlayerAvailable();
-    if (!available) {
-      this.showEmptyPlaylist("Плеер недоступен");
-      return;
-    }
-    const playlistData = await this.getPlaylist();
-    const playbackState = await this.getPlaybackState();
-    let currentTrackPath = null;
-    if (playbackState && playbackState.success && playbackState.data) {
-      currentTrackPath = playbackState.data.currentTrack;
-      console.log("[PlaylistViewer] Current track path:", currentTrackPath);
-    }
-    if (playlistData && playlistData.success && playlistData.data) {
-      let tracks = playlistData.data;
-      if (
-        typeof tracks === "object" &&
-        !Array.isArray(tracks) &&
-        tracks.tracks
-      ) {
-        tracks = tracks.tracks;
+    if (available) return true;
+    Utils.showNotification("Плеер недоступен, проверьте подключение", "error");
+    return false;
+  },
+
+  async playSingleTrack(album, trackIndex) {
+    const track = album.tracks[trackIndex];
+    const started = await this.ensurePlayerRunning();
+    if (!started) return;
+    const result = await this.replacePlaylistWithTrack(track.path);
+    if (result && result.success) {
+      Utils.showNotification(`Воспроизведение: ${track.name}`, "success");
+      this.currentAlbum = album;
+      this.tracks = [...album.tracks];
+      this.currentTrackIndex = trackIndex;
+      await this.updateUI();
+      if (typeof PlaylistViewer !== "undefined") {
+        PlaylistViewer.refresh();
       }
-      this.renderPlaylist(tracks, currentTrackPath);
-    } else {
-      this.showEmptyPlaylist("Плейлист пуст");
     }
   },
 
-  renderPlaylist(playlist, currentTrackPath) {
-    const container = document.getElementById("playlistContainer");
-    if (!container) return;
-    if (!playlist || playlist.length === 0) {
-      this.showEmptyPlaylist("Плейлист пуст");
-      return;
+  async addAlbumToPlaylist(album) {
+    const started = await this.ensurePlayerRunning();
+    if (!started) return;
+    let addedCount = 0;
+    for (const track of album.tracks) {
+      const result = await this.addToPlaylist(track.path);
+      if (result && result.success) addedCount++;
+      await this.delay(100);
     }
-    let html = `<div class="playlist-tracks-list">`;
-    for (let i = 0; i < playlist.length; i++) {
-      const trackPath = playlist[i];
-      const trackName = trackPath.split("/").pop();
-      const isCurrent = trackPath === currentTrackPath;
-      console.log(
-        `[PlaylistViewer] Track ${i}: ${trackPath}, isCurrent: ${isCurrent}`,
-      );
-      html += `
-        <div class="playlist-track-item ${isCurrent ? "current" : ""}" data-index="${i}" data-path="${this.escapeHtml(trackPath)}">
-          <div class="playlist-track-number">${String(i + 1).padStart(2, "0")}</div>
-          <div class="playlist-track-info">
-            <div class="playlist-track-name" title="${this.escapeHtml(trackName)}">${this.escapeHtml(trackName)}</div>
-          </div>
-          <div class="playlist-track-remove-btn" data-index="${i}">
-            <i class="fas fa-trash"></i>
-          </div>
-        </div>
-      `;
+    Utils.showNotification(`Добавлено ${addedCount} треков`, "success");
+    if (typeof PlaylistViewer !== "undefined") {
+      await this.delay(500);
+      PlaylistViewer.refresh();
     }
-    html += `</div>`;
-    container.innerHTML = html;
-    this.attachPlaylistEvents();
   },
 
-  attachPlaylistEvents() {
-    const container = document.getElementById("playlistContainer");
-    if (!container) return;
-    container.querySelectorAll(".playlist-track-item").forEach((item) => {
-      const newItem = item.cloneNode(true);
-      item.parentNode.replaceChild(newItem, item);
-      newItem.addEventListener("click", async (e) => {
-        if (e.target.closest(".playlist-track-remove-btn")) return;
-        const index = parseInt(newItem.dataset.index);
-        await this.playTrack(index);
-      });
-    });
-    container.querySelectorAll(".playlist-track-remove-btn").forEach((btn) => {
-      const newBtn = btn.cloneNode(true);
-      btn.parentNode.replaceChild(newBtn, btn);
-      newBtn.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        const index = parseInt(newBtn.dataset.index);
-        await this.removeTrack(index);
-      });
-    });
-  },
-
-  async playTrack(index) {
-    try {
-      const response = await fetch(`${this.getServerUrl()}/api/playIndex`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ index: index }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        await this.delay(200);
-        await this.refresh();
-        if (typeof AudioPlayer !== "undefined") {
-          AudioPlayer.updateUI();
-        }
+  async replacePlaylistWithAlbum(album) {
+    const started = await this.ensurePlayerRunning();
+    if (!started) return;
+    const trackPaths = album.tracks.map((t) => t.path);
+    const result = await this.setPlaylist(trackPaths);
+    if (result && result.success) {
+      Utils.showNotification(`Плейлист заменен: ${album.title}`, "success");
+      this.currentAlbum = album;
+      this.tracks = [...album.tracks];
+      this.currentTrackIndex = 0;
+      if (typeof PlaylistViewer !== "undefined") {
+        PlaylistViewer.refresh();
       }
-    } catch (error) {
-      console.error("Error playing track:", error);
+      await this.updateUI();
     }
   },
 
-  async removeTrack(index) {
-    Utils.showNotification("Удаление трека пока не реализовано", "info");
-  },
-
-  showEmptyPlaylist(message) {
-    const container = document.getElementById("playlistContainer");
-    if (!container) return;
-    container.innerHTML = `
-      <div class="playlist-empty">
-        <i class="fas fa-music" style="font-size: 48px; opacity: 0.5;"></i>
-        <p>${message}</p>
-        <small>Нажмите на альбом, чтобы начать воспроизведение</small>
-      </div>
-    `;
-  },
-
-  showPlaylistSection() {
-    const modal = document.getElementById("albumModal");
-    if (modal && modal.classList.contains("active")) {
-      modal.classList.remove("active");
-    }
-    const playlistSection = document.getElementById("playlistSection");
-    if (playlistSection) {
-      playlistSection.style.display = "block";
-      const playlistToggleBtn = document.getElementById("playlistToggleBtn");
-      if (playlistToggleBtn) playlistToggleBtn.classList.add("active");
-      this.init();
-      setTimeout(() => this.refresh(), 100);
-      setTimeout(() => {
-        if (
-          playlistSection &&
-          typeof playlistSection.scrollIntoView === "function"
-        ) {
-          try {
-            playlistSection.scrollIntoView({
-              behavior: "smooth",
-              block: "start",
-            });
-          } catch (e) {
-            console.error("scrollIntoView error:", e);
-          }
-        }
-      }, 200);
-    }
-  },
-
-  startPolling() {
-    if (this.updateInterval) clearInterval(this.updateInterval);
-    this.updateInterval = setInterval(() => {
-      if (this.playerAvailable) {
-        this.refresh();
+  async replacePlaylistWithTrack(album, trackIndex) {
+    const track = album.tracks[trackIndex];
+    const started = await this.ensurePlayerRunning();
+    if (!started) return;
+    const result = await this.replacePlaylistWithTrack(track.path);
+    if (result && result.success) {
+      Utils.showNotification(`Плейлист заменен: ${track.name}`, "success");
+      if (typeof PlaylistViewer !== "undefined") {
+        PlaylistViewer.refresh();
       }
-    }, 3000);
+    }
+  },
+
+  async addTrackAfterCurrent(album, trackIndex) {
+    const track = album.tracks[trackIndex];
+    const started = await this.ensurePlayerRunning();
+    if (!started) return;
+    const result = await this.addAfterCurrent(track.path);
+    if (result && result.success) {
+      Utils.showNotification(`Трек добавлен: ${track.name}`, "success");
+      if (typeof PlaylistViewer !== "undefined") {
+        PlaylistViewer.refresh();
+      }
+    }
+  },
+
+  async togglePlayPause() {
+    const state = await this.getPlaybackState();
+    if (state && state.data) {
+      if (state.data.isPlaying) {
+        await this.pause();
+      } else {
+        await this.play();
+      }
+    }
+    await this.updateUI();
+  },
+
+  async nextTrack() {
+    await this.next();
+  },
+
+  async previousTrack() {
+    await this.previous();
+  },
+
+  async stopPlayback() {
+    await this.stop();
+    await this.updateUI();
   },
 
   async init() {
     if (this.initialized) return;
     this.initialized = true;
-    this.showEmptyPlaylist("Плейлист пуст");
-    await this.refresh();
-    this.startPolling();
+    await this.checkPlayerAvailable();
+    this.setupEventListeners();
+    this.initUI();
+    await this.updateUI();
+    if (this.playerAvailable) {
+      this.startStatusPolling();
+    }
   },
 
-  escapeHtml(str) {
-    if (!str) return "";
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
+  setupEventListeners() {
+    const playBtn = document.getElementById("playerPlayBtn");
+    const prevBtn = document.getElementById("playerPrevBtn");
+    const nextBtn = document.getElementById("playerNextBtn");
+    const stopBtn = document.getElementById("playerStopBtn");
+    if (playBtn) {
+      const newBtn = playBtn.cloneNode(true);
+      playBtn.parentNode.replaceChild(newBtn, playBtn);
+      newBtn.addEventListener("click", () => this.togglePlayPause());
+    }
+    if (prevBtn) {
+      const newBtn = prevBtn.cloneNode(true);
+      prevBtn.parentNode.replaceChild(newBtn, prevBtn);
+      newBtn.addEventListener("click", () => this.previousTrack());
+    }
+    if (nextBtn) {
+      const newBtn = nextBtn.cloneNode(true);
+      nextBtn.parentNode.replaceChild(newBtn, nextBtn);
+      newBtn.addEventListener("click", () => this.nextTrack());
+    }
+    if (stopBtn) {
+      const newBtn = stopBtn.cloneNode(true);
+      stopBtn.parentNode.replaceChild(newBtn, stopBtn);
+      newBtn.addEventListener("click", () => this.stopPlayback());
+    }
+  },
+
+  startStatusPolling() {
+    if (this.panelUpdateInterval) clearInterval(this.panelUpdateInterval);
+    this.panelUpdateInterval = setInterval(() => this.updateUI(), 1000);
+  },
+
+  async updateUI() {
+    if (!this.playerAvailable) {
+      await this.checkPlayerAvailable();
+      if (!this.playerAvailable) {
+        const panel = document.getElementById("audioPlayerControlPanel");
+        if (panel) panel.classList.remove("active");
+        return;
+      }
+    }
+    const state = await this.getPlaybackState();
+    if (!state || !state.success) return;
+    const hasTracks = state.data && state.data.currentTrack;
+    const panel = document.getElementById("audioPlayerControlPanel");
+    if (!hasTracks) {
+      if (panel) panel.classList.remove("active");
+      if (this.panelTrackName) this.panelTrackName.textContent = "Нет треков";
+      if (this.panelTrackArtist) this.panelTrackArtist.textContent = "";
+      if (this.panelTimeCurrent) this.panelTimeCurrent.textContent = "0:00";
+      if (this.panelProgressFill) this.panelProgressFill.style.width = "0%";
+      return;
+    }
+    if (panel && !panel.classList.contains("active")) {
+      panel.classList.add("active");
+    }
+    const timeInfo = await this.getCurrentTime();
+    const trackName = state.data.currentTrack
+      ? state.data.currentTrack.split("/").pop()
+      : "—";
+    if (this.panelTrackName) this.panelTrackName.textContent = trackName;
+    if (this.panelTrackArtist) this.panelTrackArtist.textContent = "";
+    if (timeInfo && timeInfo.success && timeInfo.data) {
+      if (this.panelTimeCurrent) {
+        this.panelTimeCurrent.textContent = this.formatTime(
+          timeInfo.data.currentTime || 0,
+        );
+      }
+    }
+    if (state && state.data) {
+      if (this.panelPlayPauseBtn) {
+        if (state.data.isPlaying) {
+          this.panelPlayPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+        } else {
+          this.panelPlayPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+        }
+      }
+      if (this.panelTrackCount) {
+        this.panelTrackCount.textContent = `${(state.data.currentIndex || 0) + 1}/${state.data.totalTracks || 0}`;
+      }
+    }
+  },
+
+  initUI() {
+    this.panelPlayPauseBtn = document.getElementById("panelPlayPauseBtn");
+    this.panelPrevBtn = document.getElementById("panelPrevBtn");
+    this.panelNextBtn = document.getElementById("panelNextBtn");
+    this.panelStopBtn = document.getElementById("panelStopBtn");
+    this.panelClearBtn = document.getElementById("panelClearBtn");
+    this.panelProgressBar = document.getElementById("panelProgressBar");
+    this.panelTrackName = document.getElementById("panelTrackName");
+    this.panelTrackArtist = document.getElementById("panelTrackArtist");
+    this.panelTimeCurrent = document.getElementById("panelTimeCurrent");
+    this.panelTimeTotal = document.getElementById("panelTimeTotal");
+    this.panelProgressFill = document.getElementById("panelProgressFill");
+    this.panelTrackCount = document.getElementById("panelTrackCount");
+    if (this.panelPlayPauseBtn) {
+      const newBtn = this.panelPlayPauseBtn.cloneNode(true);
+      this.panelPlayPauseBtn.parentNode.replaceChild(
+        newBtn,
+        this.panelPlayPauseBtn,
+      );
+      this.panelPlayPauseBtn = newBtn;
+      this.panelPlayPauseBtn.addEventListener("click", () =>
+        this.togglePlayPause(),
+      );
+    }
+    if (this.panelPrevBtn) {
+      const newBtn = this.panelPrevBtn.cloneNode(true);
+      this.panelPrevBtn.parentNode.replaceChild(newBtn, this.panelPrevBtn);
+      this.panelPrevBtn = newBtn;
+      this.panelPrevBtn.addEventListener("click", () => this.previousTrack());
+    }
+    if (this.panelNextBtn) {
+      const newBtn = this.panelNextBtn.cloneNode(true);
+      this.panelNextBtn.parentNode.replaceChild(newBtn, this.panelNextBtn);
+      this.panelNextBtn = newBtn;
+      this.panelNextBtn.addEventListener("click", () => this.nextTrack());
+    }
+    if (this.panelStopBtn) {
+      const newBtn = this.panelStopBtn.cloneNode(true);
+      this.panelStopBtn.parentNode.replaceChild(newBtn, this.panelStopBtn);
+      this.panelStopBtn = newBtn;
+      this.panelStopBtn.addEventListener("click", () => this.stopPlayback());
+    }
+    if (this.panelClearBtn) {
+      const newBtn = this.panelClearBtn.cloneNode(true);
+      this.panelClearBtn.parentNode.replaceChild(newBtn, this.panelClearBtn);
+      this.panelClearBtn = newBtn;
+      this.panelClearBtn.addEventListener("click", () => this.clearPlaylist());
+    }
+  },
+
+  formatTime(seconds) {
+    if (!seconds || seconds < 0) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   },
 
   delay(ms) {

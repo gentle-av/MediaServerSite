@@ -45,23 +45,26 @@
         <button class="player-panel-btn" id="panelStopBtn" title="Стоп">
           <i class="fas fa-stop"></i>
         </button>
-        <button
-          class="player-panel-btn"
-          id="panelClearBtn"
-          title="Очистить плейлист"
-        >
-          <i class="fas fa-trash-alt"></i>
-        </button>
       </div>
     </div>
   </div>
-  <div class="playlist-sidebar" id="playlistSidebar">
-    <div class="playlist-sidebar-header">
+  <div class="playlist-popup" id="playlistPopup">
+    <div class="playlist-popup-header">
       <h3><i class="fas fa-list"></i> Плейлист</h3>
-      <button class="playlist-sidebar-close" id="playlistSidebarClose">
+      <button class="playlist-popup-close" id="playlistPopupClose">
         <i class="fas fa-times"></i>
       </button>
     </div>
-    <div id="playlistContainer" class="playlist-container"></div>
+    <div class="playlist-container" id="playlistContainer"></div>
+    <div class="playlist-popup-controls">
+      <button
+        class="playlist-popup-btn"
+        id="playlistClearBtn"
+        title="Очистить плейлист"
+      >
+        <i class="fas fa-trash-alt"></i>
+      </button>
+      <span class="playlist-popup-count" id="playlistTrackCount">0 треков</span>
+    </div>
   </div>
 </div>
