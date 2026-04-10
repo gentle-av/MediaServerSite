@@ -13,6 +13,7 @@ const AudioPlayer = {
   lastCurrentFilePath: null,
   initialized: false,
   currentTrackDuration: 0,
+  lastTrackPath: null,
 
   getServerUrl() {
     if (!this.serverUrl) {
@@ -354,27 +355,32 @@ const AudioPlayer = {
     if (panel && !panel.classList.contains("active")) {
       panel.classList.add("active");
     }
+    // Проверка смены трека
+    if (
+      state.data.currentTrack &&
+      state.data.currentTrack !== this.lastTrackPath
+    ) {
+      console.log("[AudioPlayer] Track changed to:", state.data.currentTrack);
+      this.lastTrackPath = state.data.currentTrack;
+      this.currentTrackDuration = 0;
+      const metadata = await this.fetchTrackMetadata(state.data.currentTrack);
+      if (metadata && metadata.duration) {
+        this.currentTrackDuration = metadata.duration;
+        console.log(
+          "[AudioPlayer] Duration set to:",
+          this.currentTrackDuration,
+        );
+      }
+    }
     const timeInfo = await this.getCurrentTime();
     const trackName = state.data.currentTrack
       ? state.data.currentTrack.split("/").pop()
       : "—";
     if (this.panelTrackName) this.panelTrackName.textContent = trackName;
-    if (this.panelTrackArtist) this.panelTrackArtist.textContent = "";
     let currentTime = 0;
-    let duration = this.currentTrackDuration || 0;
+    let duration = this.currentTrackDuration;
     if (timeInfo && timeInfo.success && timeInfo.data) {
-      currentTime = timeInfo.data.currentTime || timeInfo.data.position || 0;
-      if (timeInfo.data.duration && timeInfo.data.duration > 0) {
-        duration = timeInfo.data.duration;
-        this.currentTrackDuration = duration;
-      }
-    }
-    if (duration === 0 && state.data.currentTrack) {
-      const metadata = await this.fetchTrackMetadata(state.data.currentTrack);
-      if (metadata && metadata.duration) {
-        duration = metadata.duration;
-        this.currentTrackDuration = duration;
-      }
+      currentTime = timeInfo.data.currentTime || 0;
     }
     if (this.panelTimeCurrent) {
       this.panelTimeCurrent.textContent = this.formatTime(currentTime);
