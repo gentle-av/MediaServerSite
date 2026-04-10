@@ -21,6 +21,56 @@ const AlbumLibrary = {
     return `http://${window.location.hostname}:${window.location.port}`;
   },
 
+  showPlaylistSection() {
+    console.log("showPlaylistSection called");
+    const modal = document.getElementById("albumModal");
+    if (modal && modal.classList.contains("active")) {
+      modal.classList.remove("active");
+    }
+    const playlistSection = document.getElementById("playlistSection");
+    if (playlistSection) {
+      playlistSection.style.display = "block";
+      const playlistToggleBtn = document.getElementById("playlistToggleBtn");
+      if (playlistToggleBtn) playlistToggleBtn.classList.add("active");
+      if (typeof PlaylistViewer !== "undefined") {
+        PlaylistViewer.init();
+        setTimeout(() => PlaylistViewer.refresh(), 100);
+      }
+      setTimeout(() => {
+        if (
+          playlistSection &&
+          typeof playlistSection.scrollIntoView === "function"
+        ) {
+          try {
+            playlistSection.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          } catch (e) {
+            console.error("scrollIntoView error:", e);
+          }
+        }
+      }, 200);
+      if (window.innerWidth <= 768) {
+        setTimeout(() => {
+          if (
+            playlistSection &&
+            typeof playlistSection.scrollIntoView === "function"
+          ) {
+            try {
+              playlistSection.scrollIntoView({
+                behavior: "smooth",
+                block: "end",
+              });
+            } catch (e) {
+              console.error("scrollIntoView error:", e);
+            }
+          }
+        }, 200);
+      }
+    }
+  },
+
   reset() {
     console.log("[RESET] Сброс состояния");
     if (this.loadingTaskId) {
@@ -300,6 +350,7 @@ const AlbumLibrary = {
     if (sidebar) {
       sidebar.classList.add("open");
       if (typeof PlaylistViewer !== "undefined") PlaylistViewer.init();
+      this.showPlaylistSection();
     }
   },
 
@@ -349,69 +400,185 @@ const AlbumLibrary = {
 
   showAlbumModal(album) {
     const modal = document.getElementById("albumModal");
-    const modalTitle = document.getElementById("modalAlbumTitle");
-    const modalTracksList = document.getElementById("modalTracksList");
-    if (!modal || !modalTitle || !modalTracksList) return;
-    modalTitle.textContent = `${album.artist} - ${album.title}`;
-    const modalAlbumArt = document.getElementById("modalAlbumArt");
-    if (modalAlbumArt && album.coverUrl) {
-      modalAlbumArt.src = album.coverUrl;
-      modalAlbumArt.onerror = () => {
-        modalAlbumArt.src =
-          "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23333'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='%23666' font-size='12'%3E🎵%3C/text%3E%3C/svg%3E";
-      };
-    }
-    if (album.tracks && album.tracks.length > 0) {
-      let tracksHtml = '<div class="modal-tracks-list">';
-      album.tracks.forEach((track, idx) => {
-        tracksHtml += `
-          <div class="modal-track-item" data-track-index="${idx}">
-            <div class="modal-track-number">${idx + 1}</div>
-            <div class="modal-track-info">
-              <div class="modal-track-title">${this.escapeHtml(track.name || track.title || "Без названия")}</div>
-              <div class="modal-track-duration">${this.formatDuration(track.duration)}</div>
+    if (!modal) return;
+    const modalContent = modal.querySelector(".modal-content");
+    if (!modalContent) return;
+    modalContent.innerHTML = `
+        <div class="album-modal-header">
+            <div class="album-cover-container">
+                ${album.coverUrl ? `<img src="${album.coverUrl}" alt="${this.escapeHtml(album.title)}" class="album-cover-modal">` : `<div class="album-cover-placeholder"><i class="fas fa-album"></i></div>`}
             </div>
-            <button class="modal-track-play-btn" data-track-index="${idx}">
-              <i class="fas fa-play"></i>
-            </button>
-          </div>
-        `;
+            <div class="album-info-container">
+                <h2 class="modal-album-title">${this.escapeHtml(album.artist)} — ${this.escapeHtml(album.title)}</h2>
+                <div class="modal-album-year">${album.year || "Год неизвестен"}</div>
+                <div class="modal-track-count"><i class="fas fa-headphones"></i> ${album.tracks ? album.tracks.length : 0} треков</div>
+            </div>
+            <div class="modal-controls">
+                <button class="modal-control-btn prev-track-btn" title="Предыдущий трек"><i class="fas fa-step-backward"></i></button>
+                <button class="modal-control-btn add-to-playlist-btn" title="Добавить в плейлист"><i class="fas fa-plus-circle"></i></button>
+                <button class="modal-control-btn replace-playlist-btn" title="Заменить плейлист"><i class="fas fa-exchange-alt"></i></button>
+                <button class="modal-control-btn show-playlist-btn" title="Показать плейлист"><i class="fas fa-list"></i></button>
+                <button class="modal-control-btn next-track-btn" title="Следующий трек"><i class="fas fa-step-forward"></i></button>
+                <button class="modal-close-btn"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="tracks-list-container">
+            <h3>Треки</h3>
+            <div class="tracks-list" id="modalTracksList"></div>
+        </div>
+    `;
+    const modalTracksList = document.getElementById("modalTracksList");
+    if (modalTracksList && album.tracks && album.tracks.length > 0) {
+      modalTracksList.innerHTML = album.tracks
+        .map(
+          (track, idx) => `
+            <div class="track-item" data-track-index="${idx}" data-track-name="${this.escapeHtml(track.name || track.title || "")}" data-track-path="${track.path || ""}">
+                <div class="track-left">
+                    <div class="track-number">${String(idx + 1).padStart(2, "0")}</div>
+                    <div class="track-name">${this.escapeHtml(track.name || track.title || "Без названия")}</div>
+                    <div class="track-duration">${track.duration ? this.formatDuration(track.duration) : ""}</div>
+                </div>
+                <div class="track-right">
+                    <button class="track-control-btn edit-track-tags" data-track-index="${idx}" title="Редактировать теги трека"><i class="fas fa-edit"></i></button>
+                    <button class="track-control-btn replace-playlist-with-track" title="Заменить плейлист этим треком"><i class="fas fa-exchange-alt"></i></button>
+                    <button class="track-control-btn add-after-current" title="Добавить после текущего"><i class="fas fa-plus-circle"></i></button>
+                    <button class="track-control-btn show-playlist-from-track" title="Показать плейлист"><i class="fas fa-list"></i></button>
+                </div>
+            </div>
+        `,
+        )
+        .join("");
+      modalTracksList.querySelectorAll(".edit-track-tags").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.dataset.trackIndex);
+          const track = album.tracks[idx];
+          if (typeof TagEditor !== "undefined") {
+            TagEditor.showTrackTagEditor(track, album);
+          }
+        });
       });
-      tracksHtml += "</div>";
-      modalTracksList.innerHTML = tracksHtml;
       modalTracksList
-        .querySelectorAll(".modal-track-play-btn")
+        .querySelectorAll(".replace-playlist-with-track")
         .forEach((btn) => {
           btn.addEventListener("click", (e) => {
             e.stopPropagation();
             const idx = parseInt(btn.dataset.trackIndex);
-            if (typeof PlaylistViewer !== "undefined") {
-              PlaylistViewer.addToPlaylist(album, idx);
-              modal.classList.remove("active");
+            if (typeof AudioPlayer !== "undefined") {
+              AudioPlayer.replacePlaylistWithTrack(album, idx);
             }
+            modal.classList.remove("active");
           });
         });
-      modalTracksList.querySelectorAll(".modal-track-item").forEach((item) => {
-        item.addEventListener("click", () => {
-          const idx = parseInt(item.dataset.trackIndex);
-          if (typeof PlaylistViewer !== "undefined") {
-            PlaylistViewer.addToPlaylist(album, idx);
+      modalTracksList.querySelectorAll(".add-after-current").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.dataset.trackIndex);
+          if (typeof AudioPlayer !== "undefined") {
+            AudioPlayer.addTrackAfterCurrent(album, idx);
+          }
+        });
+      });
+      modalTracksList
+        .querySelectorAll(".show-playlist-from-track")
+        .forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (
+              typeof AlbumLibrary !== "undefined" &&
+              AlbumLibrary.showPlaylistSection
+            ) {
+              AlbumLibrary.showPlaylistSection();
+            }
+            modal.classList.remove("active");
+          });
+        });
+      modalTracksList.querySelectorAll(".track-item").forEach((item) => {
+        item.addEventListener("click", (e) => {
+          if (!e.target.closest(".track-control-btn")) {
+            const idx = parseInt(item.dataset.trackIndex);
+            if (typeof AudioPlayer !== "undefined") {
+              AudioPlayer.playSingleTrack(album, idx);
+            }
             modal.classList.remove("active");
           }
         });
       });
-    } else {
-      modalTracksList.innerHTML = '<div class="modal-empty">Нет треков</div>';
     }
-    modal.classList.add("active");
-    const closeBtn = modal.querySelector(".modal-close");
-    if (closeBtn) {
-      const newCloseBtn = closeBtn.cloneNode(true);
-      closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
-      newCloseBtn.addEventListener("click", () => {
+    const prevBtn = modalContent.querySelector(".prev-track-btn");
+    const nextBtn = modalContent.querySelector(".next-track-btn");
+    const addToPlaylistBtn = modalContent.querySelector(".add-to-playlist-btn");
+    const replacePlaylistBtn = modalContent.querySelector(
+      ".replace-playlist-btn",
+    );
+    const showPlaylistBtn = modalContent.querySelector(".show-playlist-btn");
+    const closeBtn = modalContent.querySelector(".modal-close-btn");
+    if (prevBtn) {
+      prevBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof AudioPlayer !== "undefined") AudioPlayer.previousTrack();
+      });
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof AudioPlayer !== "undefined") AudioPlayer.nextTrack();
+      });
+    }
+    if (addToPlaylistBtn) {
+      addToPlaylistBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof AudioPlayer !== "undefined") {
+          AudioPlayer.addAlbumToPlaylist(album);
+        }
+        if (
+          typeof AlbumLibrary !== "undefined" &&
+          AlbumLibrary.showPlaylistSection
+        ) {
+          AlbumLibrary.showPlaylistSection();
+        }
+      });
+    }
+    if (replacePlaylistBtn) {
+      replacePlaylistBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof AudioPlayer !== "undefined") {
+          AudioPlayer.replacePlaylistWithAlbum(album);
+        }
+        setTimeout(() => {
+          modal.classList.remove("active");
+          if (
+            typeof AlbumLibrary !== "undefined" &&
+            AlbumLibrary.showPlaylistSection
+          ) {
+            AlbumLibrary.showPlaylistSection();
+          }
+        }, 100);
+      });
+    }
+    if (showPlaylistBtn) {
+      showPlaylistBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (
+          typeof AlbumLibrary !== "undefined" &&
+          AlbumLibrary.showPlaylistSection
+        ) {
+          AlbumLibrary.showPlaylistSection();
+        }
+        if (typeof PlaylistViewer !== "undefined") PlaylistViewer.init();
         modal.classList.remove("active");
       });
     }
+    if (closeBtn) {
+      closeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        modal.classList.remove("active");
+      });
+    }
+    modal.classList.add("active");
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) modal.classList.remove("active");
+    });
   },
 
   formatDuration(seconds) {
