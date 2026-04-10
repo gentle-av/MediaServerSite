@@ -9,6 +9,41 @@ const PlaylistViewer = {
     return `http://${window.location.hostname}:${window.location.port}`;
   },
 
+  async fetchTrackMetadata(filePath) {
+    try {
+      const url = `${this.getServerUrl()}/api/music/file-metadata?path=${encodeURIComponent(filePath)}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.status === "success" && data.data && data.data.file) {
+        const fileData = data.data.file;
+        return {
+          title:
+            fileData.title || fileData.filename || filePath.split("/").pop(),
+          artist: fileData.artist || "Unknown",
+          duration: fileData.duration || 0,
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching track metadata:", error);
+      return null;
+    }
+  },
+
+  async enrichPlaylistWithMetadata(tracks) {
+    const enrichedTracks = [];
+    for (const trackPath of tracks) {
+      const metadata = await this.fetchTrackMetadata(trackPath);
+      enrichedTracks.push({
+        path: trackPath,
+        title: metadata?.title || trackPath.split("/").pop(),
+        artist: metadata?.artist || "",
+        duration: metadata?.duration || 0,
+      });
+    }
+    return enrichedTracks;
+  },
+
   showEmptyPlaylist(message) {
     const container = document.getElementById("playlistContainer");
     if (!container) return;
@@ -80,8 +115,9 @@ const PlaylistViewer = {
       ) {
         tracks = tracks.tracks;
       }
-      this.renderPlaylist(tracks, currentTrackPath);
-      this.updateTrackCount(tracks.length);
+      const enrichedTracks = await this.enrichPlaylistWithMetadata(tracks);
+      this.renderPlaylist(enrichedTracks, currentTrackPath);
+      this.updateTrackCount(enrichedTracks.length);
     } else {
       this.showEmptyPlaylist("Плейлист пуст");
       this.updateTrackCount(0);
@@ -112,13 +148,22 @@ const PlaylistViewer = {
     }
     let html = `<div class="playlist-tracks-list">`;
     for (let i = 0; i < playlist.length; i++) {
-      const trackPath = playlist[i];
-      const trackName = trackPath.split("/").pop();
-      const isCurrent = trackPath === currentTrackPath;
+      const track = playlist[i];
+      const isCurrent = track.path === currentTrackPath;
+      const trackNumber = String(i + 1).padStart(2, "0");
+      const title = this.escapeHtml(track.title || "Неизвестный трек");
+      const artist = track.artist ? this.escapeHtml(track.artist) : "";
+      const duration = track.duration
+        ? this.formatDuration(track.duration)
+        : "";
       html += `
-        <div class="playlist-track-item ${isCurrent ? "current" : ""}" data-index="${i}" data-path="${this.escapeHtml(trackPath)}">
-          <div class="playlist-track-number">${String(i + 1).padStart(2, "0")}</div>
-          <div class="playlist-track-name" title="${this.escapeHtml(trackName)}">${this.escapeHtml(trackName)}</div>
+        <div class="playlist-track-item ${isCurrent ? "current" : ""}" data-index="${i}" data-path="${this.escapeHtml(track.path)}">
+          <div class="playlist-track-number">${trackNumber}</div>
+          <div class="playlist-track-info">
+            <div class="playlist-track-name" title="${title}">${title}</div>
+            ${artist ? `<div class="playlist-track-artist">${artist}</div>` : ""}
+          </div>
+          ${duration ? `<div class="playlist-track-duration">${duration}</div>` : ""}
           <div class="playlist-track-remove-btn" data-index="${i}">
             <i class="fas fa-trash"></i>
           </div>
@@ -128,6 +173,13 @@ const PlaylistViewer = {
     html += `</div>`;
     container.innerHTML = html;
     this.attachPlaylistEvents();
+  },
+
+  formatDuration(seconds) {
+    if (!seconds || seconds <= 0) return "";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   },
 
   attachPlaylistEvents() {
