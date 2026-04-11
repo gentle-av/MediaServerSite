@@ -112,6 +112,7 @@ const AlbumLibrary = {
       '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка артистов...</div>';
     await this.loadArtistsInBackground();
     this.setupEventListeners();
+    this.attachAlbumCardEvents();
   },
 
   async reloadAlbums() {
@@ -255,7 +256,6 @@ const AlbumLibrary = {
     if (!grid) return;
     const albumHtml = this.generateAlbumCardHtml(album);
     grid.insertAdjacentHTML("beforeend", albumHtml);
-    this.attachAlbumCardEvents();
   },
 
   finalizeLoading() {
@@ -307,18 +307,34 @@ const AlbumLibrary = {
   },
 
   attachAlbumCardEvents() {
-    document.querySelectorAll(".album-card").forEach((card) => {
-      const newCard = card.cloneNode(true);
-      card.parentNode.replaceChild(newCard, card);
-      newCard.addEventListener("click", (e) => {
-        const title = newCard.dataset.albumTitle;
-        const artist = newCard.dataset.albumArtist;
+    const grid = document.getElementById("albumsGrid");
+    if (!grid) return;
+    // Используем делегирование событий
+    grid.removeEventListener("click", this.handleAlbumClick);
+    this.handleAlbumClick = (e) => {
+      const card = e.target.closest(".album-card");
+      if (!card) return;
+      const editBtn = e.target.closest(".album-edit-tags-btn");
+      if (editBtn) {
+        e.stopPropagation();
+        const artist = card.dataset.albumArtist;
+        const albumTitle = card.dataset.albumTitle;
         const album = this.albums.find(
-          (a) => a.title === title && a.artist === artist,
+          (a) => a.artist === artist && a.title === albumTitle,
         );
-        if (album) this.showAlbumModal(album);
-      });
-    });
+        if (album && typeof TagEditor !== "undefined") {
+          TagEditor.showAlbumTagEditor(album);
+        }
+        return;
+      }
+      const title = card.dataset.albumTitle;
+      const artist = card.dataset.albumArtist;
+      const album = this.albums.find(
+        (a) => a.title === title && a.artist === artist,
+      );
+      if (album) this.showAlbumModal(album);
+    };
+    grid.addEventListener("click", this.handleAlbumClick);
   },
 
   escapeHtml(str) {

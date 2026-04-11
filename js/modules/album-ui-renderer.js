@@ -70,34 +70,45 @@ class AlbumUIRenderer {
   }
 
   attachAlbumCardEvents() {
-    document.querySelectorAll(".album-card").forEach((card) => {
-      const newCard = card.cloneNode(true);
-      card.parentNode.replaceChild(newCard, card);
-      newCard.addEventListener("click", (e) => {
-        if (e.target.closest(".album-edit-tags-btn")) return;
-        const artist = newCard.dataset.artist;
-        const albumTitle = newCard.dataset.album;
-        const album = this.library.albums.find(
-          (a) => a.artist === artist && a.title === albumTitle,
-        );
-        if (album) this.library.showAlbumModal(album);
-      });
-      const editBtn = newCard.querySelector(".album-edit-tags-btn");
-      if (editBtn) {
-        editBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const artist = newCard.dataset.artist;
-          const albumTitle = newCard.dataset.album;
-          const album = this.library.albums.find(
-            (a) => a.artist === artist && a.title === albumTitle,
-          );
-          if (album && typeof TagEditor !== "undefined") {
-            TagEditor.showAlbumTagEditor(album);
-          }
-        });
+    const grid = document.getElementById("albumsGrid");
+    if (!grid) return;
+    grid.removeEventListener("click", this.handleAlbumClick);
+    this.handleAlbumClick = (e) => {
+      console.log("[AlbumLibrary] Click on grid", e.target);
+      const card = e.target.closest(".album-card");
+      if (!card) {
+        console.log("[AlbumLibrary] No album card found");
+        return;
       }
-    });
-  }
+      console.log("[AlbumLibrary] Album card clicked", card.dataset);
+      const editBtn = e.target.closest(".album-edit-tags-btn");
+      if (editBtn) {
+        e.stopPropagation();
+        const artist = card.dataset.albumArtist;
+        const albumTitle = card.dataset.albumTitle;
+        const album = this.albums.find(
+          (a) => a.artist === artist && a.title === albumTitle
+        );
+        if (album && typeof TagEditor !== "undefined") {
+          TagEditor.showAlbumTagEditor(album);
+        }
+        return;
+      }
+      const title = card.dataset.albumTitle;
+      const artist = card.dataset.albumArtist;
+      const album = this.albums.find(
+        (a) => a.title === title && a.artist === artist
+      );
+      if (album) {
+        console.log("[AlbumLibrary] Showing modal for", album.title);
+        this.showAlbumModal(album);
+      } else {
+        console.log("[AlbumLibrary] Album not found in albums array");
+      }
+    };
+    grid.addEventListener("click", this.handleAlbumClick);
+    console.log("[AlbumLibrary] Event listener attached to grid");
+  },
 
   showAlbumModal(album) {
     const modal = document.getElementById("albumModal");
