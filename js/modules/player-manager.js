@@ -143,9 +143,17 @@ const PlayerManager = {
       return;
     }
     await this.callApi("/api/stop");
+    await this.callApi("/api/clear");
     this.playerActive = false;
     this.currentFile = null;
+    this.isPlaying = false;
     this.hideControl();
+    if (typeof AudioPlayer !== "undefined") {
+      AudioPlayer.updateUI();
+    }
+    if (typeof PlaylistViewer !== "undefined") {
+      PlaylistViewer.refresh();
+    }
   },
 
   async deleteCurrentFile() {
@@ -168,7 +176,18 @@ const PlayerManager = {
           `Файл "${fileName}" перемещен в корзину`,
           "success",
         );
-        await this.closeFile();
+        await this.callApi("/api/stop");
+        await this.callApi("/api/clear");
+        this.playerActive = false;
+        this.currentFile = null;
+        this.isPlaying = false;
+        this.hideControl();
+        if (typeof AudioPlayer !== "undefined") {
+          AudioPlayer.updateUI();
+        }
+        if (typeof PlaylistViewer !== "undefined") {
+          PlaylistViewer.refresh();
+        }
         if (typeof VideoExplorer !== "undefined") {
           setTimeout(() => {
             VideoExplorer.loadDirectory(VideoExplorer.currentPath, false);
