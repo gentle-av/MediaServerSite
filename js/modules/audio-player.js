@@ -355,21 +355,15 @@ const AudioPlayer = {
     if (panel && !panel.classList.contains("active")) {
       panel.classList.add("active");
     }
-    // Проверка смены трека
     if (
       state.data.currentTrack &&
       state.data.currentTrack !== this.lastTrackPath
     ) {
-      console.log("[AudioPlayer] Track changed to:", state.data.currentTrack);
       this.lastTrackPath = state.data.currentTrack;
       this.currentTrackDuration = 0;
       const metadata = await this.fetchTrackMetadata(state.data.currentTrack);
       if (metadata && metadata.duration) {
         this.currentTrackDuration = metadata.duration;
-        console.log(
-          "[AudioPlayer] Duration set to:",
-          this.currentTrackDuration,
-        );
       }
     }
     const timeInfo = await this.getCurrentTime();
@@ -381,6 +375,9 @@ const AudioPlayer = {
     let duration = this.currentTrackDuration;
     if (timeInfo && timeInfo.success && timeInfo.data) {
       currentTime = timeInfo.data.currentTime || 0;
+      if (currentTime > duration && duration > 0) {
+        currentTime = duration;
+      }
     }
     if (this.panelTimeCurrent) {
       this.panelTimeCurrent.textContent = this.formatTime(currentTime);
@@ -391,7 +388,7 @@ const AudioPlayer = {
     const progressFill = document.getElementById("panelProgressFill");
     if (progressFill && duration > 0) {
       const percent = (currentTime / duration) * 100;
-      progressFill.style.width = percent + "%";
+      progressFill.style.width = Math.min(percent, 100) + "%";
       progressFill.style.backgroundColor = "var(--yellow)";
     }
     if (state && state.data) {
