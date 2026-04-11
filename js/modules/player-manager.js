@@ -43,18 +43,24 @@ const PlayerManager = {
     console.log("playMedia called with path:", path);
     this.currentFile = path;
     this.playerActive = true;
+    this.isPlaying = true;
     this.showControl();
     this.updateUI();
     const result = await this.callApi("/api/track", { track: path });
     console.log("API result:", result);
     if (!result || !result.success) {
       Utils.showNotification("Не удалось воспроизвести видео", "error");
+      this.isPlaying = false;
+      this.updateUI();
       return;
     }
     Utils.showNotification(
       `Воспроизведение: ${path.split("/").pop()}`,
       "success",
     );
+    setTimeout(async () => {
+      await this.updatePlaybackState();
+    }, 300);
   },
 
   setupEventListeners() {
@@ -234,6 +240,18 @@ const PlayerManager = {
         : '<i class="fas fa-pause-circle" style="color: var(--orange); font-size: 60px;"></i>';
       placeholder.innerHTML = `<div style="display: flex; flex-direction: column; align-items: center;"><div style="margin-bottom: 20px;">${statusIcon}</div><div style="font-size: 1.3rem; font-weight: 500; color: var(--fg0); margin-bottom: 10px; text-align: center; max-width: 80vw; word-break: break-word;">${this.escapeHtml(fileName)}</div><div style="font-size: 1rem; color: ${this.isPlaying ? "var(--green)" : "var(--orange)"}; margin-bottom: 5px;">${statusText}</div><div style="font-size: 0.9rem; color: var(--fg3);">Видео</div></div>`;
     }
+  },
+
+  async updatePlaybackState() {
+    const result = await this.callApi("/api/playbackState");
+    if (result && result.success && result.data) {
+      this.isPlaying = result.data.isPlaying;
+      this.currentFile = result.data.currentTrack || this.currentFile;
+      this.playerActive = !!this.currentFile;
+      this.updateUI();
+      return result.data;
+    }
+    return null;
   },
 
   handleKeyPress(e) {
