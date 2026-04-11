@@ -179,7 +179,7 @@
 
 .playlist-popup-controls {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
   border-top: 1px solid var(--bg3);
@@ -220,12 +220,11 @@
   background: var(--bg1);
   padding: 4px 12px;
   border-radius: 16px;
-  margin-right: auto;
   display: flex;
   align-items: center;
   justify-content: center;
   height: 32px;
-  min-width: 80px;
+  margin-right: auto;
 }
 
 @media (max-width: 768px) {
