@@ -16,6 +16,23 @@ const PlayerManager = {
     console.log("PlayerManager initialized");
   },
 
+  async launchMediateka() {
+    try {
+      const response = await fetch(
+        `${this.getServerUrl()}/api/launchMediateka`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+      const data = await response.json();
+      return data.success === true;
+    } catch (error) {
+      console.error("Error launching Mediateka:", error);
+      return false;
+    }
+  },
+
   async checkPlayerAvailability() {
     try {
       const controller = new AbortController();
@@ -36,6 +53,18 @@ const PlayerManager = {
       this.playerAvailable = false;
       return false;
     }
+  },
+
+  async ensurePlayerRunning() {
+    const isAvailable = await this.checkPlayerAvailability();
+    if (isAvailable) return true;
+    console.log("Mediateka not running, launching...");
+    const launched = await this.launchMediateka();
+    if (launched) {
+      await this.delay(2000);
+      return await this.checkPlayerAvailability();
+    }
+    return false;
   },
 
   getPlayerUrl() {
@@ -126,9 +155,6 @@ const PlayerManager = {
       `Воспроизведение: ${path.split("/").pop()}`,
       "success",
     );
-    setTimeout(async () => {
-      await this.checkPlayerAvailability();
-    }, 2000);
   },
 
   async launchPlayerWithFile(path) {
