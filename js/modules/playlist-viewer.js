@@ -5,6 +5,13 @@ const PlaylistViewer = {
   initialized: false,
   playerAvailable: false,
 
+  scrollToCurrentTrack() {
+    const currentItem = document.querySelector(".playlist-track-item.current");
+    if (currentItem) {
+      currentItem.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  },
+
   getServerUrl() {
     return `http://${window.location.hostname}:${window.location.port}`;
   },
@@ -157,22 +164,23 @@ const PlaylistViewer = {
         ? this.formatDuration(track.duration)
         : "";
       html += `
-        <div class="playlist-track-item ${isCurrent ? "current" : ""}" data-index="${i}" data-path="${this.escapeHtml(track.path)}">
-          <div class="playlist-track-number">${trackNumber}</div>
-          <div class="playlist-track-info">
-            <div class="playlist-track-name" title="${title}">${title}</div>
-            ${artist ? `<div class="playlist-track-artist">${artist}</div>` : ""}
-          </div>
-          ${duration ? `<div class="playlist-track-duration">${duration}</div>` : ""}
-          <div class="playlist-track-remove-btn" data-index="${i}">
-            <i class="fas fa-trash"></i>
-          </div>
+      <div class="playlist-track-item ${isCurrent ? "current" : ""}" data-index="${i}" data-path="${this.escapeHtml(track.path)}">
+        <div class="playlist-track-number">${trackNumber}</div>
+        <div class="playlist-track-info">
+          <div class="playlist-track-name" title="${title}">${title}</div>
+          ${artist ? `<div class="playlist-track-artist">${artist}</div>` : ""}
         </div>
-      `;
+        ${duration ? `<div class="playlist-track-duration">${duration}</div>` : ""}
+        <div class="playlist-track-remove-btn" data-index="${i}">
+          <i class="fas fa-trash"></i>
+        </div>
+      </div>
+    `;
     }
     html += `</div>`;
     container.innerHTML = html;
     this.attachPlaylistEvents();
+    setTimeout(() => this.scrollToCurrentTrack(), 100);
   },
 
   formatDuration(seconds) {
