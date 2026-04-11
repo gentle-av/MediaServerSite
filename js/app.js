@@ -346,6 +346,20 @@ const App = {
   },
 };
 
+function fixScrollableHeight() {
+  const scrollable = document.getElementById("scrollableContent");
+  const windowHeight = window.innerHeight;
+  const headerHeight =
+    document.querySelector(".app-header")?.offsetHeight || 60;
+
+  if (scrollable) {
+    scrollable.style.height = `${windowHeight - headerHeight}px`;
+    scrollable.style.overflowY = "auto";
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   App.init();
 });
+window.addEventListener("resize", fixScrollableHeight);
+fixScrollableHeight();
