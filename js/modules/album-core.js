@@ -290,20 +290,20 @@ const AlbumLibrary = {
       ? `<img src="${coverUrl}" alt="${this.escapeHtml(album.title)}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Crect width=\'100\' height=\'100\' fill=\'%23333\'/%3E%3Ctext x=\'50\' y=\'55\' text-anchor=\'middle\' fill=\'%23666\' font-size=\'12\'%3E🎵%3C/text%3E%3C/svg%3E';">`
       : `<div class="album-card-placeholder"><i class="fas fa-music"></i></div>`;
     return `
-        <div class="album-card" data-album-title="${this.escapeHtml(album.title)}" data-album-artist="${this.escapeHtml(album.artist)}">
-            <div class="album-card-art">
-                ${coverHtml}
-            </div>
-            <div class="album-card-info">
-                <div class="album-card-title" title="${this.escapeHtml(album.title)}">${this.escapeHtml(album.title)}</div>
-                <div class="album-card-artist">${this.escapeHtml(album.artist)}</div>
-                <div class="album-card-meta">
-                    ${album.year ? `<span>${album.year}</span>` : ""}
-                    <span>${trackCount} треков</span>
-                </div>
-            </div>
+    <div class="album-card" data-album-title="${this.escapeHtml(album.title)}" data-album-artist="${this.escapeHtml(album.artist)}">
+      <div class="album-card-art">
+        ${coverHtml}
+      </div>
+      <div class="album-card-info">
+        <div class="album-card-title" title="${this.escapeHtml(album.title)}">${this.escapeHtml(album.title)}</div>
+        <div class="album-card-artist">${this.escapeHtml(album.artist)}</div>
+        <div class="album-card-meta">
+          ${album.year ? `<span>${album.year}</span>` : ""}
+          <span>${trackCount} треков</span>
         </div>
-    `;
+      </div>
+    </div>
+  `;
   },
 
   attachAlbumCardEvents() {
@@ -321,8 +321,8 @@ const AlbumLibrary = {
         const album = this.albums.find(
           (a) => a.artist === artist && a.title === albumTitle,
         );
-        if (album && typeof TagEditor !== "undefined") {
-          TagEditor.showAlbumTagEditor(album);
+        if (album && typeof AlbumTagUpdaterInstance !== "undefined") {
+          AlbumTagUpdaterInstance.showAlbumTagEditor(album);
         }
         return;
       }
@@ -431,6 +431,7 @@ const AlbumLibrary = {
             <div class="modal-controls">
                 <button class="modal-control-btn add-to-playlist-btn" title="Добавить в плейлист"><i class="fas fa-plus-circle"></i></button>
                 <button class="modal-control-btn replace-playlist-btn" title="Заменить плейлист"><i class="fas fa-exchange-alt"></i></button>
+                <button class="modal-control-btn edit-album-tags-btn" title="Редактировать теги альбома"><i class="fas fa-edit"></i></button>
                 <button class="modal-close-btn"><i class="fas fa-times"></i></button>
             </div>
         </div>
@@ -514,6 +515,7 @@ const AlbumLibrary = {
     const replacePlaylistBtn = modalContent.querySelector(
       ".replace-playlist-btn",
     );
+    const editAlbumTagsBtn = modalContent.querySelector(".edit-album-tags-btn");
     const closeBtn = modalContent.querySelector(".modal-close-btn");
     if (addToPlaylistBtn) {
       addToPlaylistBtn.addEventListener("click", (e) => {
@@ -544,6 +546,16 @@ const AlbumLibrary = {
             AlbumLibrary.showPlaylistSection();
           }
         }, 100);
+      });
+    }
+    if (editAlbumTagsBtn) {
+      editAlbumTagsBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof AlbumTagUpdaterInstance !== "undefined") {
+          AlbumTagUpdaterInstance.showAlbumTagUpdater(album);
+        } else {
+          Utils.showNotification("Редактор тегов недоступен", "error");
+        }
       });
     }
     if (closeBtn) {
