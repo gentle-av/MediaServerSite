@@ -46,16 +46,6 @@ const App = {
   },
 
   setupHeaderControls() {
-    const headerRefreshBtn = document.getElementById("headerRefreshBtn");
-    if (headerRefreshBtn) {
-      const newRefreshBtn = headerRefreshBtn.cloneNode(true);
-      headerRefreshBtn.parentNode.replaceChild(newRefreshBtn, headerRefreshBtn);
-      newRefreshBtn.addEventListener("click", () => {
-        if (typeof AlbumLibrary !== "undefined") {
-          AlbumLibrary.refreshDatabase();
-        }
-      });
-    }
     const globalSearchInput = document.getElementById("globalSearchInput");
     if (globalSearchInput) {
       const newSearchInput = globalSearchInput.cloneNode(true);
@@ -273,6 +263,8 @@ const App = {
       "js/modules/album-data-manager.js",
       "js/modules/album-search-engine.js",
       "js/modules/album-api-handler.js",
+      "js/modules/confirm-dialog.js",
+      "js/modules/music-scanner.js",
     ];
     for (const scriptFile of scriptFiles) {
       if (!this.loadedScripts.has(scriptFile)) {
@@ -300,6 +292,10 @@ const App = {
       }
       PlaylistViewer.musiumAvailable = false;
       await PlaylistViewer.init();
+    }
+    if (typeof MusicScanner !== "undefined") {
+      const scanner = new MusicScanner();
+      scanner.attachToButton("headerRefreshBtn");
     }
     if (typeof NavigationManager !== "undefined") {
       NavigationManager.attachButtonHandlers();
