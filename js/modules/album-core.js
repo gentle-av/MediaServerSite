@@ -161,7 +161,7 @@ const AlbumLibrary = {
     if (!grid) return;
     this.albums = [];
     const uniqueAlbums = new Map();
-    grid.innerHTML = "" /*'<div class="albums-grid-initial"></div>'*/;
+    grid.innerHTML = "";
     if (this.loadingTaskId) {
       cancelIdleCallback(this.loadingTaskId);
       this.loadingTaskId = null;
@@ -309,7 +309,6 @@ const AlbumLibrary = {
   attachAlbumCardEvents() {
     const grid = document.getElementById("albumsGrid");
     if (!grid) return;
-    // Используем делегирование событий
     grid.removeEventListener("click", this.handleAlbumClick);
     this.handleAlbumClick = (e) => {
       const card = e.target.closest(".album-card");
@@ -430,11 +429,8 @@ const AlbumLibrary = {
                 <div class="modal-track-count"><i class="fas fa-headphones"></i> ${album.tracks ? album.tracks.length : 0} треков</div>
             </div>
             <div class="modal-controls">
-                <button class="modal-control-btn prev-track-btn" title="Предыдущий трек"><i class="fas fa-step-backward"></i></button>
                 <button class="modal-control-btn add-to-playlist-btn" title="Добавить в плейлист"><i class="fas fa-plus-circle"></i></button>
                 <button class="modal-control-btn replace-playlist-btn" title="Заменить плейлист"><i class="fas fa-exchange-alt"></i></button>
-                <button class="modal-control-btn show-playlist-btn" title="Показать плейлист"><i class="fas fa-list"></i></button>
-                <button class="modal-control-btn next-track-btn" title="Следующий трек"><i class="fas fa-step-forward"></i></button>
                 <button class="modal-close-btn"><i class="fas fa-times"></i></button>
             </div>
         </div>
@@ -456,9 +452,7 @@ const AlbumLibrary = {
                 </div>
                 <div class="track-right">
                     <button class="track-control-btn edit-track-tags" data-track-index="${idx}" title="Редактировать теги трека"><i class="fas fa-edit"></i></button>
-                    <button class="track-control-btn replace-playlist-with-track" title="Заменить плейлист этим треком"><i class="fas fa-exchange-alt"></i></button>
                     <button class="track-control-btn add-after-current" title="Добавить после текущего"><i class="fas fa-plus-circle"></i></button>
-                    <button class="track-control-btn show-playlist-from-track" title="Показать плейлист"><i class="fas fa-list"></i></button>
                 </div>
             </div>
         `,
@@ -495,18 +489,6 @@ const AlbumLibrary = {
           }
         });
       });
-      modalTracksList
-        .querySelectorAll(".replace-playlist-with-track")
-        .forEach((btn) => {
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const idx = parseInt(btn.dataset.trackIndex);
-            if (typeof AudioPlayer !== "undefined") {
-              AudioPlayer.replacePlaylistWithTrack(album, idx);
-            }
-            modal.classList.remove("active");
-          });
-        });
       modalTracksList.querySelectorAll(".add-after-current").forEach((btn) => {
         btn.addEventListener("click", (e) => {
           e.stopPropagation();
@@ -516,20 +498,6 @@ const AlbumLibrary = {
           }
         });
       });
-      modalTracksList
-        .querySelectorAll(".show-playlist-from-track")
-        .forEach((btn) => {
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            if (
-              typeof AlbumLibrary !== "undefined" &&
-              AlbumLibrary.showPlaylistSection
-            ) {
-              AlbumLibrary.showPlaylistSection();
-            }
-            modal.classList.remove("active");
-          });
-        });
       modalTracksList.querySelectorAll(".track-item").forEach((item) => {
         item.addEventListener("click", (e) => {
           if (!e.target.closest(".track-control-btn")) {
@@ -542,26 +510,11 @@ const AlbumLibrary = {
         });
       });
     }
-    const prevBtn = modalContent.querySelector(".prev-track-btn");
-    const nextBtn = modalContent.querySelector(".next-track-btn");
     const addToPlaylistBtn = modalContent.querySelector(".add-to-playlist-btn");
     const replacePlaylistBtn = modalContent.querySelector(
       ".replace-playlist-btn",
     );
-    const showPlaylistBtn = modalContent.querySelector(".show-playlist-btn");
     const closeBtn = modalContent.querySelector(".modal-close-btn");
-    if (prevBtn) {
-      prevBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (typeof AudioPlayer !== "undefined") AudioPlayer.previousTrack();
-      });
-    }
-    if (nextBtn) {
-      nextBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (typeof AudioPlayer !== "undefined") AudioPlayer.nextTrack();
-      });
-    }
     if (addToPlaylistBtn) {
       addToPlaylistBtn.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -591,19 +544,6 @@ const AlbumLibrary = {
             AlbumLibrary.showPlaylistSection();
           }
         }, 100);
-      });
-    }
-    if (showPlaylistBtn) {
-      showPlaylistBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (
-          typeof AlbumLibrary !== "undefined" &&
-          AlbumLibrary.showPlaylistSection
-        ) {
-          AlbumLibrary.showPlaylistSection();
-        }
-        if (typeof PlaylistViewer !== "undefined") PlaylistViewer.init();
-        modal.classList.remove("active");
       });
     }
     if (closeBtn) {
