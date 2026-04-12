@@ -6,63 +6,56 @@
     width: 100%;
     height: 100%;
   }
+
   .app {
     overflow-x: hidden;
     overflow-y: hidden;
     position: relative;
     width: 100%;
   }
+
   .main-content {
     overflow-x: hidden;
     height: 100vh;
     width: 100%;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
     position: relative;
-  }
-  .main-content::-webkit-scrollbar {
-    width: 4px;
-  }
-  .main-content::-webkit-scrollbar-track {
-    background: var(--bg2);
-  }
-  .main-content::-webkit-scrollbar-thumb {
-    background: var(--yellow);
-    border-radius: 4px;
-  }
-
-  .main-content {
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
+
   .main-content::-webkit-scrollbar {
     display: none;
+    width: 0;
+    height: 0;
   }
 
   .albums-grid,
   .content-grid {
-    scrollbar-width: thin;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;
   }
 
   .albums-grid::-webkit-scrollbar,
   .content-grid::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-    display: block !important;
+    display: none;
+    width: 0;
+    height: 0;
   }
 
-  .albums-grid::-webkit-scrollbar-track,
-  .content-grid::-webkit-scrollbar-track {
-    background: var(--bg2);
-    border-radius: 4px;
+  /* Скрываем все скроллбары на мобильных */
+  * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
   }
 
-  .albums-grid::-webkit-scrollbar-thumb,
-  .content-grid::-webkit-scrollbar-thumb {
-    background: var(--yellow);
-    border-radius: 4px;
+  *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
   }
 
   .sidebar {
@@ -352,6 +345,7 @@
     background: var(--bg1);
     z-index: 10;
   }
+
   .explorer-header {
     margin-left: 0;
     padding: 8px 12px;
