@@ -12,29 +12,22 @@ class AlbumTagUpdater {
       Utils.showNotification("Альбом не содержит треков", "error");
       return false;
     }
-
     let successCount = 0;
     let errorCount = 0;
-
     for (const track of album.tracks) {
       const tags = {};
-
       if (newArtist && newArtist !== album.artist) {
         tags.artist = newArtist;
       }
-
       if (newAlbum && newAlbum !== album.title) {
         tags.album = newAlbum;
       }
-
       if (newYear && newYear !== album.year) {
         tags.year = parseInt(newYear);
       }
-
       if (Object.keys(tags).length === 0) {
         continue;
       }
-
       const success = await this.updateTrackTags(track.path, tags);
       if (success) {
         successCount++;
@@ -42,7 +35,6 @@ class AlbumTagUpdater {
         errorCount++;
       }
     }
-
     if (successCount > 0) {
       Utils.showNotification(
         `Обновлено ${successCount} треков${errorCount > 0 ? `, ошибок: ${errorCount}` : ""}`,
@@ -62,7 +54,6 @@ class AlbumTagUpdater {
         path: filePath,
         ...tags,
       };
-
       const response = await fetch(
         `${this.getServerUrl()}/api/music/update-tags`,
         {
@@ -71,7 +62,6 @@ class AlbumTagUpdater {
           body: JSON.stringify(payload),
         },
       );
-
       const data = await response.json();
       return data.status === "success";
     } catch (error) {
@@ -79,78 +69,67 @@ class AlbumTagUpdater {
       return false;
     }
   }
-
   async updateAlbumTagsFromForm(album) {
     const newArtist = prompt("Введите имя исполнителя:", album.artist);
     if (newArtist === null) return;
-
     const newAlbum = prompt("Введите название альбома:", album.title);
     if (newAlbum === null) return;
-
     const newYear = prompt("Введите год выпуска:", album.year || "");
-
     await this.updateAlbumTags(album, newArtist, newAlbum, newYear);
   }
 
-  showAlbumTagEditor(album) {
+  showAlbumTagUpdater(album) {
     const modal = document.createElement("div");
-    modal.className = "tag-editor-modal";
+    modal.className = "album-tag-editor-modal";
     modal.innerHTML = `
-      <div class="tag-editor-overlay"></div>
-      <div class="tag-editor-container">
-        <div class="tag-editor-header">
-          <h3>Редактирование тегов альбома</h3>
-          <button class="tag-editor-close"><i class="fas fa-times"></i></button>
+    <div class="album-tag-editor-overlay"></div>
+    <div class="album-tag-editor-container">
+      <div class="album-tag-editor-header">
+        <h3><i class="fas fa-tags"></i> Редактирование альбома</h3>
+        <button class="album-tag-editor-close"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="album-tag-editor-content">
+        <div class="album-tag-editor-field">
+          <label><i class="fas fa-user"></i> Исполнитель:</label>
+          <input type="text" id="editAlbumArtist" value="${this.escapeHtml(album.artist)}" placeholder="Исполнитель">
         </div>
-        <div class="tag-editor-content">
-          <div class="tag-editor-field">
-            <label>Исполнитель:</label>
-            <input type="text" id="editAlbumArtist" value="${this.escapeHtml(album.artist)}" placeholder="Исполнитель">
-          </div>
-          <div class="tag-editor-field">
-            <label>Альбом:</label>
-            <input type="text" id="editAlbumTitle" value="${this.escapeHtml(album.title)}" placeholder="Название альбома">
-          </div>
-          <div class="tag-editor-field">
-            <label>Год:</label>
-            <input type="text" id="editAlbumYear" value="${album.year || ""}" placeholder="Год выпуска">
-          </div>
-          <div class="tag-editor-actions">
-            <button class="tag-editor-save" data-action="save">Сохранить</button>
-            <button class="tag-editor-cancel">Отмена</button>
-          </div>
-          <div class="tag-editor-note">
-            <i class="fas fa-info-circle"></i>
-            <span>Изменения применятся ко всем трекам альбома</span>
-          </div>
+        <div class="album-tag-editor-field">
+          <label><i class="fas fa-record-vinyl"></i> Альбом:</label>
+          <input type="text" id="editAlbumTitle" value="${this.escapeHtml(album.title)}" placeholder="Название альбома">
+        </div>
+        <div class="album-tag-editor-field">
+          <label><i class="fas fa-calendar"></i> Год:</label>
+          <input type="text" id="editAlbumYear" value="${album.year || ""}" placeholder="Год выпуска">
+        </div>
+        <div class="album-tag-editor-actions">
+          <button class="album-tag-editor-save" data-action="save"><i class="fas fa-save"></i> Сохранить</button>
+          <button class="album-tag-editor-cancel"><i class="fas fa-times"></i> Отмена</button>
+        </div>
+        <div class="album-tag-editor-note">
+          <i class="fas fa-info-circle"></i>
+          <span>Изменения применятся ко всем трекам альбома</span>
         </div>
       </div>
-    `;
-
+    </div>
+  `;
     document.body.appendChild(modal);
-
-    const overlay = modal.querySelector(".tag-editor-overlay");
-    const closeBtn = modal.querySelector(".tag-editor-close");
-    const cancelBtn = modal.querySelector(".tag-editor-cancel");
+    const overlay = modal.querySelector(".album-tag-editor-overlay");
+    const closeBtn = modal.querySelector(".album-tag-editor-close");
+    const cancelBtn = modal.querySelector(".album-tag-editor-cancel");
     const saveBtn = modal.querySelector("[data-action='save']");
-
     const closeModal = () => modal.remove();
-
     overlay.addEventListener("click", closeModal);
     closeBtn.addEventListener("click", closeModal);
     cancelBtn.addEventListener("click", closeModal);
-
     saveBtn.addEventListener("click", async () => {
       const newArtist = document.getElementById("editAlbumArtist").value.trim();
       const newAlbum = document.getElementById("editAlbumTitle").value.trim();
       const newYear = document.getElementById("editAlbumYear").value.trim();
-
       if (!newArtist && !newAlbum && !newYear) {
         Utils.showNotification("Нет изменений для сохранения", "info");
         closeModal();
         return;
       }
-
       await this.updateAlbumTags(album, newArtist, newAlbum, newYear);
       closeModal();
     });
