@@ -231,7 +231,12 @@ const PlayerManager = {
     }
     if (this.mpvSocket) {
       await this.sendMpvCommand("stop");
-      await this.delay(200);
+      await this.delay(500);
+      await fetch(`${this.getServerUrl()}/api/mpv/kill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ socket: this.mpvSocket }),
+      });
     }
     this.playerActive = false;
     this.currentFile = null;
