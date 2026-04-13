@@ -119,6 +119,22 @@ const AudioPlayer = {
   },
 
   async next() {
+    const state = await this.getPlaybackState();
+    if (state && state.data) {
+      if (state.data.currentIndex + 1 >= state.data.totalTracks) {
+        await this.stop();
+        this.manuallyStopped = true;
+        if (this.panelTrackName)
+          this.panelTrackName.textContent = "Воспроизведение завершено";
+        if (this.panelPlayPauseBtn) {
+          this.panelPlayPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+        }
+        setTimeout(() => {
+          this.manuallyStopped = false;
+        }, 1000);
+        return;
+      }
+    }
     const result = await this.sendToPlayer("/api/next");
     if (result && result.success) {
       await this.delay(200);
@@ -556,8 +572,8 @@ const AudioPlayer = {
     if (this.panelTrackCount) {
       this.panelTrackCount.textContent = `${(state.data.currentIndex || 0) + 1}/${state.data.totalTracks || 0}`;
     }
-    if (duration > 0 && currentTime >= duration - 0.5 && state.data.isPlaying) {
-      await this.delay(100);
+    if (duration > 0 && currentTime >= duration - 0.1 && state.data.isPlaying) {
+      await this.delay(50);
       await this.next();
     }
   },

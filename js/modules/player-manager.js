@@ -140,7 +140,6 @@ const PlayerManager = {
     });
     const data = await response.json();
     if (data.success) {
-      this.mpvSocket = data.socket;
       Utils.showNotification(
         `Воспроизведение: ${path.split("/").pop()}`,
         "success",
