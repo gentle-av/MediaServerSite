@@ -123,6 +123,11 @@ const PlayerManager = {
 
   async playMedia(path) {
     console.log("playMedia called with path:", path);
+    try {
+      await fetch(`${this.getServerUrl()}/api/stop`, { method: "POST" });
+    } catch (e) {
+      console.log("Stop audio error:", e);
+    }
     this.currentFile = path;
     this.playerActive = true;
     this.isPlaying = true;
