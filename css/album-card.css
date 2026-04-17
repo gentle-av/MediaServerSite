@@ -219,3 +219,121 @@
   color: var(--bg0);
   transform: scale(1.05);
 }
+
+.album-delete-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  border: none;
+  border-radius: 50%;
+  color: var(--red);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 10;
+  font-size: 0.9rem;
+}
+
+.album-card:hover .album-delete-btn {
+  opacity: 1;
+}
+
+.album-delete-btn:hover {
+  background: var(--red);
+  color: var(--bg0);
+  transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+  .album-delete-btn {
+    opacity: 1;
+    left: 8px;
+    top: 8px;
+  }
+}
+
+.album-cover {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--bg2);
+  flex-shrink: 0;
+}
+
+.album-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.album-info {
+  padding: 10px;
+  flex: 1;
+}
+
+.album-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--fg0);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.album-artist {
+  font-size: 0.75rem;
+  color: var(--yellow);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.album-year {
+  font-size: 0.65rem;
+  color: var(--fg3);
+  margin-top: 2px;
+}
+
+.track-count {
+  font-size: 0.65rem;
+  color: var(--fg3);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (max-width: 768px) {
+  .album-cover {
+    width: 90px;
+    height: 90px;
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+  }
+  .album-title {
+    font-size: 1rem;
+    white-space: normal;
+    -webkit-line-clamp: 2;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+  }
+  .album-artist {
+    font-size: 0.85rem;
+    white-space: normal;
+  }
+  .album-year {
+    font-size: 0.8rem;
+  }
+  .track-count {
+    font-size: 0.75rem;
+  }
+}

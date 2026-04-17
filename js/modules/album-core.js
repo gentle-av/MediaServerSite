@@ -16,9 +16,60 @@ const AlbumLibrary = {
   uiRenderer: null,
   searchEngine: null,
   apiHandler: null,
+  deleteDialog: null,
 
   getServerUrl() {
     return `http://${window.location.hostname}:${window.location.port}`;
+  },
+
+  async deleteAlbum(album) {
+    console.log("deleteAlbum called with:", album);
+    if (typeof CustomDeleteDialogInstance === "undefined") {
+      console.error("CustomDeleteDialogInstance not loaded");
+      if (typeof Utils !== "undefined") {
+        Utils.showNotification("Система удаления не загружена", "error");
+      }
+      return;
+    }
+    const confirmed = await CustomDeleteDialogInstance.showConfirm(
+      album.title,
+      true,
+    );
+    console.log("Confirmed:", confirmed);
+    if (!confirmed) return;
+    try {
+      const response = await fetch(
+        `${this.getServerUrl()}/api/music/delete-album`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            album: album.title,
+            artist: album.artist,
+          }),
+        },
+      );
+      const data = await response.json();
+      console.log("Response:", data);
+      if (data.status === "success") {
+        if (typeof Utils !== "undefined") {
+          Utils.showNotification(`Альбом "${album.title}" удален`, "success");
+        }
+        await this.reloadAlbums();
+      } else {
+        if (typeof Utils !== "undefined") {
+          Utils.showNotification(
+            data.message || "Ошибка удаления альбома",
+            "error",
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error deleting album:", error);
+      if (typeof Utils !== "undefined") {
+        Utils.showNotification("Ошибка удаления альбома", "error");
+      }
+    }
   },
 
   showPlaylistSection() {
@@ -88,6 +139,9 @@ const AlbumLibrary = {
 
   async init() {
     console.log("[AlbumLibrary] init called, initialized:", this.initialized);
+    if (typeof AlbumUIRenderer !== "undefined") {
+      this.uiRenderer = new AlbumUIRenderer(this);
+    }
     if (this.initialized) {
       console.log("[AlbumLibrary] Already initialized, reloading albums");
       await this.reloadAlbums();
@@ -251,13 +305,6 @@ const AlbumLibrary = {
     }
   },
 
-  renderSingleAlbum(album) {
-    const grid = document.getElementById("albumsGrid");
-    if (!grid) return;
-    const albumHtml = this.generateAlbumCardHtml(album);
-    grid.insertAdjacentHTML("beforeend", albumHtml);
-  },
-
   finalizeLoading() {
     this.albums.sort((a, b) => {
       if (a.artist !== b.artist) return a.artist.localeCompare(b.artist);
@@ -265,6 +312,20 @@ const AlbumLibrary = {
       return a.title.localeCompare(b.title);
     });
     this.filteredAlbums = [...this.albums];
+  },
+
+  renderSingleAlbum(album) {
+    if (this.uiRenderer) {
+      const grid = document.getElementById("albumsGrid");
+      if (!grid) return;
+      const albumHtml = this.uiRenderer.generateAlbumCardHtml(album);
+      grid.insertAdjacentHTML("beforeend", albumHtml);
+    } else {
+      const grid = document.getElementById("albumsGrid");
+      if (!grid) return;
+      const albumHtml = this.generateAlbumCardHtml(album);
+      grid.insertAdjacentHTML("beforeend", albumHtml);
+    }
   },
 
   renderAlbums() {
@@ -275,11 +336,17 @@ const AlbumLibrary = {
         '<div class="empty"><i class="fas fa-music"></i> Альбомы не найдены</div>';
       return;
     }
-    let html = "";
-    for (const album of this.filteredAlbums) {
-      html += this.generateAlbumCardHtml(album);
+    if (this.uiRenderer) {
+      grid.innerHTML = this.filteredAlbums
+        .map((album) => this.uiRenderer.generateAlbumCardHtml(album))
+        .join("");
+    } else {
+      let html = "";
+      for (const album of this.filteredAlbums) {
+        html += this.generateAlbumCardHtml(album);
+      }
+      grid.innerHTML = html;
     }
-    grid.innerHTML = html;
     this.attachAlbumCardEvents();
   },
 
@@ -310,30 +377,59 @@ const AlbumLibrary = {
     const grid = document.getElementById("albumsGrid");
     if (!grid) return;
     grid.removeEventListener("click", this.handleAlbumClick);
+    grid.removeEventListener("contextmenu", this.handleAlbumContextMenu);
     this.handleAlbumClick = (e) => {
       const card = e.target.closest(".album-card");
       if (!card) return;
       const editBtn = e.target.closest(".album-edit-tags-btn");
       if (editBtn) {
         e.stopPropagation();
-        const artist = card.dataset.albumArtist;
-        const albumTitle = card.dataset.albumTitle;
+        const artist = card.dataset.artist;
+        const albumTitle = card.dataset.album;
         const album = this.albums.find(
           (a) => a.artist === artist && a.title === albumTitle,
         );
-        if (album && typeof AlbumTagUpdaterInstance !== "undefined") {
-          AlbumTagUpdaterInstance.showAlbumTagEditor(album);
+        if (album && typeof TagEditor !== "undefined") {
+          TagEditor.showAlbumTagEditor(album);
         }
         return;
       }
-      const title = card.dataset.albumTitle;
-      const artist = card.dataset.albumArtist;
+      const deleteBtn = e.target.closest(".album-delete-btn");
+      if (deleteBtn) {
+        e.stopPropagation();
+        const artist = card.dataset.artist;
+        const albumTitle = card.dataset.album;
+        const album = this.albums.find(
+          (a) => a.artist === artist && a.title === albumTitle,
+        );
+        if (album) {
+          this.deleteAlbum(album);
+        }
+        return;
+      }
+      const title = card.dataset.album;
+      const artist = card.dataset.artist;
       const album = this.albums.find(
         (a) => a.title === title && a.artist === artist,
       );
       if (album) this.showAlbumModal(album);
     };
+    this.handleAlbumContextMenu = (e) => {
+      const card = e.target.closest(".album-card");
+      if (!card) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const artist = card.dataset.artist;
+      const albumTitle = card.dataset.album;
+      const album = this.albums.find(
+        (a) => a.artist === artist && a.title === albumTitle,
+      );
+      if (album && this.uiRenderer) {
+        this.uiRenderer.showAlbumContextMenu(e.clientX, e.clientY, album);
+      }
+    };
     grid.addEventListener("click", this.handleAlbumClick);
+    grid.addEventListener("contextmenu", this.handleAlbumContextMenu);
   },
 
   escapeHtml(str) {

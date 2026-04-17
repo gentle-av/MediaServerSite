@@ -21,28 +21,29 @@ class AlbumUIRenderer {
 
   generateAlbumCardHtml(album) {
     const coverHtml = album.coverUrl
-      ? `<img src="${album.coverUrl}" alt="${this.escapeHtml(album.title)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
-      : `<i class="fas fa-album fallback-icon"></i>`;
-    const fallbackHtml = album.coverUrl
-      ? `<i class="fas fa-album fallback-icon" style="display: none;"></i>`
-      : "";
+      ? `<img src="${album.coverUrl}" alt="${this.escapeHtml(album.title)}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Crect width=\'100\' height=\'100\' fill=\'%23333\'/%3E%3Ctext x=\'50\' y=\'55\' text-anchor=\'middle\' fill=\'%23666\' font-size=\'12\'%3E🎵%3C/text%3E%3C/svg%3E';">`
+      : `<div class="album-card-placeholder"><i class="fas fa-music"></i></div>`;
     return `
-      <div class="album-card" data-artist="${this.escapeHtml(album.artist)}" data-album="${this.escapeHtml(album.title)}">
-        <div class="album-cover">
-          ${coverHtml}
-          ${fallbackHtml}
-          <button class="album-edit-tags-btn" title="Редактировать теги альбома">
-            <i class="fas fa-edit"></i>
-          </button>
-        </div>
-        <div class="album-info">
-          <div class="album-title" title="${this.escapeHtml(album.title)}">${this.escapeHtml(album.title)}</div>
-          <div class="album-artist">${this.escapeHtml(album.artist || "Unknown")}</div>
-          <div class="album-year">${album.year || ""}</div>
-          <div class="track-count"><i class="fas fa-headphones"></i> ${album.trackCount || 0} треков</div>
+    <div class="album-card" data-artist="${this.escapeHtml(album.artist)}" data-album="${this.escapeHtml(album.title)}">
+      <div class="album-card-art">
+        ${coverHtml}
+        <button class="album-delete-btn" title="Удалить альбом">
+          <i class="fas fa-trash-alt"></i>
+        </button>
+        <button class="album-edit-tags-btn" title="Редактировать теги альбома">
+          <i class="fas fa-edit"></i>
+        </button>
+      </div>
+      <div class="album-card-info">
+        <div class="album-card-title" title="${this.escapeHtml(album.title)}">${this.escapeHtml(album.title)}</div>
+        <div class="album-card-artist">${this.escapeHtml(album.artist || "Unknown")}</div>
+        <div class="album-card-meta">
+          ${album.year ? `<span>${album.year}</span>` : ""}
+          <span><i class="fas fa-headphones"></i> ${album.trackCount || 0}</span>
         </div>
       </div>
-    `;
+    </div>
+  `;
   }
 
   escapeHtml(str) {
@@ -73,20 +74,16 @@ class AlbumUIRenderer {
     const grid = document.getElementById("albumsGrid");
     if (!grid) return;
     grid.removeEventListener("click", this.handleAlbumClick);
+    grid.removeEventListener("contextmenu", this.handleAlbumContextMenu);
     this.handleAlbumClick = (e) => {
-      console.log("[AlbumLibrary] Click on grid", e.target);
       const card = e.target.closest(".album-card");
-      if (!card) {
-        console.log("[AlbumLibrary] No album card found");
-        return;
-      }
-      console.log("[AlbumLibrary] Album card clicked", card.dataset);
+      if (!card) return;
       const editBtn = e.target.closest(".album-edit-tags-btn");
       if (editBtn) {
         e.stopPropagation();
-        const artist = card.dataset.albumArtist;
-        const albumTitle = card.dataset.albumTitle;
-        const album = this.albums.find(
+        const artist = card.dataset.artist;
+        const albumTitle = card.dataset.album;
+        const album = this.library.albums.find(
           (a) => a.artist === artist && a.title === albumTitle,
         );
         if (album && typeof TagEditor !== "undefined") {
@@ -94,20 +91,35 @@ class AlbumUIRenderer {
         }
         return;
       }
-      const title = card.dataset.albumTitle;
-      const artist = card.dataset.albumArtist;
-      const album = this.albums.find(
+      const title = card.dataset.album;
+      const artist = card.dataset.artist;
+      const album = this.library.albums.find(
         (a) => a.title === title && a.artist === artist,
       );
       if (album) {
-        console.log("[AlbumLibrary] Showing modal for", album.title);
         this.showAlbumModal(album);
-      } else {
-        console.log("[AlbumLibrary] Album not found in albums array");
+      }
+    };
+    this.handleAlbumContextMenu = (e) => {
+      console.log("[AlbumUIRenderer] contextmenu event triggered", e.target);
+      const card = e.target.closest(".album-card");
+      console.log("[AlbumUIRenderer] card found:", card);
+      if (!card) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const artist = card.dataset.artist;
+      const albumTitle = card.dataset.album;
+      console.log("[AlbumUIRenderer] artist:", artist, "album:", albumTitle);
+      const album = this.library.albums.find(
+        (a) => a.artist === artist && a.title === albumTitle,
+      );
+      console.log("[AlbumUIRenderer] album found:", album);
+      if (album) {
+        this.showAlbumContextMenu(e.clientX, e.clientY, album);
       }
     };
     grid.addEventListener("click", this.handleAlbumClick);
-    console.log("[AlbumLibrary] Event listener attached to grid");
+    grid.addEventListener("contextmenu", this.handleAlbumContextMenu);
   }
 
   showAlbumModal(album) {
@@ -407,6 +419,67 @@ class AlbumUIRenderer {
         e.stopPropagation();
         modal.classList.remove("active");
       });
+    }
+  }
+
+  showAlbumContextMenu(x, y, album) {
+    console.log("[AlbumUIRenderer] showAlbumContextMenu called", x, y, album);
+    this.hideContextMenu();
+    const menu = document.createElement("div");
+    menu.className = "album-context-menu";
+    menu.style.left = x + "px";
+    menu.style.top = y + "px";
+    menu.style.zIndex = "10006";
+    menu.innerHTML = `
+    <div class="context-menu-item delete-album" data-action="delete">
+      <i class="fas fa-trash-alt"></i>
+      <span>Удалить альбом</span>
+    </div>
+    <div class="context-menu-item edit-album" data-action="edit">
+      <i class="fas fa-edit"></i>
+      <span>Редактировать теги</span>
+    </div>
+  `;
+    document.body.appendChild(menu);
+    console.log("[AlbumUIRenderer] menu appended to body");
+    this.contextMenu = menu;
+    const deleteBtn = menu.querySelector(".delete-album");
+    const editBtn = menu.querySelector(".edit-album");
+    deleteBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      this.hideContextMenu();
+      if (this.library && typeof this.library.deleteAlbum === "function") {
+        await this.library.deleteAlbum(album);
+      } else {
+        console.error("library.deleteAlbum not found", this.library);
+      }
+    });
+    editBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      this.hideContextMenu();
+      if (typeof TagEditor !== "undefined") {
+        TagEditor.showAlbumTagEditor(album);
+      }
+    });
+    const closeMenu = (e) => {
+      if (!menu.contains(e.target)) {
+        this.hideContextMenu();
+        document.removeEventListener("click", closeMenu);
+        document.removeEventListener("contextmenu", closeMenu);
+      }
+    };
+    setTimeout(() => {
+      document.addEventListener("click", closeMenu);
+      document.addEventListener("contextmenu", closeMenu);
+    }, 0);
+  }
+
+  hideContextMenu() {
+    if (this.contextMenu && this.contextMenu.parentNode) {
+      this.contextMenu.parentNode.removeChild(this.contextMenu);
+      this.contextMenu = null;
     }
   }
 }

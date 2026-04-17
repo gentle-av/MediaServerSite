@@ -152,47 +152,6 @@ const VideoExplorer = {
     });
   },
 
-  showContextMenu(x, y, path, name, isDirectory) {
-    this.hideContextMenu();
-    const menu = document.createElement("div");
-    menu.className = "context-menu";
-    menu.style.left = x + "px";
-    menu.style.top = y + "px";
-    if (isDirectory) {
-      menu.innerHTML = `
-        <div class="context-menu-item delete-item" data-action="delete">
-          <i class="fas fa-trash-alt"></i>
-          <span>Удалить папку</span>
-        </div>
-      `;
-    } else {
-      menu.innerHTML = `
-        <div class="context-menu-item delete-item" data-action="delete">
-          <i class="fas fa-trash-alt"></i>
-          <span>Удалить файл</span>
-        </div>
-      `;
-    }
-    document.body.appendChild(menu);
-    this.contextMenu = menu;
-    const deleteBtn = menu.querySelector(".delete-item");
-    deleteBtn.addEventListener("click", async () => {
-      await this.deleteItem(path, name, isDirectory);
-      this.hideContextMenu();
-    });
-    const closeMenu = (e) => {
-      if (!menu.contains(e.target)) {
-        this.hideContextMenu();
-        document.removeEventListener("click", closeMenu);
-        document.removeEventListener("contextmenu", closeMenu);
-      }
-    };
-    setTimeout(() => {
-      document.addEventListener("click", closeMenu);
-      document.addEventListener("contextmenu", closeMenu);
-    }, 0);
-  },
-
   hideContextMenu() {
     if (this.contextMenu && this.contextMenu.parentNode) {
       this.contextMenu.parentNode.removeChild(this.contextMenu);
@@ -201,6 +160,7 @@ const VideoExplorer = {
   },
 
   async deleteItem(path, name, isDirectory) {
+    this.hideContextMenu();
     const confirmed = await CustomDeleteDialogInstance.showConfirm(
       name,
       isDirectory,
