@@ -139,7 +139,11 @@ const VideoExplorer = {
         }
         e.preventDefault();
         e.stopPropagation();
-        this.showContextMenu(e.clientX, e.clientY, path, fileName, isDir);
+        if (isDir) {
+          await this.loadDirectory(path, true);
+        } else {
+          await this.playVideo(path, fileName);
+        }
       });
       newCard.addEventListener("contextmenu", (e) => {
         e.preventDefault();
