@@ -1,7 +1,7 @@
 .audio-player-control-panel {
   position: fixed;
   bottom: 0;
-  left: 0;
+  left: var(--sidebar-width);
   right: 0;
   background: var(--bg1);
   border-top: 2px solid var(--yellow);
@@ -9,6 +9,10 @@
   z-index: 100;
   transform: translateY(100%);
   transition: transform var(--transition-normal);
+}
+
+.video-page .audio-player-control-panel {
+  display: none !important;
 }
 
 .audio-player-control-panel.active {
@@ -20,17 +24,19 @@
   align-items: center;
   gap: 20px;
   flex-wrap: wrap;
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+  min-width: 0;
 }
 
 .player-panel-info {
   flex: 2;
-  min-width: 200px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .player-panel-track-info {
   margin-bottom: 8px;
+  overflow: hidden;
 }
 
 .player-panel-track-name {
@@ -45,12 +51,17 @@
 .player-panel-track-artist {
   font-size: 0.8rem;
   color: var(--yellow);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .player-panel-progress {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
+  min-width: 0;
 }
 
 .player-panel-time-current,
@@ -58,6 +69,7 @@
   font-size: 0.75rem;
   color: var(--fg3);
   min-width: 40px;
+  flex-shrink: 0;
 }
 
 #panelProgressBar {
@@ -85,6 +97,7 @@
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .player-panel-btn {
@@ -129,6 +142,7 @@
 
 @media (max-width: 768px) {
   .audio-player-control-panel {
+    left: 0;
     padding: 10px 15px;
   }
   .player-panel-content {

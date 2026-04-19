@@ -28,7 +28,7 @@ const NavigationManager = {
 
   async switchTo(page) {
     if (this.currentPage === page) return;
-
+    this.events.emit("page:changed", page);
     this.currentPage = page;
     this._updatePageTitle(page);
     this._updateActiveButtons(page);

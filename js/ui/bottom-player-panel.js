@@ -4,12 +4,43 @@ class BottomPlayerPanel {
     this.events = events;
     this.element = null;
     this._progressInterval = null;
+    this._isAudioPage = false;
     this._initElements();
+    this._listenToPageChanges();
+  }
+
+  _listenToPageChanges() {
+    this.events.on("page:changed", (page) => {
+      this._isAudioPage = page === "audio";
+      if (this._isAudioPage) {
+        this._createPanelIfNeeded();
+      } else {
+        this._removePanel();
+      }
+    });
+  }
+
+  _createPanelIfNeeded() {
+    if (this.element && document.body.contains(this.element)) return;
+    this._createPanel();
+    this._initElements();
+    this._attachEvents();
+    this._subscribeToEvents();
+  }
+
+  _removePanel() {
+    if (this.element && this.element.remove) {
+      this.element.remove();
+    }
+    this.element = null;
   }
 
   _initElements() {
     this.element = document.getElementById("audioPlayerControlPanel");
-    if (!this.element) this._createPanel();
+    if (!this.element && this._isAudioPage) {
+      this._createPanel();
+    }
+    if (!this.element) return;
     this.playPauseBtn = document.getElementById("panelPlayPauseBtn");
     this.prevBtn = document.getElementById("panelPrevBtn");
     this.nextBtn = document.getElementById("panelNextBtn");
@@ -27,6 +58,7 @@ class BottomPlayerPanel {
   }
 
   _createPanel() {
+    if (this.element) return;
     this.element = document.createElement("div");
     this.element.id = "audioPlayerControlPanel";
     this.element.className = "audio-player-control-panel";
@@ -56,10 +88,10 @@ class BottomPlayerPanel {
             </div>
         `;
     document.body.appendChild(this.element);
-    this._initElements();
   }
 
   _attachEvents() {
+    if (!this.element) return;
     if (this.playPauseBtn) {
       this.playPauseBtn.addEventListener("click", () =>
         this.playback.togglePlayPause(),
@@ -98,6 +130,7 @@ class BottomPlayerPanel {
   }
 
   async _updateFromState(state) {
+    if (!this.element) return;
     if (!state) return;
     if (state.totalTracks > 0) {
       this.element.classList.add("active");
@@ -139,17 +172,20 @@ class BottomPlayerPanel {
   }
 
   _showAlbum(album) {
+    if (!this.element) return;
     if (this.trackName) this.trackName.textContent = album.title;
     if (this.trackArtist) this.trackArtist.textContent = album.artist;
   }
 
   _showTrack(album, trackIndex) {
+    if (!this.element) return;
     const track = album.tracks[trackIndex];
     if (this.trackName) this.trackName.textContent = track.displayName;
     if (this.trackArtist) this.trackArtist.textContent = album.artist;
   }
 
   _onPlaylistCleared() {
+    if (!this.element) return;
     if (this.trackName) this.trackName.textContent = "—";
     if (this.trackArtist) this.trackArtist.textContent = "";
     if (this.trackCount) this.trackCount.textContent = "0/0";
@@ -158,7 +194,7 @@ class BottomPlayerPanel {
     if (this.progressFill) this.progressFill.style.width = "0%";
     if (this.playPauseBtn)
       this.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-    this.element.classList.remove("active");
+    if (this.element) this.element.classList.remove("active");
   }
 
   _formatTime(seconds) {
