@@ -1,4 +1,3 @@
-// js/modules/video-player-controller.js
 class VideoPlayerController {
   constructor(apiClient, events) {
     this.api = apiClient;
@@ -6,10 +5,27 @@ class VideoPlayerController {
     this.currentFile = null;
     this.isPlaying = false;
     this.isFullscreen = false;
-    this.panel = document.getElementById("playerControlPage");
-
+    this.panel = null;
+    this._isStarting = false;
     this._bindEvents();
-    this._bindUIEvents();
+    this._initPanel();
+  }
+
+  _initPanel() {
+    this.panel = document.getElementById("playerControlPage");
+    if (!this.panel) {
+      const observer = new MutationObserver(() => {
+        this.panel = document.getElementById("playerControlPage");
+        if (this.panel) {
+          this._bindUIEvents();
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      setTimeout(() => observer.disconnect(), 5000);
+    } else {
+      this._bindUIEvents();
+    }
   }
 
   _bindEvents() {
@@ -19,6 +35,8 @@ class VideoPlayerController {
   }
 
   _bindUIEvents() {
+    if (this._uiBound) return;
+    this._uiBound = true;
     document
       .getElementById("playPauseBtn")
       ?.addEventListener("click", () => this.togglePlayPause());
@@ -43,11 +61,50 @@ class VideoPlayerController {
   }
 
   async startPlayback(path) {
-    this.currentFile = path;
-    this.show();
-    await this.api.post("/api/open", { path });
-    this.isPlaying = true;
-    this._updateUI();
+    console.log(
+      "startPlayback called, _isStarting:",
+      this._isStarting,
+      "path:",
+      path,
+    );
+    if (!this.panel) {
+      this.panel = document.getElementById("playerControlPage");
+    }
+    if (!this.panel) {
+      console.error("Player control panel not found");
+      return;
+    }
+    if (this._isStarting) {
+      console.log("Already starting playback, ignoring");
+      return;
+    }
+    if (this.currentFile === path && this.panel.style.display === "flex") {
+      console.log("Already playing this file, ignoring");
+      return;
+    }
+    console.log("startPlayback proceeding...");
+    this._isStarting = true;
+    try {
+      this.currentFile = path;
+      this.show();
+      const response = await this.api.post("/api/open", { path });
+      if (response.success) {
+        this.isPlaying = true;
+        Utils.showNotification(
+          `Воспроизведение: ${path.split("/").pop()}`,
+          "success",
+        );
+      } else {
+        Utils.showNotification("Ошибка воспроизведения", "error");
+        this.hide();
+      }
+      this._updateUI();
+    } finally {
+      setTimeout(() => {
+        this._isStarting = false;
+        console.log("_isStarting reset to false");
+      }, 500);
+    }
   }
 
   async togglePlayPause() {
@@ -108,10 +165,10 @@ class VideoPlayerController {
     const placeholder = document.querySelector(".player-placeholder");
     if (placeholder && this.currentFile) {
       placeholder.innerHTML = `
-                <i class="fas fa-${this.isPlaying ? "play" : "pause"}-circle" style="font-size: 60px; color: var(--yellow);"></i>
-                <div>${this._escape(this.currentFile.split("/").pop())}</div>
-                <div style="font-size: 0.9rem; color: var(--fg3);">${this.isPlaying ? "Воспроизводится" : "На паузе"}</div>
-            `;
+        <i class="fas fa-${this.isPlaying ? "play" : "pause"}-circle" style="font-size: 60px; color: var(--yellow);"></i>
+        <div>${this._escape(this.currentFile.split("/").pop())}</div>
+        <div style="font-size: 0.9rem; color: var(--fg3);">${this.isPlaying ? "Воспроизводится" : "На паузе"}</div>
+      `;
     }
   }
 

@@ -12,6 +12,84 @@ class AlbumLibrary {
     await this._loadAlbums();
     this.events.on("albumDelete", () => this._loadAlbums());
     this.events.on("albumEdit", () => this._loadAlbums());
+    this.events.on("albumContextMenu", ({ x, y, album }) =>
+      this._showContextMenu(x, y, album),
+    );
+    this.events.on("albumClick", (album) => this._showAlbumModal(album));
+  }
+
+  _showContextMenu(x, y, album) {
+    const existingMenu = document.querySelector(".album-context-menu");
+    if (existingMenu) existingMenu.remove();
+    const menu = document.createElement("div");
+    menu.className = "album-context-menu";
+    menu.style.left = x + "px";
+    menu.style.top = y + "px";
+    menu.innerHTML = `
+        <div class="context-menu-item" data-action="delete">
+            <i class="fas fa-trash-alt"></i> Удалить альбом
+        </div>
+        <div class="context-menu-item" data-action="edit">
+            <i class="fas fa-edit"></i> Редактировать теги
+        </div>
+    `;
+    document.body.appendChild(menu);
+    menu
+      .querySelector('[data-action="delete"]')
+      .addEventListener("click", () => {
+        this.events.emit("albumDelete", album);
+        menu.remove();
+      });
+    menu.querySelector('[data-action="edit"]').addEventListener("click", () => {
+      this.events.emit("albumEdit", album);
+      menu.remove();
+    });
+    const closeMenu = (e) => {
+      if (!menu.contains(e.target)) {
+        menu.remove();
+        document.removeEventListener("click", closeMenu);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", closeMenu), 0);
+  }
+
+  _escape(str) {
+    if (!str) return "";
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  _showAlbumModal(album) {
+    const modal = document.getElementById("albumModal");
+    const titleEl = document.getElementById("modalAlbumTitle");
+    const tracksList = document.getElementById("modalTracksList");
+    if (!modal) return;
+    if (titleEl) titleEl.textContent = album.displayTitle;
+    if (tracksList) {
+      tracksList.innerHTML = album.tracks
+        .map(
+          (track, idx) => `
+            <div class="track-item">
+                <span class="track-number">${(idx + 1).toString().padStart(2, "0")}</span>
+                <span class="track-name">${this._escape(track.displayName)}</span>
+                <span class="track-duration">${track.displayDuration}</span>
+                <button class="track-play-btn" data-index="${idx}"><i class="fas fa-play"></i></button>
+            </div>
+        `,
+        )
+        .join("");
+      tracksList.querySelectorAll(".track-play-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const index = parseInt(btn.dataset.index);
+          this.events.emit("playTrack", { album, trackIndex: index });
+        });
+      });
+    }
+    modal.classList.add("active");
+    const closeBtn = modal.querySelector(".modal-close");
+    if (closeBtn) closeBtn.onclick = () => modal.classList.remove("active");
   }
 
   async _loadAlbums() {

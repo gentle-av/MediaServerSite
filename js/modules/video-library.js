@@ -8,6 +8,7 @@ class VideoLibrary {
     this.container = document.getElementById("videoContent");
     this.breadcrumbs = document.getElementById("videoBreadcrumbs");
     this._bindEvents();
+    this.loadDirectory(this.currentPath, false);
   }
 
   _bindEvents() {
@@ -42,19 +43,19 @@ class VideoLibrary {
     this.container.innerHTML = visibleItems
       .map(
         (item) => `
-            <div class="item-card" data-path="${item.path}" data-is-dir="${item.isDirectory}">
-                <div class="item-card-content">
-                    <i class="fas ${item.isDirectory ? "fa-folder folder-icon" : "fa-file-video video-icon"}"></i>
-                    <div class="item-name" title="${this._escape(item.name)}">${this._escape(item.name)}</div>
-                    ${!item.isDirectory ? `<div class="item-size">${item.size || ""}</div>` : ""}
-                </div>
-                <div class="swipe-actions">
-                    <button class="swipe-delete-btn" data-path="${item.path}" data-name="${this._escape(item.name)}" data-is-dir="${item.isDirectory}">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                </div>
+        <div class="item-card" data-path="${item.path}" data-is-dir="${item.isDirectory}">
+            <div class="item-card-content">
+                <i class="fas ${item.isDirectory ? "fa-folder folder-icon" : "fa-file-video video-icon"}"></i>
+                <div class="item-name" title="${this._escape(item.name)}">${this._escape(item.name)}</div>
+                ${!item.isDirectory ? `<div class="item-size">${item.size || ""}</div>` : ""}
             </div>
-        `,
+            <div class="swipe-actions">
+                <button class="swipe-delete-btn" data-path="${item.path}" data-name="${this._escape(item.name)}" data-is-dir="${item.isDirectory}">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        </div>
+    `,
       )
       .join("");
     this._attachItemEvents();
@@ -62,20 +63,25 @@ class VideoLibrary {
 
   _attachItemEvents() {
     this.container.querySelectorAll(".item-card").forEach((card) => {
+      if (card._eventsAttached) return;
+      card._eventsAttached = true;
       const path = card.dataset.path;
       const isDir = card.dataset.isDir === "true";
       const name = card.querySelector(".item-name")?.textContent || "";
-      card.addEventListener("click", async (e) => {
+      const clickHandler = async (e) => {
         if (e.target.closest(".swipe-delete-btn")) return;
         if (isDir) {
           await this.loadDirectory(path, true);
         } else {
           this.events.emit("video:play", path);
         }
-      });
+      };
+      card.addEventListener("click", clickHandler);
+      card._clickHandler = clickHandler;
       const deleteBtn = card.querySelector(".swipe-delete-btn");
-      if (deleteBtn) {
-        deleteBtn.addEventListener("click", async (e) => {
+      if (deleteBtn && !deleteBtn._handlerAdded) {
+        deleteBtn._handlerAdded = true;
+        const deleteHandler = async (e) => {
           e.stopPropagation();
           const confirmed = await CustomDeleteDialogInstance.showConfirm(
             name,
@@ -84,13 +90,19 @@ class VideoLibrary {
           if (confirmed) {
             this.events.emit("video:delete", { path, name, isDir });
           }
-        });
+        };
+        deleteBtn.addEventListener("click", deleteHandler);
+        deleteBtn._deleteHandler = deleteHandler;
       }
-      card.addEventListener("contextmenu", (e) => {
+      const contextHandler = (e) => {
         e.preventDefault();
         e.stopPropagation();
         this._showContextMenu(e.clientX, e.clientY, path, name, isDir);
-      });
+      };
+      if (!card._contextHandler) {
+        card.addEventListener("contextmenu", contextHandler);
+        card._contextHandler = contextHandler;
+      }
     });
   }
 
@@ -141,17 +153,16 @@ class VideoLibrary {
   }
 
   async playVideo(path) {
-    this.events.emit("playback:videoStart", path);
-    const response = await this.api.post("/api/open", { path });
-    if (response.success) {
-      this.events.emit("player:show", "video");
-      Utils.showNotification(
-        `Воспроизведение: ${path.split("/").pop()}`,
-        "success",
-      );
-    } else {
-      Utils.showNotification("Ошибка воспроизведения", "error");
+    if (this._playingNow === path) {
+      console.log("playVideo ignored - already playing this file:", path);
+      return;
     }
+    this._playingNow = path;
+    console.log("playVideo called with path:", path);
+    this.events.emit("playback:videoStart", path);
+    setTimeout(() => {
+      this._playingNow = null;
+    }, 1000);
   }
 
   async deleteItem(path, name, isDirectory) {

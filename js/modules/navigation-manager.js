@@ -38,7 +38,7 @@ const NavigationManager = {
     }
     const container = document.getElementById("pageContainer");
     if (container) {
-      const response = await fetch(`${page}.html`);
+      const response = await fetch(`pages/${page}.html`);
       const html = await response.text();
       container.innerHTML = html;
       this.events.emit(`page:${page}Loaded`);

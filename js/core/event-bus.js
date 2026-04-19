@@ -16,6 +16,9 @@ class EventBus {
   }
 
   emit(event, data) {
+    if (event === "video:play" || event === "playback:videoStart") {
+      console.log("EventBus.emit:", event, data);
+    }
     if (!this.listeners.has(event)) return;
     this.listeners.get(event).forEach((cb) => cb(data));
   }
