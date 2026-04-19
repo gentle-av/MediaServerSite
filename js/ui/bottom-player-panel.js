@@ -108,6 +108,17 @@ class BottomPlayerPanel {
     if (this.trackCount) {
       this.trackCount.textContent = `${(state.currentIndex || 0) + 1}/${state.totalTracks || 0}`;
     }
+    const trackName =
+      state.currentTrackName ||
+      (state.currentTrack
+        ? decodeURIComponent(state.currentTrack.split("/").pop()).replace(
+            /\.(flac|mp3|m4a|wav)$/i,
+            "",
+          )
+        : "—");
+    if (this.trackName) {
+      this.trackName.textContent = trackName;
+    }
     const timeInfo = await this.playback.api.getCurrentTime();
     if (timeInfo?.data) {
       const current = timeInfo.data.currentTime || 0;

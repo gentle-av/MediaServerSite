@@ -33,7 +33,21 @@ class PlaybackController {
         const state = await this.api.getPlaybackState();
         if (state?.success) {
           this._isPlaying = state.data.isPlaying;
-          this.events.emit("stateChange", state.data);
+          const trackName =
+            state.data.currentTrackName ||
+            (state.data.currentTrack
+              ? decodeURIComponent(
+                  state.data.currentTrack.split("/").pop(),
+                ).replace(/\.(flac|mp3|m4a|wav)$/i, "")
+              : "");
+          if (trackName && this._currentAlbum) {
+            this.events.emit("stateChange", {
+              ...state.data,
+              currentTrackName: trackName,
+            });
+          } else {
+            this.events.emit("stateChange", state.data);
+          }
         }
       }
     }, 1000);

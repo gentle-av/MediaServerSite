@@ -20,6 +20,9 @@ class PlaylistPopup {
     const state = await this.playback.api.getPlaybackState();
     let currentPath = state?.data?.currentTrack;
     let tracks = playlistData?.data?.tracks || playlistData?.data || [];
+    if (!Array.isArray(tracks)) {
+      tracks = [];
+    }
     this._render(tracks, currentPath);
     this._updateCount(tracks.length);
   }
