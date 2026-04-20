@@ -62,7 +62,7 @@ class TrackList {
         const track = this.currentAlbum.tracks[index];
         this.events.emit("track:editMetadata", {
           album: this.currentAlbum,
-          track,
+          track: track,
           trackIndex: index,
         });
       });

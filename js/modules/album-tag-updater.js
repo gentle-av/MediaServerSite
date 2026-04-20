@@ -69,49 +69,45 @@ class AlbumTagUpdater {
       return false;
     }
   }
-  async updateAlbumTagsFromForm(album) {
-    const newArtist = prompt("Введите имя исполнителя:", album.artist);
-    if (newArtist === null) return;
-    const newAlbum = prompt("Введите название альбома:", album.title);
-    if (newAlbum === null) return;
-    const newYear = prompt("Введите год выпуска:", album.year || "");
-    await this.updateAlbumTags(album, newArtist, newAlbum, newYear);
-  }
 
-  showAlbumTagUpdater(album) {
+  showTrackTagEditor(track, album) {
     const modal = document.createElement("div");
     modal.className = "album-tag-editor-modal";
     modal.innerHTML = `
-    <div class="album-tag-editor-overlay"></div>
-    <div class="album-tag-editor-container">
-      <div class="album-tag-editor-header">
-        <h3><i class="fas fa-tags"></i> Редактирование альбома</h3>
-        <button class="album-tag-editor-close"><i class="fas fa-times"></i></button>
+      <div class="album-tag-editor-overlay"></div>
+      <div class="album-tag-editor-container">
+        <div class="album-tag-editor-header">
+          <h3><i class="fas fa-tags"></i> Редактирование трека</h3>
+          <button class="album-tag-editor-close"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="album-tag-editor-content">
+          <div class="album-tag-editor-field">
+            <label><i class="fas fa-user"></i> Исполнитель:</label>
+            <input type="text" id="editTrackArtist" value="${this.escapeHtml(track.artist || album.artist)}" placeholder="Исполнитель">
+          </div>
+          <div class="album-tag-editor-field">
+            <label><i class="fas fa-music"></i> Название:</label>
+            <input type="text" id="editTrackTitle" value="${this.escapeHtml(track.title || track.name)}" placeholder="Название трека">
+          </div>
+          <div class="album-tag-editor-field">
+            <label><i class="fas fa-compact-disc"></i> Альбом:</label>
+            <input type="text" id="editTrackAlbum" value="${this.escapeHtml(album.title)}" placeholder="Название альбома">
+          </div>
+          <div class="album-tag-editor-field">
+            <label><i class="fas fa-hashtag"></i> Номер трека:</label>
+            <input type="number" id="editTrackNumber" value="${track.trackNumber || 0}" placeholder="Номер трека">
+          </div>
+          <div class="album-tag-editor-actions">
+            <button class="album-tag-editor-save" data-action="save"><i class="fas fa-save"></i> Сохранить</button>
+            <button class="album-tag-editor-cancel"><i class="fas fa-times"></i> Отмена</button>
+          </div>
+          <div class="album-tag-editor-note">
+            <i class="fas fa-info-circle"></i>
+            <span>Изменения применятся только к этому треку</span>
+          </div>
+        </div>
       </div>
-      <div class="album-tag-editor-content">
-        <div class="album-tag-editor-field">
-          <label><i class="fas fa-user"></i> Исполнитель:</label>
-          <input type="text" id="editAlbumArtist" value="${this.escapeHtml(album.artist)}" placeholder="Исполнитель">
-        </div>
-        <div class="album-tag-editor-field">
-          <label><i class="fas fa-record-vinyl"></i> Альбом:</label>
-          <input type="text" id="editAlbumTitle" value="${this.escapeHtml(album.title)}" placeholder="Название альбома">
-        </div>
-        <div class="album-tag-editor-field">
-          <label><i class="fas fa-calendar"></i> Год:</label>
-          <input type="text" id="editAlbumYear" value="${album.year || ""}" placeholder="Год выпуска">
-        </div>
-        <div class="album-tag-editor-actions">
-          <button class="album-tag-editor-save" data-action="save"><i class="fas fa-save"></i> Сохранить</button>
-          <button class="album-tag-editor-cancel"><i class="fas fa-times"></i> Отмена</button>
-        </div>
-        <div class="album-tag-editor-note">
-          <i class="fas fa-info-circle"></i>
-          <span>Изменения применятся ко всем трекам альбома</span>
-        </div>
-      </div>
-    </div>
-  `;
+    `;
     document.body.appendChild(modal);
     const overlay = modal.querySelector(".album-tag-editor-overlay");
     const closeBtn = modal.querySelector(".album-tag-editor-close");
@@ -122,15 +118,31 @@ class AlbumTagUpdater {
     closeBtn.addEventListener("click", closeModal);
     cancelBtn.addEventListener("click", closeModal);
     saveBtn.addEventListener("click", async () => {
-      const newArtist = document.getElementById("editAlbumArtist").value.trim();
-      const newAlbum = document.getElementById("editAlbumTitle").value.trim();
-      const newYear = document.getElementById("editAlbumYear").value.trim();
-      if (!newArtist && !newAlbum && !newYear) {
+      const newArtist = document.getElementById("editTrackArtist").value.trim();
+      const newTitle = document.getElementById("editTrackTitle").value.trim();
+      const newAlbum = document.getElementById("editTrackAlbum").value.trim();
+      const newTrackNumber =
+        parseInt(document.getElementById("editTrackNumber").value) || 0;
+      const tags = {};
+      if (newArtist && newArtist !== (track.artist || album.artist))
+        tags.artist = newArtist;
+      if (newTitle && newTitle !== (track.title || track.name))
+        tags.title = newTitle;
+      if (newAlbum && newAlbum !== album.title) tags.album = newAlbum;
+      if (newTrackNumber > 0 && newTrackNumber !== track.trackNumber)
+        tags.track = newTrackNumber;
+      if (Object.keys(tags).length === 0) {
         Utils.showNotification("Нет изменений для сохранения", "info");
         closeModal();
         return;
       }
-      await this.updateAlbumTags(album, newArtist, newAlbum, newYear);
+      const success = await this.updateTrackTags(track.path, tags);
+      if (success) {
+        Utils.showNotification("Теги трека обновлены", "success");
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        Utils.showNotification("Ошибка при обновлении тегов", "error");
+      }
       closeModal();
     });
   }
@@ -144,3 +156,4 @@ class AlbumTagUpdater {
 }
 
 const AlbumTagUpdaterInstance = new AlbumTagUpdater();
+window.TagEditor = AlbumTagUpdaterInstance;
