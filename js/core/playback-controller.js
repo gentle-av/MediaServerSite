@@ -7,19 +7,7 @@ class PlaybackController {
     this._isPlaying = false;
     this._isSwitching = false;
     this._playlist = [];
-  }
-
-  get currentAlbum() {
-    return this._currentAlbum;
-  }
-  get currentTrack() {
-    return this._playlist[this._currentTrackIndex];
-  }
-  get isPlaying() {
-    return this._isPlaying;
-  }
-  get playlist() {
-    return [...this._playlist];
+    this._pollingInterval = null;
   }
 
   async init() {
@@ -28,7 +16,10 @@ class PlaybackController {
   }
 
   _startPolling() {
-    setInterval(async () => {
+    if (this._pollingInterval) {
+      clearInterval(this._pollingInterval);
+    }
+    this._pollingInterval = setInterval(async () => {
       if (!this._isSwitching) {
         const state = await this.api.getPlaybackState();
         if (state?.success) {
@@ -51,9 +42,19 @@ class PlaybackController {
         }
       }
     }, 1000);
+    console.log("[PlaybackController] Polling started");
+  }
+
+  _stopPolling() {
+    if (this._pollingInterval) {
+      clearInterval(this._pollingInterval);
+      this._pollingInterval = null;
+      console.log("[PlaybackController] Polling stopped");
+    }
   }
 
   async playAlbum(album) {
+    console.log("[PlaybackController] playAlbum:", album?.title);
     if (this._isSwitching) return;
     this._isSwitching = true;
     this._currentAlbum = album;
@@ -67,6 +68,7 @@ class PlaybackController {
   }
 
   async playTrack(album, trackIndex) {
+    console.log("[PlaybackController] playTrack:", album?.title, trackIndex);
     if (this._isSwitching) return;
     this._isSwitching = true;
     this._currentAlbum = album;
@@ -80,6 +82,7 @@ class PlaybackController {
   }
 
   async addAlbumToPlaylist(album) {
+    console.log("[PlaybackController] addAlbumToPlaylist:", album?.title);
     for (const trackPath of album.getTrackPaths()) {
       await this.api.addToPlaylist(trackPath);
     }
@@ -87,6 +90,7 @@ class PlaybackController {
   }
 
   async addTrackAfterCurrent(album, trackIndex) {
+    console.log("[PlaybackController] addTrackAfterCurrent");
     const state = await this.api.getPlaybackState();
     const currentIndex = state?.data?.currentIndex ?? -1;
     const currentPlaylist = await this.api.getPlaylist();
@@ -99,6 +103,7 @@ class PlaybackController {
   }
 
   async togglePlayPause() {
+    console.log("[PlaybackController] togglePlayPause");
     const state = await this.api.getPlaybackState();
     if (state?.data?.isPlaying) {
       await this.api.pause();
@@ -108,19 +113,26 @@ class PlaybackController {
   }
 
   async next() {
+    console.log("[PlaybackController] next");
     await this.api.next();
   }
+
   async previous() {
+    console.log("[PlaybackController] previous");
     await this.api.previous();
   }
+
   async stop() {
+    console.log("[PlaybackController] stop");
     await this.api.stop();
   }
+
   async seek(percent, progressBar) {
     const rect = progressBar.getBoundingClientRect();
     const timeInfo = await this.api.getCurrentTime();
-    if (timeInfo?.success?.data?.duration) {
+    if (timeInfo?.data?.duration) {
       const seekTime = timeInfo.data.duration * percent;
+      console.log("[PlaybackController] seek to:", seekTime);
       await this.api.seek(seekTime);
     }
   }

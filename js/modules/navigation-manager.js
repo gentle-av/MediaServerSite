@@ -11,37 +11,59 @@ const NavigationManager = {
 
   _attachButtons() {
     const buttons = ["navVideo", "navAudio", "navVideoBtn", "navAudioBtn"];
-
     buttons.forEach((id) => {
       const btn = document.getElementById(id);
       if (btn) {
-        btn.removeEventListener("click", this._handler);
-        this._handler = (e) => {
+        const handler = (e) => {
           e.preventDefault();
           const page = id.includes("Video") ? "video" : "audio";
           this.switchTo(page);
         };
-        btn.addEventListener("click", this._handler);
+        btn.removeEventListener("click", handler);
+        btn.addEventListener("click", handler);
+        btn._navHandler = handler;
       }
     });
   },
 
   async switchTo(page) {
-    if (this.currentPage === page) return;
-    this.events.emit("page:changed", page);
+    if (this.currentPage === page) {
+      console.log("[NavigationManager] Already on page:", page);
+      return;
+    }
+    console.log("[NavigationManager] switchTo:", page);
     this.currentPage = page;
+    this.events.emit("page:changed", page);
     this._updatePageTitle(page);
     this._updateActiveButtons(page);
     const searchBox = document.getElementById("globalSearchBox");
     if (searchBox) {
       searchBox.style.display = page === "audio" ? "flex" : "none";
     }
+    const headerPlaylistBtn = document.getElementById("headerPlaylistBtn");
+    if (headerPlaylistBtn) {
+      headerPlaylistBtn.style.display = page === "audio" ? "flex" : "none";
+    }
     const container = document.getElementById("pageContainer");
-    if (container) {
+    if (!container) {
+      console.error("[NavigationManager] pageContainer not found");
+      return;
+    }
+    console.log("[NavigationManager] Loading page:", page);
+    container.innerHTML =
+      '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>';
+    try {
       const response = await fetch(`pages/${page}.html`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       const html = await response.text();
       container.innerHTML = html;
+      console.log("[NavigationManager] Page loaded:", page);
       this.events.emit(`page:${page}Loaded`);
+    } catch (error) {
+      console.error("[NavigationManager] Failed to load page:", page, error);
+      container.innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle"></i> Ошибка загрузки: ${error.message}</div>`;
     }
   },
 

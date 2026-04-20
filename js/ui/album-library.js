@@ -8,6 +8,16 @@ class AlbumLibrary {
     this._loading = false;
   }
 
+  destroy() {
+    console.log("[AlbumLibrary] destroy called");
+    this._loading = false;
+    this.albums = [];
+    this.filteredAlbums = [];
+    if (this.container) {
+      this.container.innerHTML = "";
+    }
+  }
+
   async init() {
     await this._loadAlbums();
     this.events.on("albumDelete", () => this._loadAlbums());

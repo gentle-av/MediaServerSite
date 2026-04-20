@@ -3,7 +3,6 @@ class BottomPlayerPanel {
     this.playback = playbackController;
     this.events = events;
     this.element = null;
-    this._progressInterval = null;
     this._isAudioPage = false;
     this._initElements();
     this._listenToPageChanges();
@@ -11,17 +10,24 @@ class BottomPlayerPanel {
 
   _listenToPageChanges() {
     this.events.on("page:changed", (page) => {
+      console.log("[BottomPlayerPanel] page:changed to:", page);
       this._isAudioPage = page === "audio";
       if (this._isAudioPage) {
+        console.log("[BottomPlayerPanel] Creating panel for audio page");
         this._createPanelIfNeeded();
       } else {
+        console.log("[BottomPlayerPanel] Removing panel for non-audio page");
         this._removePanel();
       }
     });
   }
 
   _createPanelIfNeeded() {
-    if (this.element && document.body.contains(this.element)) return;
+    if (this.element && document.body.contains(this.element)) {
+      console.log("[BottomPlayerPanel] Panel already exists");
+      return;
+    }
+    console.log("[BottomPlayerPanel] Creating new panel");
     this._createPanel();
     this._initElements();
     this._attachEvents();
@@ -29,15 +35,37 @@ class BottomPlayerPanel {
   }
 
   _removePanel() {
+    console.log(
+      "[BottomPlayerPanel] Removing panel, element exists:",
+      !!this.element,
+    );
     if (this.element && this.element.remove) {
       this.element.remove();
+      console.log("[BottomPlayerPanel] Panel removed from DOM");
     }
     this.element = null;
+    this.playPauseBtn = null;
+    this.prevBtn = null;
+    this.nextBtn = null;
+    this.stopBtn = null;
+    this.clearBtn = null;
+    this.progressBar = null;
+    this.progressFill = null;
+    this.trackName = null;
+    this.trackArtist = null;
+    this.timeCurrent = null;
+    this.timeTotal = null;
+    this.trackCount = null;
   }
 
   _initElements() {
     this.element = document.getElementById("audioPlayerControlPanel");
+    console.log(
+      "[BottomPlayerPanel] _initElements, found element:",
+      !!this.element,
+    );
     if (!this.element && this._isAudioPage) {
+      console.log("[BottomPlayerPanel] Element not found, creating");
       this._createPanel();
     }
     if (!this.element) return;
@@ -59,39 +87,42 @@ class BottomPlayerPanel {
 
   _createPanel() {
     if (this.element) return;
+    console.log("[BottomPlayerPanel] _createPanel creating DOM element");
     this.element = document.createElement("div");
     this.element.id = "audioPlayerControlPanel";
     this.element.className = "audio-player-control-panel";
     this.element.innerHTML = `
-            <div class="player-panel-content">
-                <div class="player-panel-info">
-                    <div class="player-panel-track-info">
-                        <div id="panelTrackName" class="player-panel-track-name">—</div>
-                        <div id="panelTrackArtist" class="player-panel-track-artist"></div>
-                    </div>
-                    <div class="player-panel-progress">
-                        <span id="panelTimeCurrent" class="player-panel-time-current">0:00</span>
-                        <div id="panelProgressBar" class="player-panel-progress-bar">
-                            <div id="panelProgressFill" class="player-panel-progress-fill"></div>
-                        </div>
-                        <span id="panelTimeTotal" class="player-panel-time-total">0:00</span>
-                        <span id="panelTrackCount" class="player-panel-track-count">0/0</span>
-                    </div>
-                </div>
-                <div class="player-panel-controls">
-                    <button id="panelPrevBtn" class="player-panel-btn" title="Предыдущий"><i class="fas fa-backward"></i></button>
-                    <button id="panelPlayPauseBtn" class="player-panel-btn player-panel-play" title="Play/Pause"><i class="fas fa-play"></i></button>
-                    <button id="panelStopBtn" class="player-panel-btn" title="Стоп"><i class="fas fa-stop"></i></button>
-                    <button id="panelNextBtn" class="player-panel-btn" title="Следующий"><i class="fas fa-forward"></i></button>
-                    <button id="panelClearBtn" class="player-panel-btn" title="Очистить"><i class="fas fa-trash"></i></button>
-                </div>
+      <div class="player-panel-content">
+        <div class="player-panel-info">
+          <div class="player-panel-track-info">
+            <div id="panelTrackName" class="player-panel-track-name">—</div>
+            <div id="panelTrackArtist" class="player-panel-track-artist"></div>
+          </div>
+          <div class="player-panel-progress">
+            <span id="panelTimeCurrent" class="player-panel-time-current">0:00</span>
+            <div id="panelProgressBar" class="player-panel-progress-bar">
+              <div id="panelProgressFill" class="player-panel-progress-fill"></div>
             </div>
-        `;
+            <span id="panelTimeTotal" class="player-panel-time-total">0:00</span>
+            <span id="panelTrackCount" class="player-panel-track-count">0/0</span>
+          </div>
+        </div>
+        <div class="player-panel-controls">
+          <button id="panelPrevBtn" class="player-panel-btn" title="Предыдущий"><i class="fas fa-backward"></i></button>
+          <button id="panelPlayPauseBtn" class="player-panel-btn player-panel-play" title="Play/Pause"><i class="fas fa-play"></i></button>
+          <button id="panelStopBtn" class="player-panel-btn" title="Стоп"><i class="fas fa-stop"></i></button>
+          <button id="panelNextBtn" class="player-panel-btn" title="Следующий"><i class="fas fa-forward"></i></button>
+          <button id="panelClearBtn" class="player-panel-btn" title="Очистить"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    `;
     document.body.appendChild(this.element);
+    console.log("[BottomPlayerPanel] Panel created and appended to body");
   }
 
   _attachEvents() {
     if (!this.element) return;
+    console.log("[BottomPlayerPanel] Attaching events");
     if (this.playPauseBtn) {
       this.playPauseBtn.addEventListener("click", () =>
         this.playback.togglePlayPause(),
@@ -113,33 +144,19 @@ class BottomPlayerPanel {
     }
     if (this.progressBar) {
       this.progressBar.addEventListener("click", async (e) => {
-        console.log("Progress bar clicked");
         const rect = this.progressBar.getBoundingClientRect();
         const percent = (e.clientX - rect.left) / rect.width;
-        console.log(
-          "Click position:",
-          e.clientX,
-          "Bar left:",
-          rect.left,
-          "Width:",
-          rect.width,
-          "Percent:",
-          percent,
-        );
         const timeInfo = await this.playback.api.getCurrentTime();
-        console.log("Time info:", timeInfo);
         if (timeInfo?.data?.duration) {
           const seekTime = timeInfo.data.duration * percent;
-          console.log("Seeking to:", seekTime, "seconds");
           await this.playback.api.seek(seekTime);
-        } else {
-          console.log("Cannot seek - no duration info");
         }
       });
     }
   }
 
   _subscribeToEvents() {
+    console.log("[BottomPlayerPanel] Subscribing to events");
     this.events.on("stateChange", (state) => this._updateFromState(state));
     this.events.on("albumChanged", (album) => this._showAlbum(album));
     this.events.on("trackChanged", ({ album, trackIndex }) =>
@@ -149,7 +166,13 @@ class BottomPlayerPanel {
   }
 
   async _updateFromState(state) {
-    if (!this.element) return;
+    if (!this.element || !this._isAudioPage) {
+      console.log(
+        "[BottomPlayerPanel] _updateFromState skipped, isAudioPage:",
+        this._isAudioPage,
+      );
+      return;
+    }
     if (!state) return;
     if (state.totalTracks > 0) {
       this.element.classList.add("active");
@@ -191,20 +214,20 @@ class BottomPlayerPanel {
   }
 
   _showAlbum(album) {
-    if (!this.element) return;
+    if (!this.element || !this._isAudioPage) return;
     if (this.trackName) this.trackName.textContent = album.title;
     if (this.trackArtist) this.trackArtist.textContent = album.artist;
   }
 
   _showTrack(album, trackIndex) {
-    if (!this.element) return;
+    if (!this.element || !this._isAudioPage) return;
     const track = album.tracks[trackIndex];
     if (this.trackName) this.trackName.textContent = track.displayName;
     if (this.trackArtist) this.trackArtist.textContent = album.artist;
   }
 
   _onPlaylistCleared() {
-    if (!this.element) return;
+    if (!this.element || !this._isAudioPage) return;
     if (this.trackName) this.trackName.textContent = "—";
     if (this.trackArtist) this.trackArtist.textContent = "";
     if (this.trackCount) this.trackCount.textContent = "0/0";

@@ -11,6 +11,15 @@ class VideoLibrary {
     this.loadDirectory(this.currentPath, false);
   }
 
+  destroy() {
+    console.log("[VideoLibrary] destroy called");
+    if (this.container) {
+      this.container.innerHTML = "";
+    }
+    this.currentPath = null;
+    this.history = [];
+  }
+
   _bindEvents() {
     this.events.on("video:play", (path) => this.playVideo(path));
     this.events.on("video:delete", (data) =>
