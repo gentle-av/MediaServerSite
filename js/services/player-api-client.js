@@ -15,6 +15,10 @@ class PlayerApiClient extends ApiClient {
     }
   }
 
+  async addToPlaylist(track) {
+    return this.post("/api/add", { track });
+  }
+
   get isAvailable() {
     return this._available;
   }

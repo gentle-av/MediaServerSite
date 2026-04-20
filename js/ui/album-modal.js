@@ -35,17 +35,17 @@ class AlbumModal {
   _renderHeader(album) {
     if (!this.titleEl) return;
     this.titleEl.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <div style="width: 60px; height: 60px; border-radius: 8px; overflow: hidden; background: var(--bg2); display: flex; align-items: center; justify-content: center;">
-                    ${album.coverUrl ? `<img src="${album.coverUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : '<i class="fas fa-music" style="font-size: 30px; color: var(--yellow);"></i>'}
-                </div>
-                <div style="flex: 1;">
-                    <div style="font-size: 1.1rem; font-weight: 600;">${this._escape(album.title)}</div>
-                    <div style="font-size: 0.85rem; color: var(--yellow);">${this._escape(album.artist)}</div>
-                    <div style="font-size: 0.75rem; color: var(--fg3);">${album.trackCount} треков</div>
-                </div>
-            </div>
-        `;
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <div style="width: 60px; height: 60px; border-radius: 8px; overflow: hidden; background: var(--bg2); display: flex; align-items: center; justify-content: center;">
+          ${album.coverUrl ? `<img src="${album.coverUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : '<i class="fas fa-music" style="font-size: 30px; color: var(--yellow);"></i>'}
+        </div>
+        <div style="flex: 1;">
+          <div style="font-size: 1.1rem; font-weight: 600;">${this._escape(album.title)}</div>
+          <div style="font-size: 0.85rem; color: var(--yellow);">${this._escape(album.artist)}</div>
+          <div style="font-size: 0.75rem; color: var(--fg3);">${album.trackCount} треков</div>
+        </div>
+      </div>
+    `;
   }
 
   _renderActions(album) {
@@ -57,16 +57,13 @@ class AlbumModal {
     actionsDiv.style.cssText =
       "display: flex; gap: 12px; padding: 16px; border-bottom: 1px solid var(--bg3); background: var(--bg2); flex-wrap: wrap;";
     actionsDiv.innerHTML = `
-            <button class="modal-play-btn" style="flex: 1; padding: 10px; background: var(--yellow); color: var(--bg0); border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                <i class="fas fa-play"></i> Воспроизвести альбом
-            </button>
-            <button class="modal-add-btn" style="flex: 1; padding: 10px; background: var(--bg2); color: var(--fg1); border: 1px solid var(--bg3); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                <i class="fas fa-plus"></i> Добавить в плейлист
-            </button>
-            <button class="modal-replace-btn" style="flex: 1; padding: 10px; background: var(--bg2); color: var(--fg1); border: 1px solid var(--bg3); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                <i class="fas fa-exchange-alt"></i> Заменить плейлист
-            </button>
-        `;
+      <button class="modal-play-btn" style="flex: 1; padding: 10px; background: var(--yellow); color: var(--bg0); border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <i class="fas fa-play"></i> Воспроизвести альбом
+      </button>
+      <button class="modal-add-btn" style="flex: 1; padding: 10px; background: var(--bg2); color: var(--fg1); border: 1px solid var(--bg3); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <i class="fas fa-plus"></i> Добавить в плейлист
+      </button>
+    `;
     modalBody?.insertBefore(actionsDiv, modalBody.firstChild);
     actionsDiv
       .querySelector(".modal-play-btn")
@@ -78,12 +75,6 @@ class AlbumModal {
       .querySelector(".modal-add-btn")
       ?.addEventListener("click", () => {
         this.events.emit("album:addToPlaylist", album);
-        this.hide();
-      });
-    actionsDiv
-      .querySelector(".modal-replace-btn")
-      ?.addEventListener("click", () => {
-        this.events.emit("album:replacePlaylist", album);
         this.hide();
       });
   }

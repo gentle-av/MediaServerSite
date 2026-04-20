@@ -20,9 +20,6 @@ class TrackList {
                     <button class="track-play-btn" data-index="${idx}" title="Воспроизвести">
                         <i class="fas fa-play"></i>
                     </button>
-                    <button class="track-add-after-btn" data-index="${idx}" title="Добавить после текущего">
-                        <i class="fas fa-plus-circle"></i>
-                    </button>
                     <button class="track-edit-btn" data-index="${idx}" title="Редактировать метаданные">
                         <i class="fas fa-edit"></i>
                     </button>
@@ -40,16 +37,6 @@ class TrackList {
         e.stopPropagation();
         const index = parseInt(btn.dataset.index);
         this.events.emit("track:play", {
-          album: this.currentAlbum,
-          trackIndex: index,
-        });
-      });
-    });
-    this.container.querySelectorAll(".track-add-after-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const index = parseInt(btn.dataset.index);
-        this.events.emit("track:addAfterCurrent", {
           album: this.currentAlbum,
           trackIndex: index,
         });

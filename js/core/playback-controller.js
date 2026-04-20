@@ -80,11 +80,9 @@ class PlaybackController {
   }
 
   async addAlbumToPlaylist(album) {
-    const currentPlaylist = await this.api.getPlaylist();
-    let existingTracks =
-      currentPlaylist?.data?.tracks || currentPlaylist?.data || [];
-    const newPlaylist = [...existingTracks, ...album.getTrackPaths()];
-    await this.api.setPlaylist(newPlaylist);
+    for (const trackPath of album.getTrackPaths()) {
+      await this.api.addToPlaylist(trackPath);
+    }
     this.events.emit("playlistChanged");
   }
 
