@@ -122,7 +122,7 @@ const TagEditor = {
       }
       if (successCount > 0) {
         Utils.showNotification(`Обновлено ${successCount} треков`, "success");
-        setTimeout(() => location.reload(), 1000);
+        window.dispatchEvent(new CustomEvent("albumTagsUpdated"));
       } else {
         Utils.showNotification("Нет изменений для сохранения", "info");
       }
@@ -143,7 +143,7 @@ const TagEditor = {
       }
       if (successCount > 0) {
         Utils.showNotification(`Обновлено ${successCount} треков`, "success");
-        setTimeout(() => location.reload(), 1000);
+        window.dispatchEvent(new CustomEvent("albumTagsUpdated"));
       } else {
         Utils.showNotification("Ошибка при сохранении", "error");
       }
@@ -232,7 +232,7 @@ const TagEditor = {
       const success = await this.updateTags(track.path, tags);
       if (success) {
         Utils.showNotification("Теги трека обновлены", "success");
-        setTimeout(() => location.reload(), 1000);
+        window.dispatchEvent(new CustomEvent("albumTagsUpdated"));
       } else {
         Utils.showNotification("Ошибка при сохранении тегов", "error");
       }

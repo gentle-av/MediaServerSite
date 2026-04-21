@@ -40,7 +40,7 @@ class AlbumTagUpdater {
         `Обновлено ${successCount} треков${errorCount > 0 ? `, ошибок: ${errorCount}` : ""}`,
         "success",
       );
-      setTimeout(() => location.reload(), 1000);
+      window.dispatchEvent(new CustomEvent("albumTagsUpdated"));
       return true;
     } else {
       Utils.showNotification("Ошибка при обновлении тегов", "error");
@@ -142,7 +142,7 @@ class AlbumTagUpdater {
       const success = await this.updateTrackTags(track.path, tags);
       if (success) {
         Utils.showNotification("Теги трека обновлены", "success");
-        setTimeout(() => location.reload(), 1000);
+        window.dispatchEvent(new CustomEvent("albumTagsUpdated"));
       } else {
         Utils.showNotification("Ошибка при обновлении тегов", "error");
       }

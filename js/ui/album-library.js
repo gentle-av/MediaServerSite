@@ -26,6 +26,7 @@ class AlbumLibrary {
       this._showContextMenu(x, y, album),
     );
     this.events.on("albumClick", (album) => this._showAlbumModal(album));
+    window.addEventListener("albumTagsUpdated", () => this._loadAlbums());
   }
 
   _showContextMenu(x, y, album) {
