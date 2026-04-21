@@ -72,33 +72,44 @@ class VideoLibrary {
     this.container.innerHTML = visibleItems
       .map(
         (item) => `
-        <div class="item-card" data-path="${item.path}" data-is-dir="${item.isDirectory}" data-name="${this._escape(item.name)}">
-            <div class="item-card-content">
-                ${
-                  item.isDirectory
-                    ? `<div class="thumbnail-placeholder folder-placeholder">
-                        <i class="fas fa-folder folder-icon"></i>
-                        <div class="folder-preview-overlay"></div>
-                     </div>`
-                    : `<div class="thumbnail-placeholder video-placeholder" data-video-path="${item.path}">
-                        <i class="fas fa-file-video video-icon-loading"></i>
-                        <div class="thumbnail-loading"></div>
-                     </div>`
-                }
-                <div class="item-name" title="${this._escape(item.name)}">${this._escape(item.name)}</div>
-                ${!item.isDirectory ? `<div class="item-size">${item.size || ""}</div>` : ""}
-            </div>
-            <div class="swipe-actions">
-                <button class="swipe-delete-btn" data-path="${item.path}" data-name="${this._escape(item.name)}" data-is-dir="${item.isDirectory}">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
-            </div>
-        </div>
+      <div class="item-card" data-path="${item.path}" data-is-dir="${item.isDirectory}" data-name="${this._escape(item.name)}">
+          <div class="item-card-content">
+              ${
+                item.isDirectory
+                  ? `<div class="thumbnail-placeholder folder-placeholder" data-folder-path="${item.path}">
+                      <i class="fas fa-folder folder-icon"></i>
+                      <div class="folder-thumbnail-overlay"></div>
+                    </div>`
+                  : `<div class="thumbnail-placeholder video-placeholder" data-video-path="${item.path}">
+                      <i class="fas fa-file-video video-icon-loading"></i>
+                      <div class="thumbnail-loading"></div>
+                    </div>`
+              }
+              <div class="item-name" title="${this._escape(item.name)}">${this._escape(item.name)}</div>
+              ${!item.isDirectory ? `<div class="item-size">${item.size || ""}</div>` : ""}
+          </div>
+          <div class="swipe-actions">
+              <button class="swipe-delete-btn" data-path="${item.path}" data-name="${this._escape(item.name)}" data-is-dir="${item.isDirectory}">
+                  <i class="fas fa-trash-alt"></i>
+              </button>
+          </div>
+      </div>
     `,
       )
       .join("");
     this._attachItemEvents();
     this._loadVisibleThumbnails();
+    this._loadVisibleFolderPreviews();
+  }
+
+  async _loadVisibleFolderThumbnails() {
+    const folderPlaceholders = this.container.querySelectorAll(
+      ".thumbnail-placeholder.folder-placeholder[data-folder-path]",
+    );
+    for (const placeholder of folderPlaceholders) {
+      const folderPath = placeholder.dataset.folderPath;
+      await this._loadFolderThumbnail(folderPath, placeholder);
+    }
   }
 
   async _loadVisibleThumbnails() {
@@ -112,9 +123,16 @@ class VideoLibrary {
         placeholder.style.backgroundImage = `url('${thumbnail}')`;
         placeholder.style.backgroundSize = "cover";
         placeholder.style.backgroundPosition = "center";
+        // Иконку НЕ скрываем, оставляем поверх превью
         const icon = placeholder.querySelector(".video-icon-loading");
         if (icon) {
-          icon.style.display = "none";
+          icon.style.position = "absolute";
+          icon.style.zIndex = "2";
+          icon.style.backgroundColor = "rgba(0,0,0,0.5)";
+          icon.style.padding = "4px 6px";
+          icon.style.borderRadius = "6px";
+          icon.style.fontSize = "20px";
+          icon.style.margin = "6px 0 0 6px";
         }
         const loading = placeholder.querySelector(".thumbnail-loading");
         if (loading) {
@@ -302,5 +320,66 @@ class VideoLibrary {
     const div = document.createElement("div");
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  async _getFirstVideoInFolder(folderPath) {
+    const data = await this.api.post("/api/list", { path: folderPath });
+    if (data.success) {
+      const firstVideo = data.items.find(
+        (item) => !item.isDirectory && item.isVideo,
+      );
+      if (firstVideo) {
+        return firstVideo.path;
+      }
+    }
+    return null;
+  }
+
+  async _loadFolderThumbnail(folderPath, placeholder) {
+    const videoPath = await this._getFirstVideoInFolder(folderPath);
+    if (videoPath) {
+      const thumbnail = await this._loadThumbnail(videoPath);
+      if (thumbnail) {
+        placeholder.style.backgroundImage = `url('${thumbnail}')`;
+        placeholder.style.backgroundSize = "cover";
+        placeholder.style.backgroundPosition = "center";
+        const icon = placeholder.querySelector(".folder-icon");
+        if (icon) {
+          icon.style.display = "none";
+        }
+        const overlay = document.createElement("div");
+        overlay.className = "folder-video-count";
+        overlay.textContent = "📁";
+        placeholder.appendChild(overlay);
+      }
+    }
+  }
+
+  async _loadVisibleFolderPreviews() {
+    const placeholders = this.container.querySelectorAll(
+      ".thumbnail-placeholder.folder-placeholder[data-folder-path]",
+    );
+    for (const placeholder of placeholders) {
+      const folderPath = placeholder.dataset.folderPath;
+      const firstVideoPath = await this._getFirstVideoInFolder(folderPath);
+      if (firstVideoPath) {
+        const thumbnail = await this._loadThumbnail(firstVideoPath);
+        if (thumbnail) {
+          placeholder.style.backgroundImage = `url('${thumbnail}')`;
+          placeholder.style.backgroundSize = "cover";
+          placeholder.style.backgroundPosition = "center";
+          const icon = placeholder.querySelector(".folder-icon");
+          if (icon) {
+            icon.style.position = "absolute";
+            icon.style.zIndex = "2";
+            icon.style.backgroundColor = "rgba(0,0,0,0.5)";
+            icon.style.padding = "6px 8px";
+            icon.style.borderRadius = "8px";
+            icon.style.fontSize = "28px";
+            icon.style.margin = "8px 0 0 8px";
+          }
+        }
+      }
+    }
   }
 }
