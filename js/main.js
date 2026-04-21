@@ -124,6 +124,44 @@ const MediaCenter = {
       this.playlistPopup.tracksCache.clear();
       this.playlistPopup.refresh();
     }
+    const searchInput = document.getElementById("globalSearchInput");
+    const searchClearBtn = document.getElementById("searchClearBtn");
+    if (searchInput) {
+      searchInput.value = "";
+      const updateClearButton = () => {
+        if (searchClearBtn) {
+          searchClearBtn.style.display =
+            searchInput.value.length > 0 &&
+            document.activeElement === searchInput
+              ? "flex"
+              : "none";
+        }
+      };
+      searchInput.oninput = (e) => {
+        if (this.albumLibrary) {
+          this.albumLibrary.search(e.target.value);
+        }
+        updateClearButton();
+      };
+      searchInput.onfocus = updateClearButton;
+      searchInput.onblur = () => {
+        setTimeout(() => {
+          if (searchClearBtn && document.activeElement !== searchInput) {
+            searchClearBtn.style.display = "none";
+          }
+        }, 100);
+      };
+      if (searchClearBtn) {
+        searchClearBtn.onclick = () => {
+          searchInput.value = "";
+          if (this.albumLibrary) {
+            this.albumLibrary.search("");
+          }
+          updateClearButton();
+          searchInput.focus();
+        };
+      }
+    }
     this.events.on("album:play", (album) => this.playback.playAlbum(album));
     this.events.on("album:addToPlaylist", async (album) => {
       await this.playback.addAlbumToPlaylist(album);
@@ -142,15 +180,6 @@ const MediaCenter = {
     this.events.on("album:playTrack", ({ album, trackIndex }) => {
       this.playback.playTrack(album, trackIndex);
     });
-    const searchInput = document.getElementById("globalSearchInput");
-    if (searchInput) {
-      searchInput.value = "";
-      searchInput.oninput = (e) => {
-        if (this.albumLibrary) {
-          this.albumLibrary.search(e.target.value);
-        }
-      };
-    }
   },
 };
 
