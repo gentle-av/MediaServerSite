@@ -98,7 +98,10 @@ const TagEditor = {
     const cancelBtn = modal.querySelector(".tag-editor-cancel");
     const saveBtn = modal.querySelector("[data-action='save']");
     const saveAllBtn = modal.querySelector("[data-action='save-all']");
-    const closeModal = () => modal.remove();
+    const closeModal = () => {
+      modal.classList.add("closing");
+      setTimeout(() => modal.remove(), 200);
+    };
     overlay.addEventListener("click", closeModal);
     closeBtn.addEventListener("click", closeModal);
     cancelBtn.addEventListener("click", closeModal);
@@ -200,7 +203,10 @@ const TagEditor = {
     const closeBtn = modal.querySelector(".tag-editor-close");
     const cancelBtn = modal.querySelector(".tag-editor-cancel");
     const saveBtn = modal.querySelector("[data-action='save']");
-    const closeModal = () => modal.remove();
+    const closeModal = () => {
+      modal.classList.add("closing");
+      setTimeout(() => modal.remove(), 200);
+    };
     overlay.addEventListener("click", closeModal);
     closeBtn.addEventListener("click", closeModal);
     cancelBtn.addEventListener("click", closeModal);

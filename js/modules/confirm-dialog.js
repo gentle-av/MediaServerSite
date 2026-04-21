@@ -36,9 +36,17 @@ class ConfirmDialog {
 
   close() {
     if (this.modal && this.modal.parentNode) {
-      this.modal.parentNode.removeChild(this.modal);
+      this.modal.classList.add("closing");
+      setTimeout(() => {
+        if (this.modal && this.modal.parentNode) {
+          this.modal.parentNode.removeChild(this.modal);
+        }
+        this.modal = null;
+      }, 200);
     }
-    this.modal = null;
+    if (this.handlers && this.modal) {
+      this.handlers = null;
+    }
   }
 
   escapeHtml(text) {

@@ -113,7 +113,10 @@ class AlbumTagUpdater {
     const closeBtn = modal.querySelector(".album-tag-editor-close");
     const cancelBtn = modal.querySelector(".album-tag-editor-cancel");
     const saveBtn = modal.querySelector("[data-action='save']");
-    const closeModal = () => modal.remove();
+    const closeModal = () => {
+      modal.classList.add("closing");
+      setTimeout(() => modal.remove(), 200);
+    };
     overlay.addEventListener("click", closeModal);
     closeBtn.addEventListener("click", closeModal);
     cancelBtn.addEventListener("click", closeModal);

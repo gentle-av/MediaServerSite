@@ -113,13 +113,13 @@ class CustomDeleteDialog {
 
   close() {
     if (this.modal && this.modal.parentNode) {
-      this.modal.style.opacity = "0";
+      this.modal.classList.add("closing");
       setTimeout(() => {
         if (this.modal && this.modal.parentNode) {
           this.modal.parentNode.removeChild(this.modal);
         }
         this.modal = null;
-      }, 150);
+      }, 200);
     }
     if (this.handlers && this.modal) {
       this.handlers = null;
