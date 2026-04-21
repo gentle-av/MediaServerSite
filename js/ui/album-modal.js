@@ -57,32 +57,58 @@ class AlbumModal {
     actionsDiv.style.cssText =
       "display: flex; gap: 12px; padding: 16px; border-bottom: 1px solid var(--bg3); background: var(--bg2); flex-wrap: wrap;";
     actionsDiv.innerHTML = `
-      <button class="modal-play-btn" style="flex: 1; padding: 10px; background: var(--yellow); color: var(--bg0); border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+      <button class="modal-play-btn" style="flex: 1; padding: 10px; background: var(--yellow); color: var(--bg0); border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;">
         <i class="fas fa-play"></i> Воспроизвести альбом
       </button>
-      <button class="modal-add-btn" style="flex: 1; padding: 10px; background: var(--bg2); color: var(--fg1); border: 1px solid var(--bg3); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+      <button class="modal-add-btn" style="flex: 1; padding: 10px; background: var(--bg2); color: var(--fg1); border: 1px solid var(--bg3); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;">
         <i class="fas fa-plus"></i> Добавить в плейлист
       </button>
-      <button class="modal-edit-btn" style="flex: 1; padding: 10px; background: var(--bg2); color: var(--fg1); border: 1px solid var(--bg3); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+      <button class="modal-edit-btn" style="flex: 1; padding: 10px; background: var(--bg2); color: var(--fg1); border: 1px solid var(--bg3); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;">
         <i class="fas fa-edit"></i> Редактировать теги
       </button>
     `;
     modalBody?.insertBefore(actionsDiv, modalBody.firstChild);
-    actionsDiv
-      .querySelector(".modal-play-btn")
-      ?.addEventListener("click", () => {
+    const playBtn = actionsDiv.querySelector(".modal-play-btn");
+    const addBtn = actionsDiv.querySelector(".modal-add-btn");
+    const editBtn = actionsDiv.querySelector(".modal-edit-btn");
+    if (playBtn) {
+      playBtn.addEventListener("mouseenter", () => {
+        playBtn.style.transform = "scale(1.02)";
+        playBtn.style.filter = "brightness(1.05)";
+      });
+      playBtn.addEventListener("mouseleave", () => {
+        playBtn.style.transform = "scale(1)";
+        playBtn.style.filter = "brightness(1)";
+      });
+      playBtn.addEventListener("click", () => {
         this.events.emit("album:play", album);
         this.hide();
       });
-    actionsDiv
-      .querySelector(".modal-add-btn")
-      ?.addEventListener("click", () => {
+    }
+    if (addBtn) {
+      addBtn.addEventListener("mouseenter", () => {
+        addBtn.style.transform = "scale(1.02)";
+        addBtn.style.background = "var(--bg3)";
+      });
+      addBtn.addEventListener("mouseleave", () => {
+        addBtn.style.transform = "scale(1)";
+        addBtn.style.background = "var(--bg2)";
+      });
+      addBtn.addEventListener("click", () => {
         this.events.emit("album:addToPlaylist", album);
         this.hide();
       });
-    actionsDiv
-      .querySelector(".modal-edit-btn")
-      ?.addEventListener("click", () => {
+    }
+    if (editBtn) {
+      editBtn.addEventListener("mouseenter", () => {
+        editBtn.style.transform = "scale(1.02)";
+        editBtn.style.background = "var(--bg3)";
+      });
+      editBtn.addEventListener("mouseleave", () => {
+        editBtn.style.transform = "scale(1)";
+        editBtn.style.background = "var(--bg2)";
+      });
+      editBtn.addEventListener("click", () => {
         if (window.TagEditor) {
           window.TagEditor.showAlbumTagEditor(album);
         } else {
@@ -90,6 +116,7 @@ class AlbumModal {
         }
         this.hide();
       });
+    }
   }
 
   _escape(str) {
