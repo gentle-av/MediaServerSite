@@ -19,7 +19,7 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
-    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/styles.css?v=2" />
   </head>
   <body>
     <div class="app">
@@ -110,36 +110,6 @@
         </header>
         <div class="scrollable-content" id="scrollableContent">
           <div class="page-container" id="pageContainer"></div>
-        </div>
-        <div class="audio-player-bar" id="audioPlayerBar" style="display: none">
-          <div class="player-album-art">
-            <img id="playerAlbumArt" src="" alt="Обложка альбома" />
-          </div>
-          <div class="player-info">
-            <div class="player-track" id="playerTrack">—</div>
-            <div class="player-album" id="playerAlbum">—</div>
-            <div class="player-artist" id="playerArtist">—</div>
-          </div>
-          <div class="player-controls">
-            <button class="player-btn" id="playerPrevBtn">
-              <i class="fas fa-backward-step"></i>
-            </button>
-            <button class="player-btn primary" id="playerPlayBtn">
-              <i class="fas fa-play"></i>
-            </button>
-            <button class="player-btn" id="playerNextBtn">
-              <i class="fas fa-forward-step"></i>
-            </button>
-            <button class="player-btn" id="playerStopBtn">
-              <i class="fas fa-stop"></i>
-            </button>
-          </div>
-          <div class="player-volume">
-            <i class="fas fa-volume-up"></i>
-            <div class="volume-slider" id="volumeSlider">
-              <div class="volume-progress" id="volumeProgress"></div>
-            </div>
-          </div>
         </div>
       </main>
       <div id="albumModal" class="modal">

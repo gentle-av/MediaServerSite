@@ -18,12 +18,12 @@ const MediaCenter = {
     this.videoPlayer = null;
     this._updateUIForPage("video");
     await NavigationManager.switchTo("video");
+    window.MediaCenter = this;
     console.log("MediaCenter v2.0 ready");
   },
 
   _updateUIForPage(page) {
     const mainContent = document.querySelector(".main-content");
-    const audioPlayerBar = document.getElementById("audioPlayerBar");
     const headerPlaylistBtn = document.getElementById("headerPlaylistBtn");
     const headerRefreshMetadataBtn = document.getElementById(
       "headerRefreshMetadataBtn",
@@ -32,9 +32,6 @@ const MediaCenter = {
     if (page === "audio") {
       mainContent.classList.add("audio-page");
       mainContent.classList.remove("video-page");
-      if (audioPlayerBar) {
-        audioPlayerBar.style.display = "flex";
-      }
       if (headerPlaylistBtn) {
         headerPlaylistBtn.style.display = "flex";
       }
@@ -47,9 +44,6 @@ const MediaCenter = {
     } else {
       mainContent.classList.add("video-page");
       mainContent.classList.remove("audio-page");
-      if (audioPlayerBar) {
-        audioPlayerBar.style.display = "none";
-      }
       if (headerPlaylistBtn) {
         headerPlaylistBtn.style.display = "none";
       }

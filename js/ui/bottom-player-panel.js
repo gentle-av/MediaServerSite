@@ -6,17 +6,18 @@ class BottomPlayerPanel {
     this._isAudioPage = false;
     this._initElements();
     this._listenToPageChanges();
+    this._startAutoUpdate();
   }
 
   _listenToPageChanges() {
     this.events.on("page:changed", (page) => {
-      console.log("[BottomPlayerPanel] page:changed to:", page);
       this._isAudioPage = page === "audio";
       if (this._isAudioPage) {
-        console.log("[BottomPlayerPanel] Creating panel for audio page");
         this._createPanelIfNeeded();
+        if (this.element) {
+          this.element.classList.add("active");
+        }
       } else {
-        console.log("[BottomPlayerPanel] Removing panel for non-audio page");
         this._removePanel();
       }
     });
@@ -24,10 +25,8 @@ class BottomPlayerPanel {
 
   _createPanelIfNeeded() {
     if (this.element && document.body.contains(this.element)) {
-      console.log("[BottomPlayerPanel] Panel already exists");
       return;
     }
-    console.log("[BottomPlayerPanel] Creating new panel");
     this._createPanel();
     this._initElements();
     this._attachEvents();
@@ -35,13 +34,8 @@ class BottomPlayerPanel {
   }
 
   _removePanel() {
-    console.log(
-      "[BottomPlayerPanel] Removing panel, element exists:",
-      !!this.element,
-    );
     if (this.element && this.element.remove) {
       this.element.remove();
-      console.log("[BottomPlayerPanel] Panel removed from DOM");
     }
     this.element = null;
     this.playPauseBtn = null;
@@ -59,15 +53,11 @@ class BottomPlayerPanel {
 
   _initElements() {
     this.element = document.getElementById("audioPlayerControlPanel");
-    console.log(
-      "[BottomPlayerPanel] _initElements, found element:",
-      !!this.element,
-    );
     if (!this.element && this._isAudioPage) {
-      console.log("[BottomPlayerPanel] Element not found, creating");
       this._createPanel();
     }
     if (!this.element) return;
+    this.element.classList.add("active");
     this.playPauseBtn = document.getElementById("panelPlayPauseBtn");
     this.prevBtn = document.getElementById("panelPrevBtn");
     this.nextBtn = document.getElementById("panelNextBtn");
@@ -85,7 +75,6 @@ class BottomPlayerPanel {
 
   _createPanel() {
     if (this.element) return;
-    console.log("[BottomPlayerPanel] _createPanel creating DOM element");
     this.element = document.createElement("div");
     this.element.id = "audioPlayerControlPanel";
     this.element.className = "audio-player-control-panel";
@@ -114,12 +103,10 @@ class BottomPlayerPanel {
       </div>
     `;
     document.body.appendChild(this.element);
-    console.log("[BottomPlayerPanel] Panel created and appended to body");
   }
 
   _attachEvents() {
     if (!this.element) return;
-    console.log("[BottomPlayerPanel] Attaching events");
     if (this.playPauseBtn) {
       this.playPauseBtn.addEventListener("click", () =>
         this.playback.togglePlayPause(),
@@ -148,7 +135,6 @@ class BottomPlayerPanel {
   }
 
   _subscribeToEvents() {
-    console.log("[BottomPlayerPanel] Subscribing to events");
     this.events.on("stateChange", (state) => this._updateFromState(state));
     this.events.on("albumChanged", (album) => this._showAlbum(album));
     this.events.on("trackChanged", ({ album, trackIndex }) =>
@@ -157,33 +143,85 @@ class BottomPlayerPanel {
     this.events.on("playlistCleared", () => this._onPlaylistCleared());
   }
 
+  _startAutoUpdate() {
+    let lastTrack = "";
+    setInterval(async () => {
+      try {
+        const res = await fetch("/api/playbackState");
+        const data = await res.json();
+        const state = data.data;
+        if (state && state.currentTrack) {
+          const trackName =
+            state.currentTrackName ||
+            decodeURIComponent(state.currentTrack.split("/").pop()).replace(
+              /\.(flac|mp3|m4a|wav)$/i,
+              "",
+            );
+          if (trackName !== lastTrack) {
+            lastTrack = trackName;
+            const trackNameEl = document.getElementById("panelTrackName");
+            const trackCountEl = document.getElementById("panelTrackCount");
+            const playPauseBtn = document.getElementById("panelPlayPauseBtn");
+            if (trackNameEl) trackNameEl.textContent = trackName;
+            if (trackCountEl)
+              trackCountEl.textContent = `${(state.currentIndex || 0) + 1}/${state.totalTracks || 0}`;
+            if (playPauseBtn)
+              playPauseBtn.innerHTML = state.isPlaying
+                ? '<i class="fas fa-pause"></i>'
+                : '<i class="fas fa-play"></i>';
+            const panel = document.getElementById("audioPlayerControlPanel");
+            if (panel)
+              panel.style.display = state.totalTracks > 0 ? "flex" : "none";
+          }
+          const timeRes = await fetch("/api/currentTime");
+          const timeData = await timeRes.json();
+          if (timeData.data && timeData.data.duration > 0) {
+            const percent =
+              (timeData.data.currentTime / timeData.data.duration) * 100;
+            const progressFill = document.getElementById("panelProgressFill");
+            if (progressFill) progressFill.style.width = `${percent}%`;
+            const timeCurrent = document.getElementById("panelTimeCurrent");
+            const timeTotal = document.getElementById("panelTimeTotal");
+            if (timeCurrent) {
+              const mins = Math.floor(timeData.data.currentTime / 60);
+              const secs = Math.floor(timeData.data.currentTime % 60);
+              timeCurrent.textContent = `${mins}:${secs.toString().padStart(2, "0")}`;
+            }
+            if (timeTotal) {
+              const mins = Math.floor(timeData.data.duration / 60);
+              const secs = Math.floor(timeData.data.duration % 60);
+              timeTotal.textContent = `${mins}:${secs.toString().padStart(2, "0")}`;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Auto update error:", e);
+      }
+    }, 500);
+  }
+
   async _updateFromState(state) {
-    if (!this.element || !this._isAudioPage) {
-      return;
-    }
+    if (!this.element || !this._isAudioPage) return;
     if (!state) return;
-    if (state.totalTracks > 0) {
-      this.element.classList.add("active");
-    } else {
-      this.element.classList.remove("active");
-      return;
-    }
     if (this.trackCount) {
       this.trackCount.textContent = `${(state.currentIndex || 0) + 1}/${state.totalTracks || 0}`;
     }
-    const trackName =
-      state.currentTrackName ||
-      (state.currentTrack
-        ? decodeURIComponent(state.currentTrack.split("/").pop()).replace(
-            /\.(flac|mp3|m4a|wav)$/i,
-            "",
-          )
-        : "—");
+    let trackNameText = "—";
+    if (state.totalTracks > 0) {
+      trackNameText =
+        state.currentTrackName ||
+        (state.currentTrack
+          ? decodeURIComponent(state.currentTrack.split("/").pop()).replace(
+              /\.(flac|mp3|m4a|wav)$/i,
+              "",
+            )
+          : "—");
+    }
     if (this.trackName) {
-      this.trackName.textContent = trackName;
+      this.trackName.textContent = trackNameText;
     }
     const timeInfo = await this.playback.api.getCurrentTime();
-    if (timeInfo?.data) {
+    if (timeInfo?.data && state.totalTracks > 0) {
       const current = timeInfo.data.currentTime || 0;
       const duration = timeInfo.data.duration || 0;
       if (this.timeCurrent)
@@ -193,11 +231,16 @@ class BottomPlayerPanel {
       if (this.progressFill && duration > 0) {
         this.progressFill.style.width = `${(current / duration) * 100}%`;
       }
+    } else {
+      if (this.timeCurrent) this.timeCurrent.textContent = "0:00";
+      if (this.timeTotal) this.timeTotal.textContent = "0:00";
+      if (this.progressFill) this.progressFill.style.width = "0%";
     }
     if (this.playPauseBtn) {
-      this.playPauseBtn.innerHTML = state.isPlaying
-        ? '<i class="fas fa-pause"></i>'
-        : '<i class="fas fa-play"></i>';
+      this.playPauseBtn.innerHTML =
+        state.isPlaying && state.totalTracks > 0
+          ? '<i class="fas fa-pause"></i>'
+          : '<i class="fas fa-play"></i>';
     }
   }
 
@@ -224,7 +267,6 @@ class BottomPlayerPanel {
     if (this.progressFill) this.progressFill.style.width = "0%";
     if (this.playPauseBtn)
       this.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-    if (this.element) this.element.classList.remove("active");
   }
 
   _formatTime(seconds) {
