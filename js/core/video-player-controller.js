@@ -8,9 +8,10 @@ class VideoPlayerController {
     this.panel = null;
     this._isStarting = false;
     this._progressInterval = null;
+    this._duration = 0;
+    this._currentTime = 0;
     this._bindEvents();
     this._initPanel();
-    this._restorePlaybackOnLoad();
   }
 
   _initPanel() {
@@ -39,6 +40,7 @@ class VideoPlayerController {
   _bindUIEvents() {
     if (this._uiBound) return;
     this._uiBound = true;
+
     document
       .getElementById("playPauseBtn")
       ?.addEventListener("click", () => this.togglePlayPause());
@@ -60,9 +62,19 @@ class VideoPlayerController {
     document
       .getElementById("closeControlPage")
       ?.addEventListener("click", () => this.hide());
+
+    // Обработчик клика по прогрессбару
     const progressBar = document.getElementById("videoProgressBar");
     if (progressBar) {
-      progressBar.addEventListener("click", (e) => this._seekFromClick(e));
+      progressBar.addEventListener("click", (e) =>
+        this._handleProgressBarClick(e),
+      );
+      progressBar.addEventListener("mousemove", (e) =>
+        this._handleProgressBarHover(e),
+      );
+      progressBar.addEventListener("mouseleave", () =>
+        this._hideProgressHover(),
+      );
     }
   }
 
@@ -88,18 +100,27 @@ class VideoPlayerController {
       console.log("Already playing this file, ignoring");
       return;
     }
+
     console.log("startPlayback proceeding...");
     this._isStarting = true;
+
     try {
       this.currentFile = path;
       this.show();
+
+      // Обновляем информацию о файле
       this._updateFileInfo(path);
+
       const response = await this.api.post("/api/open", { path });
       if (response.success) {
         this.isPlaying = true;
+        Utils.showNotification(
+          `Воспроизведение: ${path.split("/").pop()}`,
+          "success",
+        );
         this._startProgressPolling();
-        this._saveCurrentState();
       } else {
+        Utils.showNotification("Ошибка воспроизведения", "error");
         this.hide();
       }
       this._updateUI();
@@ -119,76 +140,29 @@ class VideoPlayerController {
     }
   }
 
-  async _startProgressPolling() {
+  _startProgressPolling() {
     if (this._progressInterval) {
       clearInterval(this._progressInterval);
     }
-    let lastTime = 0;
-    let stuckCount = 0;
-    let zeroDurationCount = 0;
+
     this._progressInterval = setInterval(async () => {
       if (!this.currentFile) return;
+
       try {
         const response = await this.api.get("/api/video/status");
-        console.log("Polling response:", {
-          playing: response.playing,
-          currentTime: response.currentTime,
-          duration: response.duration,
-          paused: response.paused,
-          reason: response.reason,
-        });
-        if (
-          response.duration === 0 &&
-          response.currentTime === 0 &&
-          response.playing
-        ) {
-          zeroDurationCount++;
-          console.log("Zero duration detected, count:", zeroDurationCount);
-          if (zeroDurationCount >= 3) {
-            console.log("Video finished (zero duration)");
-            await this.stop();
-          }
-          return;
-        } else {
-          zeroDurationCount = 0;
-        }
-        if (response.success && response.playing) {
-          this.isPlaying = !response.paused;
-          this._updateProgressBar(response.currentTime, response.duration);
-          this._updateTimeDisplay(response.currentTime, response.duration);
-          this._updatePlayPauseButton();
-          this._saveCurrentState();
-          if (response.duration > 0) {
-            if (response.currentTime >= response.duration - 1) {
-              console.log("Video finished (reached end)");
-              await this.stop();
-            } else if (
-              lastTime === response.currentTime &&
-              response.currentTime > 0 &&
-              !response.paused
-            ) {
-              stuckCount++;
-              console.log(
-                "Video stuck at:",
-                response.currentTime,
-                "stuckCount:",
-                stuckCount,
-              );
-              if (stuckCount >= 3) {
-                console.log("Video finished (stuck at same position)");
-                await this.stop();
-              }
-            } else {
-              stuckCount = 0;
-              lastTime = response.currentTime;
+        if (response.success) {
+          if (response.playing) {
+            this.isPlaying = !response.paused;
+            this._currentTime = response.currentTime || 0;
+            this._duration = response.duration || 0;
+            this._updateProgressBar(this._currentTime, this._duration);
+            this._updateTimeDisplay(this._currentTime, this._duration);
+            this._updatePlayPauseButton();
+          } else if (!response.playing && this.currentFile) {
+            // Видео закончилось или было закрыто
+            if (response.reason === "process_dead") {
+              this.stop();
             }
-          }
-        } else if (!response.playing && this.currentFile) {
-          console.log("Video not playing, reason:", response.reason);
-          if (response.reason === "process_dead") {
-            this.stop();
-          } else if (!response.playing && response.currentTime === undefined) {
-            await this.stop();
           }
         }
       } catch (error) {
@@ -208,11 +182,14 @@ class VideoPlayerController {
   _updateTimeDisplay(currentTime, duration) {
     const currentTimeEl = document.getElementById("videoCurrentTime");
     const durationEl = document.getElementById("videoDuration");
+
     if (currentTimeEl) {
       currentTimeEl.textContent = this._formatTime(currentTime);
     }
     if (durationEl && duration > 0) {
       durationEl.textContent = this._formatTime(duration);
+    } else if (durationEl) {
+      durationEl.textContent = "0:00";
     }
   }
 
@@ -225,44 +202,106 @@ class VideoPlayerController {
     }
   }
 
-  async _seekFromClick(e) {
+  async _handleProgressBarClick(e) {
     const progressBar = document.getElementById("videoProgressBar");
     if (!progressBar) return;
+
     const rect = progressBar.getBoundingClientRect();
     const percent = (e.clientX - rect.left) / rect.width;
-    try {
-      const response = await this.api.get("/api/video/status");
-      if (response.success && response.duration > 0) {
-        const seekTime = response.duration * percent;
-        await this.seekTo(seekTime);
-      }
-    } catch (error) {
-      console.error("Failed to seek:", error);
+    const seekTime = this._duration * percent;
+
+    console.log(
+      `Progress bar click: percent=${percent}, seekTime=${seekTime}, duration=${this._duration}`,
+    );
+
+    if (this._duration > 0 && seekTime >= 0 && seekTime <= this._duration) {
+      await this.seekTo(seekTime);
+    }
+  }
+
+  async _handleProgressBarHover(e) {
+    const progressBar = document.getElementById("videoProgressBar");
+    const hoverFill = document.getElementById("videoProgressHover");
+    if (!progressBar || !hoverFill) return;
+
+    const rect = progressBar.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    hoverFill.style.width = `${percent * 100}%`;
+
+    // Показываем время при наведении
+    const hoverTime = this._duration * percent;
+    const timeTooltip = document.getElementById("videoProgressTooltip");
+    if (timeTooltip) {
+      timeTooltip.textContent = this._formatTime(hoverTime);
+      timeTooltip.style.left = `${e.clientX - rect.left - 25}px`;
+      timeTooltip.style.display = "block";
+    }
+  }
+
+  _hideProgressHover() {
+    const hoverFill = document.getElementById("videoProgressHover");
+    const timeTooltip = document.getElementById("videoProgressTooltip");
+    if (hoverFill) {
+      hoverFill.style.width = "0%";
+    }
+    if (timeTooltip) {
+      timeTooltip.style.display = "none";
     }
   }
 
   async seekTo(time) {
-    await this.api.post("/api/mpv/control", {
-      command: `seek ${time} absolute`,
-    });
+    console.log(`Seeking to: ${time} seconds`);
+    try {
+      const response = await this.api.post("/api/mpv/seek", { time: time });
+      if (response.success) {
+        console.log(`Seek successful, new time: ${response.time}`);
+        this._currentTime = response.time;
+        this._updateProgressBar(this._currentTime, this._duration);
+        this._updateTimeDisplay(this._currentTime, this._duration);
+      } else {
+        console.error("Seek failed:", response.error);
+        Utils.showNotification("Ошибка перемотки", "error");
+      }
+    } catch (error) {
+      console.error("Seek request failed:", error);
+      Utils.showNotification("Ошибка перемотки", "error");
+    }
   }
 
   async togglePlayPause() {
-    await this.api.post("/api/mpv/control", {
-      command: this.isPlaying ? "set pause yes" : "set pause no",
-    });
+    const command = this.isPlaying ? "pause" : "play";
+    await this.api.post("/api/mpv/control", { command: command });
     this.isPlaying = !this.isPlaying;
     this._updateUI();
   }
 
   async seek(seconds) {
-    await this.api.post("/api/mpv/control", { command: `seek ${seconds}` });
+    const newTime = Math.max(
+      0,
+      Math.min(this._duration, this._currentTime + seconds),
+    );
+    await this.seekTo(newTime);
   }
 
   async toggleFullscreen() {
-    await this.api.post("/api/mpv/control", { command: "cycle fullscreen" });
+    await this.api.post("/api/mpv/control", { command: "fullscreen" });
     this.isFullscreen = !this.isFullscreen;
     this._updateUI();
+  }
+
+  async stop() {
+    if (this._progressInterval) {
+      clearInterval(this._progressInterval);
+      this._progressInterval = null;
+    }
+
+    await this.api.post("/api/mpv/control", { command: "stop" });
+    this.currentFile = null;
+    this.isPlaying = false;
+    this._duration = 0;
+    this._currentTime = 0;
+    this.hide();
+    this.events.emit("playback:videoStopped");
   }
 
   async deleteCurrentFile() {
@@ -275,24 +314,15 @@ class VideoPlayerController {
       await this.api.post("/api/trash", { path: this.currentFile });
       await this.stop();
       this.events.emit("video:refresh");
+      Utils.showNotification("Файл удален", "success");
     }
   }
 
   show() {
     if (this.panel) this.panel.style.display = "flex";
-  }
-
-  async stop() {
-    if (this._progressInterval) {
-      clearInterval(this._progressInterval);
-      this._progressInterval = null;
-    }
-    await this.api.post("/api/mpv/control", { command: "stop" });
-    this.currentFile = null;
-    this.isPlaying = false;
-    this.hide();
-    localStorage.removeItem("currentPlayingVideo");
-    this.events.emit("playback:videoStopped");
+    // Сброс прогресса при показе
+    this._updateProgressBar(0, 0);
+    this._updateTimeDisplay(0, 0);
   }
 
   hide() {
@@ -301,7 +331,6 @@ class VideoPlayerController {
       clearInterval(this._progressInterval);
       this._progressInterval = null;
     }
-    localStorage.removeItem("currentPlayingVideo");
   }
 
   _updateUI() {
@@ -311,6 +340,7 @@ class VideoPlayerController {
         ? '<i class="fas fa-pause"></i>'
         : '<i class="fas fa-play"></i>';
     }
+
     const placeholder = document.querySelector(".player-placeholder");
     if (placeholder && this.currentFile) {
       placeholder.innerHTML = `
@@ -326,6 +356,7 @@ class VideoPlayerController {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
+
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     }
@@ -333,76 +364,9 @@ class VideoPlayerController {
   }
 
   _escape(str) {
+    if (!str) return "";
     const div = document.createElement("div");
     div.textContent = str;
     return div.innerHTML;
-  }
-
-  _saveCurrentState() {
-    if (this.currentFile && this.panel && this.panel.style.display === "flex") {
-      const currentTimeEl = document.getElementById("videoCurrentTime");
-      let currentTime = 0;
-      if (currentTimeEl && currentTimeEl.textContent) {
-        const timeStr = currentTimeEl.textContent;
-        const parts = timeStr.split(":");
-        if (parts.length === 2) {
-          currentTime = parseInt(parts[0]) * 60 + parseInt(parts[1]);
-        } else if (parts.length === 3) {
-          currentTime =
-            parseInt(parts[0]) * 3600 +
-            parseInt(parts[1]) * 60 +
-            parseInt(parts[2]);
-        }
-      }
-      const videoData = {
-        url: this.currentFile,
-        currentTime: currentTime,
-        isPlaying: this.isPlaying,
-        name: this.currentFile.split("/").pop(),
-        timestamp: Date.now(),
-      };
-      localStorage.setItem("currentPlayingVideo", JSON.stringify(videoData));
-    }
-  }
-
-  async _restorePlaybackOnLoad() {
-    console.log("=== _restorePlaybackOnLoad START ===");
-    try {
-      console.log("Fetching /api/video/status...");
-      const statusResponse = await this.api.get("/api/video/status");
-      console.log("Status response:", statusResponse);
-      if (
-        statusResponse.success &&
-        statusResponse.playing &&
-        statusResponse.currentFile
-      ) {
-        console.log(
-          "Video is already running, restoring UI:",
-          statusResponse.currentFile,
-        );
-        this.currentFile = statusResponse.currentFile;
-        this.isPlaying = !statusResponse.paused;
-        this.show();
-        this._updateFileInfo(this.currentFile);
-        this._updateProgressBar(
-          statusResponse.currentTime,
-          statusResponse.duration,
-        );
-        this._updateTimeDisplay(
-          statusResponse.currentTime,
-          statusResponse.duration,
-        );
-        this._updatePlayPauseButton();
-        this._updateUI();
-        this._startProgressPolling();
-        console.log("=== _restorePlaybackOnLoad END (from server) ===");
-        return;
-      }
-    } catch (error) {
-      console.error("Failed to get video status:", error);
-    }
-    console.log("No running video on server, clearing localStorage");
-    localStorage.removeItem("currentPlayingVideo");
-    console.log("=== _restorePlaybackOnLoad END ===");
   }
 }
