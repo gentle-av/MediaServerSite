@@ -12,6 +12,7 @@ class VideoPlayerController {
     this._currentTime = 0;
     this._bindEvents();
     this._initPanel();
+    this._checkExistingPlayback();
   }
 
   _initPanel() {
@@ -31,16 +32,38 @@ class VideoPlayerController {
     }
   }
 
+  async _checkExistingPlayback() {
+    try {
+      const response = await this.api.get("/api/video/status");
+      if (response.success && response.playing) {
+        this.isPlaying = !response.paused;
+        this._currentTime = response.currentTime || 0;
+        this._duration = response.duration || 0;
+        if (response.currentFile) {
+          this.currentFile = response.currentFile;
+          this._updateFileInfo(this.currentFile);
+        }
+        this.show();
+        this._startProgressPolling();
+        this._updateUI();
+      } else {
+        this.hide();
+      }
+    } catch (error) {
+      this.hide();
+    }
+  }
+
   _bindEvents() {
     this.events.on("playback:videoStart", (path) => this.startPlayback(path));
     this.events.on("player:show", () => this.show());
     this.events.on("player:hide", () => this.hide());
+    this.events.on("page:videoLoaded", () => this._checkExistingPlayback());
   }
 
   _bindUIEvents() {
     if (this._uiBound) return;
     this._uiBound = true;
-
     document
       .getElementById("playPauseBtn")
       ?.addEventListener("click", () => this.togglePlayPause());
@@ -62,8 +85,6 @@ class VideoPlayerController {
     document
       .getElementById("closeControlPage")
       ?.addEventListener("click", () => this.hide());
-
-    // Обработчик клика по прогрессбару
     const progressBar = document.getElementById("videoProgressBar");
     if (progressBar) {
       progressBar.addEventListener("click", (e) =>
@@ -79,55 +100,36 @@ class VideoPlayerController {
   }
 
   async startPlayback(path) {
-    console.log(
-      "startPlayback called, _isStarting:",
-      this._isStarting,
-      "path:",
-      path,
-    );
     if (!this.panel) {
       this.panel = document.getElementById("playerControlPage");
     }
     if (!this.panel) {
-      console.error("Player control panel not found");
       return;
     }
     if (this._isStarting) {
-      console.log("Already starting playback, ignoring");
       return;
     }
     if (this.currentFile === path && this.panel.style.display === "flex") {
-      console.log("Already playing this file, ignoring");
       return;
     }
-
-    console.log("startPlayback proceeding...");
     this._isStarting = true;
-
     try {
       this.currentFile = path;
       this.show();
-
-      // Обновляем информацию о файле
       this._updateFileInfo(path);
-
+      this._updateProgressBar(0, 0);
+      this._updateTimeDisplay(0, 0);
       const response = await this.api.post("/api/open", { path });
       if (response.success) {
         this.isPlaying = true;
-        Utils.showNotification(
-          `Воспроизведение: ${path.split("/").pop()}`,
-          "success",
-        );
         this._startProgressPolling();
       } else {
-        Utils.showNotification("Ошибка воспроизведения", "error");
         this.hide();
       }
       this._updateUI();
     } finally {
       setTimeout(() => {
         this._isStarting = false;
-        console.log("_isStarting reset to false");
       }, 500);
     }
   }
@@ -144,10 +146,8 @@ class VideoPlayerController {
     if (this._progressInterval) {
       clearInterval(this._progressInterval);
     }
-
     this._progressInterval = setInterval(async () => {
       if (!this.currentFile) return;
-
       try {
         const response = await this.api.get("/api/video/status");
         if (response.success) {
@@ -159,7 +159,6 @@ class VideoPlayerController {
             this._updateTimeDisplay(this._currentTime, this._duration);
             this._updatePlayPauseButton();
           } else if (!response.playing && this.currentFile) {
-            // Видео закончилось или было закрыто
             if (response.reason === "process_dead") {
               this.stop();
             }
@@ -182,7 +181,6 @@ class VideoPlayerController {
   _updateTimeDisplay(currentTime, duration) {
     const currentTimeEl = document.getElementById("videoCurrentTime");
     const durationEl = document.getElementById("videoDuration");
-
     if (currentTimeEl) {
       currentTimeEl.textContent = this._formatTime(currentTime);
     }
@@ -205,15 +203,9 @@ class VideoPlayerController {
   async _handleProgressBarClick(e) {
     const progressBar = document.getElementById("videoProgressBar");
     if (!progressBar) return;
-
     const rect = progressBar.getBoundingClientRect();
     const percent = (e.clientX - rect.left) / rect.width;
     const seekTime = this._duration * percent;
-
-    console.log(
-      `Progress bar click: percent=${percent}, seekTime=${seekTime}, duration=${this._duration}`,
-    );
-
     if (this._duration > 0 && seekTime >= 0 && seekTime <= this._duration) {
       await this.seekTo(seekTime);
     }
@@ -223,12 +215,9 @@ class VideoPlayerController {
     const progressBar = document.getElementById("videoProgressBar");
     const hoverFill = document.getElementById("videoProgressHover");
     if (!progressBar || !hoverFill) return;
-
     const rect = progressBar.getBoundingClientRect();
     const percent = (e.clientX - rect.left) / rect.width;
     hoverFill.style.width = `${percent * 100}%`;
-
-    // Показываем время при наведении
     const hoverTime = this._duration * percent;
     const timeTooltip = document.getElementById("videoProgressTooltip");
     if (timeTooltip) {
@@ -250,21 +239,15 @@ class VideoPlayerController {
   }
 
   async seekTo(time) {
-    console.log(`Seeking to: ${time} seconds`);
     try {
       const response = await this.api.post("/api/mpv/seek", { time: time });
       if (response.success) {
-        console.log(`Seek successful, new time: ${response.time}`);
         this._currentTime = response.time;
         this._updateProgressBar(this._currentTime, this._duration);
         this._updateTimeDisplay(this._currentTime, this._duration);
-      } else {
-        console.error("Seek failed:", response.error);
-        Utils.showNotification("Ошибка перемотки", "error");
       }
     } catch (error) {
       console.error("Seek request failed:", error);
-      Utils.showNotification("Ошибка перемотки", "error");
     }
   }
 
@@ -294,7 +277,6 @@ class VideoPlayerController {
       clearInterval(this._progressInterval);
       this._progressInterval = null;
     }
-
     await this.api.post("/api/mpv/control", { command: "stop" });
     this.currentFile = null;
     this.isPlaying = false;
@@ -314,19 +296,21 @@ class VideoPlayerController {
       await this.api.post("/api/trash", { path: this.currentFile });
       await this.stop();
       this.events.emit("video:refresh");
-      Utils.showNotification("Файл удален", "success");
     }
   }
 
   show() {
-    if (this.panel) this.panel.style.display = "flex";
-    // Сброс прогресса при показе
-    this._updateProgressBar(0, 0);
-    this._updateTimeDisplay(0, 0);
+    if (this.panel) {
+      this.panel.style.display = "flex";
+      this.panel.classList.add("active");
+    }
   }
 
   hide() {
-    if (this.panel) this.panel.style.display = "none";
+    if (this.panel) {
+      this.panel.style.display = "none";
+      this.panel.classList.remove("active");
+    }
     if (this._progressInterval) {
       clearInterval(this._progressInterval);
       this._progressInterval = null;
@@ -340,7 +324,6 @@ class VideoPlayerController {
         ? '<i class="fas fa-pause"></i>'
         : '<i class="fas fa-play"></i>';
     }
-
     const placeholder = document.querySelector(".player-placeholder");
     if (placeholder && this.currentFile) {
       placeholder.innerHTML = `
@@ -356,7 +339,6 @@ class VideoPlayerController {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     }

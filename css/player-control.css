@@ -13,7 +13,15 @@
   padding: 20px;
 }
 
-.player-control-page .player-control-header {
+.video-page .player-control-page:not(.active) {
+  display: none;
+}
+
+.player-control-page.active {
+  display: flex !important;
+}
+
+.player-control-header {
   position: absolute;
   top: 20px;
   left: 20px;
@@ -26,113 +34,39 @@
   border: none;
 }
 
-.player-control-page .player-controls-center {
+.player-file-info {
   display: flex;
-  gap: 20px;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
   background: var(--bg2);
-  padding: 15px 30px;
-  border-radius: 60px;
+  padding: 8px 16px;
+  border-radius: 40px;
   border: 1px solid var(--bg3);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  margin-bottom: 30px;
+  backdrop-filter: blur(4px);
 }
 
-.player-control-page .control-btn {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--bg1);
-  border: 2px solid var(--bg3);
+.player-file-info i {
+  font-size: 1rem;
+  color: var(--yellow);
+}
+
+.video-filename {
+  font-size: 0.85rem;
   color: var(--fg1);
-  cursor: pointer;
-  font-size: 1.4rem;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.player-control-page .control-btn:hover {
-  background: var(--bg3);
-  border-color: var(--yellow);
-  color: var(--yellow);
-  transform: scale(1.05);
-}
-
-.player-control-page .control-btn.close-file {
-  color: var(--red);
-}
-
-.player-control-page .control-btn.close-file:hover {
-  background: var(--red);
-  border-color: var(--red);
-  color: var(--bg0);
-}
-
-.player-control-page .control-btn.delete-file {
-  color: var(--orange);
-}
-
-.player-control-page .control-btn.delete-file:hover {
-  background: var(--orange);
-  border-color: var(--orange);
-  color: var(--bg0);
-}
-
-.player-control-page .player-placeholder {
-  text-align: center;
-  color: var(--fg3);
-  font-size: 1.2rem;
-  background: var(--bg2);
-  padding: 40px;
-  border-radius: 24px;
-  border: 2px dashed var(--bg3);
-  max-width: 90%;
-  min-width: 300px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.player-control-page .player-placeholder i {
-  font-size: 80px;
-  color: var(--yellow);
-  margin-bottom: 20px;
-  opacity: 0.7;
-}
-
-.player-control-page .close-control-page {
-  position: absolute;
-  bottom: 30px;
-  right: 30px;
-  background: var(--bg2);
-  border: 1px solid var(--bg3);
-  color: var(--fg3);
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.player-control-page .close-control-page:hover {
-  background: var(--bg3);
-  color: var(--red);
-  border-color: var(--red);
-  transform: rotate(90deg);
+.close-control-page {
+  display: none;
 }
 
 .player-progress-section {
   width: 100%;
   max-width: 800px;
-  margin: 0 auto 20px auto;
+  margin: 0 auto 30px auto;
   padding: 0 20px;
 }
 
@@ -145,44 +79,42 @@
 
 .video-time {
   font-size: 0.8rem;
-  font-family: "Monaco", "Consolas", monospace;
+  font-family: monospace;
   color: var(--yellow);
   min-width: 45px;
   text-align: center;
-  letter-spacing: 0.5px;
   font-weight: 500;
 }
 
 .video-progress-bar {
   flex: 1;
   height: 6px;
-  background: rgba(255, 255, 255, 0.2);
+  background-color: var(--bg3);
   border-radius: 3px;
   cursor: pointer;
   position: relative;
-  overflow: visible;
-  transition: height 0.2s ease;
+  overflow: hidden;
 }
 
 .video-progress-fill {
-  height: 100%;
-  background: var(--yellow);
-  border-radius: 3px;
+  position: absolute;
+  left: 0;
+  top: 0;
   width: 0%;
-  position: relative;
-  transition: width 0.1s linear;
+  height: 100%;
+  background-color: var(--yellow);
+  border-radius: 3px;
 }
 
-.video-progress-fill::after {
-  content: "";
+.video-progress-hover {
   position: absolute;
-  right: -6px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 12px;
-  height: 12px;
-  background: var(--yellow);
-  border-radius: 50%;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background-color: rgba(250, 189, 47, 0.3);
+  border-radius: 3px;
+  pointer-events: none;
+  width: 0%;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
@@ -191,84 +123,32 @@
   height: 8px;
 }
 
-.video-progress-bar:hover .video-progress-fill::after {
-  opacity: 1;
-}
-
-.video-progress-hover {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 3px;
-  pointer-events: none;
-  width: 0%;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
 .video-progress-bar:hover .video-progress-hover {
   opacity: 1;
 }
 
-/* Заголовок с информацией о файле */
-.player-control-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto 20px auto;
-  padding: 0 20px;
-}
-
-.player-file-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 8px 16px;
-  border-radius: 40px;
-  backdrop-filter: blur(4px);
-}
-
-.player-file-info i {
-  color: var(--yellow);
-  font-size: 1rem;
-}
-
-.video-filename {
-  font-size: 0.85rem;
-  color: var(--fg1);
-  max-width: 300px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Обновленные стили для кнопок */
 .player-controls-center {
   display: flex;
-  gap: 16px;
+  gap: 20px;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 12px 24px;
+  background: var(--bg2);
+  padding: 15px 30px;
   border-radius: 60px;
-  backdrop-filter: blur(8px);
-  margin: 0 auto;
+  border: 1px solid var(--bg3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  margin-bottom: 30px;
 }
 
 .control-btn {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: var(--bg2);
-  border: 1px solid var(--bg3);
+  background: var(--bg1);
+  border: 2px solid var(--bg3);
   color: var(--fg1);
   cursor: pointer;
-  font-size: 1.2rem;
+  font-size: 1.4rem;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
@@ -286,13 +166,14 @@
   background: var(--yellow);
   border-color: var(--yellow);
   color: var(--bg0);
-  width: 56px;
-  height: 56px;
-  font-size: 1.4rem;
+  width: 64px;
+  height: 64px;
+  font-size: 1.6rem;
 }
 
 .play-pause-btn:hover {
-  background: #ffcc33;
+  background: #fe8019;
+  border-color: #fe8019;
   transform: scale(1.05);
 }
 
@@ -308,60 +189,107 @@
   color: var(--bg0);
 }
 
-/* Плейсхолдер */
 .player-placeholder {
   text-align: center;
-  margin: 20px auto;
-  padding: 30px;
-  background: rgba(0, 0, 0, 0.3);
+  color: var(--fg3);
+  font-size: 1.2rem;
+  background: var(--bg2);
+  padding: 40px;
   border-radius: 24px;
-  backdrop-filter: blur(4px);
-  max-width: 400px;
+  border: 2px dashed var(--bg3);
+  max-width: 90%;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 20px auto;
 }
 
 .player-placeholder i {
-  font-size: 48px;
+  font-size: 80px;
   color: var(--yellow);
-  margin-bottom: 12px;
+  margin-bottom: 20px;
   opacity: 0.7;
 }
 
-.player-placeholder div {
-  color: var(--fg2);
-  font-size: 0.9rem;
-}
-
-/* Адаптация для мобильных устройств */
 @media (max-width: 768px) {
   .player-control-page {
-    padding: 12px;
+    justify-content: center;
+    padding: 20px;
   }
 
   .player-control-header {
-    margin-bottom: 10px;
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    margin-bottom: 30px;
   }
 
-  .player-file-info {
-    padding: 6px 12px;
+  .close-control-page {
+    display: flex;
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: var(--bg2);
+    border: 1px solid var(--bg3);
+    color: var(--fg3);
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
   }
 
-  .video-filename {
-    max-width: 180px;
-    font-size: 0.75rem;
+  .close-control-page:hover {
+    background: var(--bg3);
+    color: var(--red);
+    border-color: var(--red);
+    transform: rotate(90deg);
+  }
+
+  .player-controls-center {
+    gap: 12px;
+    padding: 10px 20px;
+    margin-bottom: 0;
+  }
+
+  .control-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.1rem;
+  }
+
+  .play-pause-btn {
+    width: 52px;
+    height: 52px;
+    font-size: 1.3rem;
   }
 
   .player-progress-section {
-    margin-bottom: 15px;
-    padding: 0 10px;
+    margin-bottom: 30px;
   }
 
   .video-time {
     font-size: 0.7rem;
     min-width: 35px;
   }
+}
 
-  .player-progress-container {
-    gap: 8px;
+@media (max-width: 480px) {
+  .control-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 0.9rem;
+  }
+
+  .play-pause-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.1rem;
   }
 
   .player-controls-center {
@@ -369,79 +297,23 @@
     padding: 8px 16px;
   }
 
-  .control-btn {
+  .close-control-page {
     width: 40px;
     height: 40px;
-    font-size: 1rem;
-  }
-
-  .play-pause-btn {
-    width: 48px;
-    height: 48px;
-    font-size: 1.2rem;
-  }
-
-  .player-placeholder {
-    padding: 20px;
-    margin: 10px auto;
-  }
-
-  .player-placeholder i {
-    font-size: 36px;
-  }
-}
-
-@media (max-width: 480px) {
-  .video-filename {
-    max-width: 120px;
-  }
-
-  .control-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 0.9rem;
-  }
-
-  .play-pause-btn {
-    width: 42px;
-    height: 42px;
-    font-size: 1.1rem;
-  }
-
-  .player-controls-center {
-    gap: 8px;
-    padding: 6px 12px;
+    bottom: 20px;
+    right: 20px;
   }
 }
 
 .player-control-page {
-  animation: slideUp 0.3s ease;
+  animation: fadeIn 0.25s ease;
 }
 
-@keyframes slideUp {
+@keyframes fadeIn {
   from {
-    transform: translateY(100%);
+    opacity: 0;
   }
   to {
-    transform: translateY(0);
+    opacity: 1;
   }
-}
-
-.video-progress-tooltip {
-  position: absolute;
-  bottom: 20px;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8);
-  color: var(--yellow);
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.7rem;
-  font-family: monospace;
-  pointer-events: none;
-  z-index: 10;
-  white-space: nowrap;
-}
-
-.video-progress-bar {
-  position: relative;
 }

@@ -378,3 +378,11 @@
     font-size: 1.1rem;
   }
 }
+
+@media (max-width: 768px) {
+  .player-control-page {
+    left: 0 !important;
+    padding: 8px 12px !important;
+    border-radius: 16px 16px 0 0 !important;
+  }
+}
