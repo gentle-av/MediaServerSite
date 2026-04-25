@@ -18,7 +18,12 @@ class VideoLibrary {
     if (this.container) {
       this.container.innerHTML = "";
     }
-    this.thumbnailCache.clear();
+    if (this.thumbnailCache) {
+      this.thumbnailCache.clear();
+    }
+    if (this.activeVideos) {
+      this.activeVideos.clear();
+    }
     this.currentPath = null;
     this.history = [];
   }
@@ -223,16 +228,28 @@ class VideoLibrary {
   }
 
   async _executePlayVideo(path) {
-    if (this._playingNow === path) {
-      console.log("playVideo ignored - already playing this file:", path);
+    if (this.activeVideos && this.activeVideos.has(path)) {
+      console.log("playVideo ignored - video already playing:", path);
       return;
     }
-    this._playingNow = path;
+    if (!this.activeVideos) {
+      this.activeVideos = new Set();
+    }
+    this.activeVideos.add(path);
     console.log("playVideo called with path:", path);
     this.events.emit("playback:videoStart", path);
+    const onClose = () => {
+      if (this.activeVideos) {
+        this.activeVideos.delete(path);
+      }
+      this.events.off("playback:videoClose", onClose);
+    };
+    this.events.once("playback:videoClose", onClose);
     setTimeout(() => {
-      this._playingNow = null;
-    }, 1000);
+      if (this.activeVideos && this.activeVideos.has(path)) {
+        this.activeVideos.delete(path);
+      }
+    }, 3600000);
   }
 
   async deleteItem(path, name, isDirectory) {
