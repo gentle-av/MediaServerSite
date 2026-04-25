@@ -5,16 +5,19 @@ class AlbumCard {
     this.element = null;
     this.container = null;
     this.swipeThreshold = 50;
+    this.isTap = true;
+    this.touchStartX = 0;
+    this.touchMoveX = 0;
+    this.touchStartTime = 0;
+    this.isSwiping = false;
   }
 
   render() {
     const coverHtml = this.album.coverUrl
       ? `<img src="${this.album.coverUrl}" alt="${this._escape(this.album.title)}" loading="lazy">`
       : `<div class="album-card-placeholder"><i class="fas fa-music"></i></div>`;
-
     this.container = document.createElement("div");
     this.container.className = "album-swipe-delete-container";
-
     this.element = document.createElement("div");
     this.element.className = "album-card";
     this.element.dataset.album = this.album.title;
@@ -32,7 +35,6 @@ class AlbumCard {
         </div>
       </div>
     `;
-
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "album-swipe-delete-btn";
     deleteBtn.title = "Удалить альбом";
@@ -40,10 +42,8 @@ class AlbumCard {
       <i class="fas fa-trash-alt"></i>
       <span>Удалить</span>
     `;
-
     this.container.appendChild(this.element);
     this.container.appendChild(deleteBtn);
-
     this._attachEvents(deleteBtn);
     this._initSwipe();
     return this.container;
@@ -52,37 +52,38 @@ class AlbumCard {
   _initSwipe() {
     const isMobile = window.innerWidth <= 768;
     if (!isMobile) return;
-
     let touchStartX = 0;
     let touchMoveX = 0;
     let isSwiping = false;
-
     this.element.addEventListener(
       "touchstart",
       (e) => {
         touchStartX = e.changedTouches[0].clientX;
-        isSwiping = true;
+        isSwiping = false;
         this.element.style.transition = "none";
       },
       { passive: true },
     );
-
     this.element.addEventListener(
       "touchmove",
       (e) => {
-        if (!isSwiping) return;
-        touchMoveX = e.changedTouches[0].clientX;
-        const deltaX = touchMoveX - touchStartX;
-        if (deltaX < 0 && Math.abs(deltaX) <= 80) {
+        const deltaX = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(deltaX) > 10 && !isSwiping) {
+          isSwiping = true;
+        }
+        if (isSwiping && deltaX < 0 && Math.abs(deltaX) <= 80) {
           e.preventDefault();
+          touchMoveX = e.changedTouches[0].clientX;
           this.element.style.transform = `translateX(${deltaX}px)`;
         }
       },
       { passive: false },
     );
-
     this.element.addEventListener("touchend", () => {
-      if (!isSwiping) return;
+      if (!isSwiping) {
+        this.element.style.transition = "";
+        return;
+      }
       const deltaX = touchMoveX - touchStartX;
       this.element.style.transition = "transform 0.3s ease";
       if (deltaX < -this.swipeThreshold) {
@@ -92,12 +93,10 @@ class AlbumCard {
         this.element.classList.remove("swipe-left");
         this.element.style.transform = "translateX(0)";
       }
-      isSwiping = false;
       setTimeout(() => {
         this.element.style.transition = "";
       }, 300);
     });
-
     document.addEventListener("click", (e) => {
       if (this.container && !this.container.contains(e.target)) {
         this.element.classList.remove("swipe-left");
@@ -111,11 +110,13 @@ class AlbumCard {
       e.stopPropagation();
       this.events.emit("albumDelete", this.album);
     });
-
     this.element.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (this.element.classList.contains("swipe-left")) {
+        return;
+      }
       this.events.emit("albumClick", this.album);
     });
-
     this.element.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       this.events.emit("albumContextMenu", {
@@ -132,4 +133,8 @@ class AlbumCard {
     div.textContent = str;
     return div.innerHTML;
   }
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = AlbumCard;
 }

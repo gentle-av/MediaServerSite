@@ -4,32 +4,45 @@ class AlbumModal {
     this.modal = document.getElementById("albumModal");
     this.titleEl = document.getElementById("modalAlbumTitle");
     this.tracksContainer = document.getElementById("modalTracksList");
-    this.trackList = new TrackList(events);
+    this.trackList = null;
+    this._currentAlbum = null;
     this._bindEvents();
   }
 
+  setTrackList(trackList) {
+    this.trackList = trackList;
+  }
+
   _bindEvents() {
-    this.events.on("album:open", (album) => this.show(album));
-    const closeBtn = this.modal?.querySelector(".modal-close");
-    if (closeBtn) {
-      closeBtn.onclick = () => this.hide();
-    }
-    this.modal?.addEventListener("click", (e) => {
-      if (e.target === this.modal) this.hide();
+    this.events.on("album:open", (album) => {
+      this.show(album);
     });
+    if (this.modal) {
+      const closeBtn = this.modal.querySelector(".modal-close");
+      if (closeBtn) {
+        closeBtn.onclick = () => this.hide();
+      }
+      this.modal.addEventListener("click", (e) => {
+        if (e.target === this.modal) this.hide();
+      });
+    }
   }
 
   show(album) {
-    if (!this.modal) return;
+    if (!this.modal || !album) return;
     this._renderHeader(album);
     this._renderActions(album);
-    this.trackList.render(this.tracksContainer, album);
+    if (this.trackList && this.tracksContainer) {
+      this.trackList.render(this.tracksContainer, album);
+    }
     this.modal.classList.add("active");
     this._currentAlbum = album;
   }
 
   hide() {
-    this.modal?.classList.remove("active");
+    if (this.modal) {
+      this.modal.classList.remove("active");
+    }
   }
 
   _renderHeader(album) {
@@ -72,43 +85,22 @@ class AlbumModal {
     const addBtn = actionsDiv.querySelector(".modal-add-btn");
     const editBtn = actionsDiv.querySelector(".modal-edit-btn");
     if (playBtn) {
-      playBtn.addEventListener("mouseenter", () => {
-        playBtn.style.transform = "scale(1.02)";
-        playBtn.style.filter = "brightness(1.05)";
-      });
-      playBtn.addEventListener("mouseleave", () => {
-        playBtn.style.transform = "scale(1)";
-        playBtn.style.filter = "brightness(1)";
-      });
-      playBtn.addEventListener("click", () => {
+      playBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
         this.events.emit("album:play", album);
         this.hide();
       });
     }
     if (addBtn) {
-      addBtn.addEventListener("mouseenter", () => {
-        addBtn.style.transform = "scale(1.02)";
-        addBtn.style.background = "var(--bg3)";
-      });
-      addBtn.addEventListener("mouseleave", () => {
-        addBtn.style.transform = "scale(1)";
-        addBtn.style.background = "var(--bg2)";
-      });
-      addBtn.addEventListener("click", () => {
+      addBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
         this.events.emit("album:addToPlaylist", album);
         this.hide();
       });
     }
     if (editBtn) {
-      editBtn.addEventListener("mouseenter", () => {
-        editBtn.style.transform = "scale(1.02)";
-        editBtn.style.background = "var(--bg3)";
-      });
-      editBtn.addEventListener("mouseleave", () => {
-        editBtn.style.transform = "scale(1)";
-        editBtn.style.background = "var(--bg2)";
-      });
-      editBtn.addEventListener("click", () => {
+      editBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
         if (window.TagEditor) {
           window.TagEditor.showAlbumTagEditor(album);
         } else {

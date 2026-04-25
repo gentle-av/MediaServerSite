@@ -8,11 +8,21 @@ class PlaybackController {
     this._isSwitching = false;
     this._playlist = [];
     this._pollingInterval = null;
+    this._trackNameCache = new Map();
   }
 
   async init() {
     await this.api.checkAvailability();
     this._startPolling();
+  }
+
+  getTrackNameByPath(path) {
+    if (!path) return "";
+    const cached = this._trackNameCache.get(path);
+    if (cached) return cached;
+    let filename = path.split("/").pop();
+    filename = filename.replace(/\.(flac|mp3|m4a|wav)$/i, "");
+    return filename;
   }
 
   _startPolling() {
@@ -24,40 +34,43 @@ class PlaybackController {
         const state = await this.api.getPlaybackState();
         if (state?.success) {
           this._isPlaying = state.data.isPlaying;
-          const trackName =
-            state.data.currentTrackName ||
-            (state.data.currentTrack
-              ? decodeURIComponent(
-                  state.data.currentTrack.split("/").pop(),
-                ).replace(/\.(flac|mp3|m4a|wav)$/i, "")
-              : "");
-          if (trackName && this._currentAlbum) {
-            this.events.emit("stateChange", {
-              ...state.data,
-              currentTrackName: trackName,
-            });
-          } else {
-            this.events.emit("stateChange", state.data);
+          const currentPath = state.data.currentTrack;
+          let trackName = this._trackNameCache.get(currentPath);
+          if (!trackName && currentPath) {
+            let filename = currentPath.split("/").pop();
+            filename = filename.replace(/\.(flac|mp3|m4a|wav)$/i, "");
+            trackName = filename;
+            if (this._currentAlbum) {
+              const track = this._currentAlbum.tracks.find(
+                (t) => t.path === currentPath,
+              );
+              if (track && track.title) {
+                trackName = track.title;
+                this._trackNameCache.set(currentPath, trackName);
+              }
+            }
           }
+          this.events.emit("stateChange", {
+            ...state.data,
+            currentTrackName: trackName || "",
+          });
         }
       }
-    }, 1000);
-    console.log("[PlaybackController] Polling started");
+    }, 500);
   }
 
   _stopPolling() {
     if (this._pollingInterval) {
       clearInterval(this._pollingInterval);
       this._pollingInterval = null;
-      console.log("[PlaybackController] Polling stopped");
     }
   }
 
   async playAlbum(album) {
-    console.log("[PlaybackController] playAlbum:", album?.title);
     if (this._isSwitching) return;
     this._isSwitching = true;
     this._currentAlbum = album;
+    album.fillTrackCache(this._trackNameCache);
     this._playlist = [...album.tracks];
     await this.api.stop();
     await this.api.setPlaylist(album.getTrackPaths());
@@ -68,10 +81,10 @@ class PlaybackController {
   }
 
   async playTrack(album, trackIndex) {
-    console.log("[PlaybackController] playTrack:", album?.title, trackIndex);
     if (this._isSwitching) return;
     this._isSwitching = true;
     this._currentAlbum = album;
+    album.fillTrackCache(this._trackNameCache);
     this._playlist = [...album.tracks];
     this._currentTrackIndex = trackIndex;
     await this.api.stop();
@@ -82,7 +95,7 @@ class PlaybackController {
   }
 
   async addAlbumToPlaylist(album) {
-    console.log("[PlaybackController] addAlbumToPlaylist:", album?.title);
+    album.fillTrackCache(this._trackNameCache);
     for (const trackPath of album.getTrackPaths()) {
       await this.api.addToPlaylist(trackPath);
     }
@@ -90,7 +103,7 @@ class PlaybackController {
   }
 
   async addTrackAfterCurrent(album, trackIndex) {
-    console.log("[PlaybackController] addTrackAfterCurrent");
+    album.fillTrackCache(this._trackNameCache);
     const state = await this.api.getPlaybackState();
     const currentIndex = state?.data?.currentIndex ?? -1;
     const currentPlaylist = await this.api.getPlaylist();
@@ -103,7 +116,6 @@ class PlaybackController {
   }
 
   async togglePlayPause() {
-    console.log("[PlaybackController] togglePlayPause");
     const state = await this.api.getPlaybackState();
     if (state?.data?.isPlaying) {
       await this.api.pause();
@@ -113,17 +125,14 @@ class PlaybackController {
   }
 
   async next() {
-    console.log("[PlaybackController] next");
     await this.api.next();
   }
 
   async previous() {
-    console.log("[PlaybackController] previous");
     await this.api.previous();
   }
 
   async stop() {
-    console.log("[PlaybackController] stop");
     await this.api.stop();
   }
 
@@ -132,7 +141,6 @@ class PlaybackController {
     const timeInfo = await this.api.getCurrentTime();
     if (timeInfo?.data?.duration) {
       const seekTime = timeInfo.data.duration * percent;
-      console.log("[PlaybackController] seek to:", seekTime);
       await this.api.seek(seekTime);
     }
   }

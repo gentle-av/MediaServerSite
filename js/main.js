@@ -13,6 +13,7 @@ const MediaCenter = {
     await this.playback.init();
     this.videoLibrary = null;
     this.albumLibrary = null;
+    this.albumModal = null;
     this.bottomPanel = new BottomPlayerPanel(this.playback, this.events);
     this.playlistPopup = null;
     this.videoPlayer = null;
@@ -101,12 +102,24 @@ const MediaCenter = {
       this.albumModal = null;
     }
     this.albumModal = new AlbumModal(this.events);
+    const trackList = new TrackList(this.events);
+    this.albumModal.setTrackList(trackList);
     if (this.albumLibrary) {
       this.albumLibrary.destroy();
       this.albumLibrary = null;
     }
     this.albumLibrary = new AlbumLibrary(this.musicApi, this.events);
-    this.albumLibrary.init();
+    this.albumLibrary.init().then(() => {
+      if (this.playback && this.albumLibrary.albums) {
+        for (const album of this.albumLibrary.albums) {
+          for (const track of album.tracks) {
+            if (track.path && track.title) {
+              this.playback._trackNameCache.set(track.path, track.title);
+            }
+          }
+        }
+      }
+    });
     if (!this.playlistPopup) {
       this.playlistPopup = new PlaylistPopup(
         this.playback,

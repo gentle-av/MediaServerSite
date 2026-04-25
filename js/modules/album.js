@@ -19,4 +19,12 @@ class Album {
   getTrackPaths() {
     return this.tracks.map((t) => t.path);
   }
+
+  fillTrackCache(cacheMap) {
+    for (const track of this.tracks) {
+      if (track.path && track.title) {
+        cacheMap.set(track.path, track.title);
+      }
+    }
+  }
 }
