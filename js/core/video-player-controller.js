@@ -14,7 +14,7 @@ class VideoPlayerController {
     this._bindEvents();
     this._initPanel();
     this._startStatusChecking();
-    this._checkExistingPlayback();
+    setTimeout(() => this._checkExistingPlayback(), 1000);
   }
 
   _initPanel() {
@@ -25,6 +25,7 @@ class VideoPlayerController {
         if (this.panel) {
           this._bindUIEvents();
           observer.disconnect();
+          setTimeout(() => this._checkExistingPlayback(), 100);
         }
       });
       observer.observe(document.body, { childList: true, subtree: true });
@@ -57,6 +58,7 @@ class VideoPlayerController {
             this._updateProgressBar(this._currentTime, this._duration);
             this._updateTimeDisplay(this._currentTime, this._duration);
             this._updatePlayPauseButton();
+            this._loadVideoPreview(this.currentFile);
             this.show();
             if (!this._progressInterval) {
               this._startProgressPolling();
@@ -70,26 +72,38 @@ class VideoPlayerController {
   }
 
   async _checkExistingPlayback() {
+    console.log("[VideoPlayer] _checkExistingPlayback started");
     try {
       const response = await this.api.get("/api/video/status");
-      if (response.success && response.playing) {
+      console.log("[VideoPlayer] Status response:", response);
+      if (response.success && response.playing && response.currentFile) {
+        console.log(
+          "[VideoPlayer] Found active playback:",
+          response.currentFile,
+        );
         this.isPlaying = !response.paused;
         this._currentTime = response.currentTime || 0;
         this._duration = response.duration || 0;
-        if (response.currentFile) {
-          this.currentFile = response.currentFile;
-          this._updateFileInfo(this.currentFile);
-        }
+        this.currentFile = response.currentFile;
+        this._updateFileInfo(this.currentFile);
+        this._updateProgressBar(this._currentTime, this._duration);
+        this._updateTimeDisplay(this._currentTime, this._duration);
+        this._updatePlayPauseButton();
+        await this._loadVideoPreview(this.currentFile);
         this.show();
         this._startProgressPolling();
         this._updateUI();
       } else {
+        console.log("[VideoPlayer] No active playback found");
         if (this.panel) {
           this.panel.style.display = "none";
         }
       }
     } catch (error) {
-      console.error("Failed to check existing playback:", error);
+      console.error("[VideoPlayer] Failed to check existing playback:", error);
+      if (this.panel) {
+        this.panel.style.display = "none";
+      }
     }
   }
 
@@ -159,6 +173,7 @@ class VideoPlayerController {
       this.currentFile = path;
       this.show();
       this._updateFileInfo(path);
+      await this._loadVideoPreview(path);
       this._updateProgressBar(0, 0);
       this._updateTimeDisplay(0, 0);
       const response = await this.api.post("/api/open", { path });
@@ -181,6 +196,9 @@ class VideoPlayerController {
         this.hide();
       }
       this._updateUI();
+    } catch (error) {
+      console.error("Start playback error:", error);
+      this.hide();
     } finally {
       setTimeout(() => {
         this._isStarting = false;
@@ -349,6 +367,17 @@ class VideoPlayerController {
     this.isPlaying = false;
     this._duration = 0;
     this._currentTime = 0;
+    const previewImg = document.getElementById("videoPreviewImg");
+    const previewPlaceholder = document.getElementById(
+      "videoPreviewPlaceholder",
+    );
+    if (previewImg) {
+      previewImg.src = "";
+      previewImg.style.display = "none";
+    }
+    if (previewPlaceholder) {
+      previewPlaceholder.style.display = "flex";
+    }
     this.hide();
     this.events.emit("playback:videoStopped");
   }
@@ -398,14 +427,6 @@ class VideoPlayerController {
         ? '<i class="fas fa-pause"></i>'
         : '<i class="fas fa-play"></i>';
     }
-    const placeholder = document.querySelector(".player-placeholder");
-    if (placeholder && this.currentFile) {
-      placeholder.innerHTML = `
-        <i class="fas fa-${this.isPlaying ? "play" : "pause"}-circle" style="font-size: 60px; color: var(--yellow);"></i>
-        <div>${this._escape(this.currentFile.split("/").pop())}</div>
-        <div style="font-size: 0.9rem; color: var(--fg3);">${this.isPlaying ? "Воспроизводится" : "На паузе"}</div>
-      `;
-    }
   }
 
   _formatTime(seconds) {
@@ -424,5 +445,27 @@ class VideoPlayerController {
     const div = document.createElement("div");
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  async _loadVideoPreview(path) {
+    const previewImg = document.getElementById("videoPreviewImg");
+    const previewPlaceholder = document.getElementById(
+      "videoPreviewPlaceholder",
+    );
+    if (!previewImg || !previewPlaceholder) return;
+    previewImg.style.display = "none";
+    previewPlaceholder.style.display = "flex";
+    try {
+      const thumbnailUrl = `/api/thumbnail?path=${encodeURIComponent(path)}`;
+      const response = await fetch(thumbnailUrl);
+      const data = await response.json();
+      if (data.success && data.thumbnail) {
+        previewImg.src = data.thumbnail;
+        previewImg.style.display = "block";
+        previewPlaceholder.style.display = "none";
+      }
+    } catch (error) {
+      console.error("Failed to load video preview:", error);
+    }
   }
 }
