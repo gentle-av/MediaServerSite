@@ -266,7 +266,7 @@ class VideoPlayerController {
       clearInterval(this._progressInterval);
       this._progressInterval = null;
     }
-    await this.api.post("/api/mpv/control", { command: "stop" });
+    await this.api.post("/api/video/close");
     this.currentFile = null;
     this.isPlaying = false;
     this._duration = 0;
@@ -303,14 +303,6 @@ class VideoPlayerController {
       await this.stop();
       const response = await this.api.post("/api/trash", { path: filePath });
       console.log("Trash response:", response);
-      if (response.success) {
-        Utils.showNotification(
-          `Файл "${fileName}" отправлен в корзину`,
-          "success",
-        );
-      } else {
-        Utils.showNotification(response.error || "Ошибка удаления", "error");
-      }
       this.events.emit("video:refresh");
     }
   }
@@ -329,18 +321,70 @@ class VideoPlayerController {
     );
     if (confirmed) {
       CustomDeleteDialogInstance.close();
-      await this.stop();
-      const response = await this.api.post("/api/trash", { path: filePath });
-      if (response.success) {
-        Utils.showNotification(
-          `Видео "${fileName}" закрыто и отправлено в корзину`,
-          "success",
-        );
-      } else {
-        Utils.showNotification(response.error || "Ошибка удаления", "error");
+
+      // Используем /api/video/close для закрытия видео
+      try {
+        await this.api.post("/api/video/close");
+        console.log("Video closed successfully");
+      } catch (error) {
+        console.error("Failed to close video:", error);
       }
+
+      // Очищаем состояние плеера
+      if (this._progressInterval) {
+        clearInterval(this._progressInterval);
+        this._progressInterval = null;
+      }
+      const previewImg = document.getElementById("videoPreviewImg");
+      const previewPlaceholder = document.getElementById(
+        "videoPreviewPlaceholder",
+      );
+      if (previewImg) {
+        previewImg.src = "";
+        previewImg.style.display = "none";
+      }
+      if (previewPlaceholder) {
+        previewPlaceholder.style.display = "flex";
+      }
+      this.hide();
+      this.api.post("/api/trash", { path: filePath });
+      this.currentFile = null;
+      this.isPlaying = false;
+      this._duration = 0;
+      this._currentTime = 0;
+
       this.events.emit("video:refresh");
     }
+  }
+
+  async stop() {
+    if (this._progressInterval) {
+      clearInterval(this._progressInterval);
+      this._progressInterval = null;
+    }
+    try {
+      await this.api.post("/api/video/close");
+      console.log("Video stopped via /api/video/close");
+    } catch (error) {
+      console.error("Failed to close video:", error);
+    }
+    this.currentFile = null;
+    this.isPlaying = false;
+    this._duration = 0;
+    this._currentTime = 0;
+    const previewImg = document.getElementById("videoPreviewImg");
+    const previewPlaceholder = document.getElementById(
+      "videoPreviewPlaceholder",
+    );
+    if (previewImg) {
+      previewImg.src = "";
+      previewImg.style.display = "none";
+    }
+    if (previewPlaceholder) {
+      previewPlaceholder.style.display = "flex";
+    }
+    this.hide();
+    this.events.emit("playback:videoStopped");
   }
 
   show() {

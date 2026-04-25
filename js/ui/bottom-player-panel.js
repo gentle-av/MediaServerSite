@@ -17,13 +17,12 @@ class BottomPlayerPanel {
       this._isAudioPage = page === "audio";
       if (this.element) {
         if (this._isAudioPage) {
-          // Используем класс вместо inline style
-          this.element.classList.add('active');
-          this.element.style.removeProperty('display');
+          this.element.classList.add("active");
+          this.element.style.removeProperty("display");
           this.forceUpdate();
         } else {
-          this.element.classList.remove('active');
-          this.element.style.display = 'none';
+          this.element.classList.remove("active");
+          this.element.style.display = "none";
         }
       }
     });
@@ -80,7 +79,9 @@ class BottomPlayerPanel {
   _attachEvents() {
     if (!this.element) return;
     if (this.playPauseBtn) {
-      this.playPauseBtn.addEventListener("click", () => this.playback.togglePlayPause());
+      this.playPauseBtn.addEventListener("click", () =>
+        this.playback.togglePlayPause(),
+      );
     }
     if (this.prevBtn) {
       this.prevBtn.addEventListener("click", () => this.playback.previous());
@@ -107,7 +108,9 @@ class BottomPlayerPanel {
   _subscribeToEvents() {
     this.events.on("stateChange", (state) => this._updateFromState(state));
     this.events.on("albumChanged", (album) => this._showAlbum(album));
-    this.events.on("trackChanged", ({ album, trackIndex }) => this._showTrack(album, trackIndex));
+    this.events.on("trackChanged", ({ album, trackIndex }) =>
+      this._showTrack(album, trackIndex),
+    );
     this.events.on("playlistCleared", () => this._onPlaylistCleared());
   }
 
@@ -125,7 +128,9 @@ class BottomPlayerPanel {
             trackCountEl.textContent = `${(state.currentIndex || 0) + 1}/${state.totalTracks || 0}`;
           }
           if (playPauseBtn) {
-            playPauseBtn.innerHTML = state.isPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+            playPauseBtn.innerHTML = state.isPlaying
+              ? '<i class="fas fa-pause"></i>'
+              : '<i class="fas fa-play"></i>';
           }
         }
         const res = await fetch("/api/currentTrack");
@@ -139,7 +144,8 @@ class BottomPlayerPanel {
         const timeRes = await fetch("/api/currentTime");
         const timeData = await timeRes.json();
         if (timeData.data && timeData.data.duration > 0) {
-          const percent = (timeData.data.currentTime / timeData.data.duration) * 100;
+          const percent =
+            (timeData.data.currentTime / timeData.data.duration) * 100;
           const progressFill = document.getElementById("panelProgressFill");
           if (progressFill) progressFill.style.width = `${percent}%`;
           const timeCurrent = document.getElementById("panelTimeCurrent");
@@ -172,20 +178,30 @@ class BottomPlayerPanel {
       trackNameText = state.track || "—";
     }
     if (this.trackName) this.trackName.textContent = trackNameText;
-    const timeInfo = this.playback.api.getCurrentTime ? await this.playback.api.getCurrentTime() : null;
-    if (timeInfo?.data && state.totalTracks > 0) {
-      const current = timeInfo.data.currentTime || 0;
-      const duration = timeInfo.data.duration || 0;
-      if (this.timeCurrent) this.timeCurrent.textContent = this._formatTime(current);
-      if (this.timeTotal) this.timeTotal.textContent = this._formatTime(duration);
+
+    // Убираем await из этого метода - он не может быть async из-за синхронного вызова
+    // Вместо этого используем значения из state, если они есть
+    if (
+      state.currentTime !== undefined &&
+      state.duration !== undefined &&
+      state.totalTracks > 0
+    ) {
+      const current = state.currentTime || 0;
+      const duration = state.duration || 0;
+      if (this.timeCurrent)
+        this.timeCurrent.textContent = this._formatTime(current);
+      if (this.timeTotal)
+        this.timeTotal.textContent = this._formatTime(duration);
       if (this.progressFill && duration > 0) {
         this.progressFill.style.width = `${(current / duration) * 100}%`;
       }
     }
+
     if (this.playPauseBtn) {
-      this.playPauseBtn.innerHTML = state.isPlaying && state.totalTracks > 0
-        ? '<i class="fas fa-pause"></i>'
-        : '<i class="fas fa-play"></i>';
+      this.playPauseBtn.innerHTML =
+        state.isPlaying && state.totalTracks > 0
+          ? '<i class="fas fa-pause"></i>'
+          : '<i class="fas fa-play"></i>';
     }
   }
 
@@ -210,7 +226,8 @@ class BottomPlayerPanel {
     if (this.timeCurrent) this.timeCurrent.textContent = "0:00";
     if (this.timeTotal) this.timeTotal.textContent = "0:00";
     if (this.progressFill) this.progressFill.style.width = "0%";
-    if (this.playPauseBtn) this.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+    if (this.playPauseBtn)
+      this.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
   }
 
   _formatTime(seconds) {

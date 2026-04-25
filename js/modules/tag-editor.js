@@ -28,7 +28,6 @@ class TagEditor {
 
   async updateAlbumTags(album, newArtist, newAlbum, newYear) {
     if (!album || !album.tracks || album.tracks.length === 0) {
-      Utils.showNotification("Альбом не содержит треков", "error");
       return false;
     }
     let successCount = 0;
@@ -42,11 +41,9 @@ class TagEditor {
       if (success) successCount++;
     }
     if (successCount > 0) {
-      Utils.showNotification(`Обновлено ${successCount} треков`, "success");
       window.dispatchEvent(new CustomEvent("albumTagsUpdated"));
       return true;
     } else {
-      Utils.showNotification("Нет изменений для сохранения", "info");
       return false;
     }
   }

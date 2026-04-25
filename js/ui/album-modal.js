@@ -103,8 +103,6 @@ class AlbumModal {
         e.stopPropagation();
         if (window.TagEditor) {
           window.TagEditor.showAlbumTagEditor(album);
-        } else {
-          Utils.showNotification("Редактор тегов временно недоступен", "error");
         }
         this.hide();
       });

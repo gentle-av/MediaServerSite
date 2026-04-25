@@ -8,6 +8,7 @@ class VideoLibrary {
     this.container = document.getElementById("videoContent");
     this.breadcrumbs = document.getElementById("videoBreadcrumbs");
     this.thumbnailCache = new Map();
+    this._debounceTimeout = null;
     this._bindEvents();
     this.loadDirectory(this.currentPath, false);
   }
@@ -142,7 +143,7 @@ class VideoLibrary {
             isDir,
           );
           if (confirmed) {
-            this.events.emit("video:delete", { path, name, isDir });
+            await this.deleteItem(path, name, isDir);
             if (CustomDeleteDialogInstance.close) {
               CustomDeleteDialogInstance.close();
             }
@@ -186,7 +187,7 @@ class VideoLibrary {
         isDirectory,
       );
       if (confirmed) {
-        this.events.emit("video:delete", { path, name, isDir: isDirectory });
+        await this.deleteItem(path, name, isDirectory);
         if (CustomDeleteDialogInstance.close) {
           CustomDeleteDialogInstance.close();
         }
@@ -212,7 +213,16 @@ class VideoLibrary {
     }
   }
 
-  async playVideo(path) {
+  playVideo(path) {
+    if (this._debounceTimeout) {
+      clearTimeout(this._debounceTimeout);
+    }
+    this._debounceTimeout = setTimeout(() => {
+      this._executePlayVideo(path);
+    }, 300);
+  }
+
+  async _executePlayVideo(path) {
     if (this._playingNow === path) {
       console.log("playVideo ignored - already playing this file:", path);
       return;
@@ -342,5 +352,85 @@ class VideoLibrary {
         }
       }
     }
+  }
+
+  goBack() {
+    if (this.history.length > 1) {
+      this.history.pop();
+      const previousPath = this.history[this.history.length - 1];
+      this.loadDirectory(previousPath, false);
+    }
+  }
+
+  async renameItem(path, name, isDirectory) {
+    const newName = prompt(
+      `Введите новое имя для ${isDirectory ? "папки" : "файла"}:`,
+      name,
+    );
+    if (!newName || newName === name) return;
+
+    const dirPath = path.substring(0, path.lastIndexOf("/"));
+    const newPath = dirPath + "/" + newName;
+
+    const response = await this.api.post("/api/rename", { path, newPath });
+    if (response.success) {
+      Utils.showNotification(
+        `${isDirectory ? "Папка" : "Файл"} переименован в "${newName}"`,
+        "success",
+      );
+      this.thumbnailCache.clear();
+      await this.loadDirectory(this.currentPath, false);
+    } else {
+      Utils.showNotification(
+        response.error || "Ошибка переименования",
+        "error",
+      );
+    }
+  }
+
+  async copyItem(path, name, isDirectory) {
+    const response = await this.api.post("/api/copy", { path });
+    if (response.success) {
+      Utils.showNotification(
+        `${isDirectory ? "Папка" : "Файл"} "${name}" скопирован`,
+        "success",
+      );
+      this.thumbnailCache.clear();
+      await this.loadDirectory(this.currentPath, false);
+    } else {
+      Utils.showNotification(response.error || "Ошибка копирования", "error");
+    }
+  }
+
+  async moveItem(path, name, isDirectory) {
+    const targetPath = prompt("Введите путь назначения:", "/mnt/video/");
+    if (!targetPath) return;
+
+    const response = await this.api.post("/api/move", {
+      path,
+      newPath: targetPath + "/" + name,
+    });
+    if (response.success) {
+      Utils.showNotification(
+        `${isDirectory ? "Папка" : "Файл"} "${name}" перемещен`,
+        "success",
+      );
+      this.thumbnailCache.clear();
+      await this.loadDirectory(this.currentPath, false);
+    } else {
+      Utils.showNotification(response.error || "Ошибка перемещения", "error");
+    }
+  }
+
+  clearHistory() {
+    this.history = [this.currentPath];
+  }
+
+  getCurrentPath() {
+    return this.currentPath;
+  }
+
+  async refreshCurrentDirectory() {
+    await this.loadDirectory(this.currentPath, false);
   }
 }

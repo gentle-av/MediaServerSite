@@ -14,7 +14,11 @@ const MediaCenter = {
     this.videoLibrary = null;
     this.albumLibrary = null;
     this.albumModal = null;
-    this.bottomPanel = new BottomPlayerPanel(this.playback, this.events);
+    if (typeof BottomPlayerPanel !== "undefined") {
+      this.bottomPanel = new BottomPlayerPanel(this.playback, this.events);
+    } else {
+      this.bottomPanel = null;
+    }
     this.playlistPopup = null;
     this.videoPlayer = null;
     this._updateUIForPage("video");
@@ -33,27 +37,17 @@ const MediaCenter = {
     if (page === "audio") {
       mainContent.classList.add("audio-page");
       mainContent.classList.remove("video-page");
-      if (headerPlaylistBtn) {
-        headerPlaylistBtn.style.display = "flex";
-      }
-      if (headerRefreshMetadataBtn) {
+      if (headerPlaylistBtn) headerPlaylistBtn.style.display = "flex";
+      if (headerRefreshMetadataBtn)
         headerRefreshMetadataBtn.style.display = "flex";
-      }
-      if (globalSearchBox) {
-        globalSearchBox.style.display = "flex";
-      }
+      if (globalSearchBox) globalSearchBox.style.display = "flex";
     } else {
       mainContent.classList.add("video-page");
       mainContent.classList.remove("audio-page");
-      if (headerPlaylistBtn) {
-        headerPlaylistBtn.style.display = "none";
-      }
-      if (headerRefreshMetadataBtn) {
+      if (headerPlaylistBtn) headerPlaylistBtn.style.display = "none";
+      if (headerRefreshMetadataBtn)
         headerRefreshMetadataBtn.style.display = "none";
-      }
-      if (globalSearchBox) {
-        globalSearchBox.style.display = "none";
-      }
+      if (globalSearchBox) globalSearchBox.style.display = "none";
     }
   },
 
@@ -83,13 +77,11 @@ const MediaCenter = {
     });
     this.events.on("track:addAfterCurrent", ({ album, trackIndex }) => {
       this.playback.addTrackAfterCurrent(album, trackIndex);
-      Utils.showNotification(`Трек добавлен после текущего`, "success");
     });
     this.events.on("track:editMetadata", ({ album, track, trackIndex }) => {
       if (window.TagEditor) {
         window.TagEditor.showTrackTagEditor(track, album);
       } else {
-        Utils.showNotification("Редактор тегов временно недоступен", "error");
       }
     });
   },
@@ -97,41 +89,41 @@ const MediaCenter = {
   _onAudioPageLoaded() {
     console.log("Audio page loaded, initializing AlbumLibrary...");
     this._updateUIForPage("audio");
-    if (this.albumModal) {
-      this.albumModal.hide();
-      this.albumModal = null;
+    if (typeof AlbumModal !== "undefined") {
+      if (this.albumModal) {
+        this.albumModal.hide();
+        this.albumModal = null;
+      }
+      this.albumModal = new AlbumModal(this.events);
+      const trackList = new TrackList(this.events);
+      this.albumModal.setTrackList(trackList);
     }
-    this.albumModal = new AlbumModal(this.events);
-    const trackList = new TrackList(this.events);
-    this.albumModal.setTrackList(trackList);
-    if (this.albumLibrary) {
-      this.albumLibrary.destroy();
-      this.albumLibrary = null;
-    }
-    this.albumLibrary = new AlbumLibrary(this.musicApi, this.events);
-    this.albumLibrary.init().then(() => {
-      if (this.playback && this.albumLibrary.albums) {
-        for (const album of this.albumLibrary.albums) {
-          for (const track of album.tracks) {
-            if (track.path && track.title) {
-              this.playback._trackNameCache.set(track.path, track.title);
+    if (typeof AlbumLibrary !== "undefined") {
+      if (this.albumLibrary) {
+        this.albumLibrary.destroy();
+        this.albumLibrary = null;
+      }
+      this.albumLibrary = new AlbumLibrary(this.musicApi, this.events);
+      this.albumLibrary.init().then(() => {
+        if (this.playback && this.albumLibrary.albums) {
+          for (const album of this.albumLibrary.albums) {
+            for (const track of album.tracks) {
+              if (track.path && track.title) {
+                this.playback._trackNameCache.set(track.path, track.title);
+              }
             }
           }
         }
-      }
-      if (this.bottomPanel) {
-        this.bottomPanel.forceUpdate();
-      } else {
-        console.log("[MediaCenter] bottomPanel is NULL!");
-      }
-    });
-    if (!this.playlistPopup) {
+        if (this.bottomPanel) this.bottomPanel.forceUpdate();
+      });
+    }
+    if (typeof PlaylistPopup !== "undefined" && !this.playlistPopup) {
       this.playlistPopup = new PlaylistPopup(
         this.playback,
         this.events,
         this.albumLibrary,
       );
-    } else {
+    } else if (this.playlistPopup) {
       this.playlistPopup.albumLibrary = this.albumLibrary;
       this.playlistPopup.tracksCache.clear();
       this.playlistPopup.refresh();
@@ -150,9 +142,7 @@ const MediaCenter = {
         }
       };
       searchInput.oninput = (e) => {
-        if (this.albumLibrary) {
-          this.albumLibrary.search(e.target.value);
-        }
+        if (this.albumLibrary) this.albumLibrary.search(e.target.value);
         updateClearButton();
       };
       searchInput.onfocus = updateClearButton;
@@ -166,9 +156,7 @@ const MediaCenter = {
       if (searchClearBtn) {
         searchClearBtn.onclick = () => {
           searchInput.value = "";
-          if (this.albumLibrary) {
-            this.albumLibrary.search("");
-          }
+          if (this.albumLibrary) this.albumLibrary.search("");
           updateClearButton();
           searchInput.focus();
         };
@@ -177,17 +165,12 @@ const MediaCenter = {
     this.events.on("album:play", (album) => this.playback.playAlbum(album));
     this.events.on("album:addToPlaylist", async (album) => {
       await this.playback.addAlbumToPlaylist(album);
-      Utils.showNotification(
-        `Альбом "${album.title}" добавлен в плейлист`,
-        "success",
-      );
     });
     this.events.on("album:replacePlaylist", async (album) => {
       await this.playback.api.clearPlaylist();
       await this.playback.addAlbumToPlaylist(album);
       this.events.emit("playlistCleared");
       this.events.emit("playlistChanged");
-      Utils.showNotification(`Плейлист заменен на "${album.title}"`, "success");
     });
     this.events.on("album:playTrack", ({ album, trackIndex }) => {
       this.playback.playTrack(album, trackIndex);

@@ -21,7 +21,6 @@ class RefreshButtonManager {
       e.preventDefault();
       e.stopPropagation();
       if (this.isRefreshing) {
-        Utils.showNotification("Обновление уже выполняется", "warning");
         return;
       }
       this.handleRefreshClick();
@@ -42,12 +41,10 @@ class RefreshButtonManager {
       if (data.status === "success") {
         await this.pollRescanStatus();
       } else {
-        Utils.showNotification(`Ошибка: ${data.message}`, "error");
         this.closePopup();
         this.isRefreshing = false;
       }
     } catch (error) {
-      Utils.showNotification(`Ошибка: ${error.message}`, "error");
       this.closePopup();
       this.isRefreshing = false;
     }
