@@ -6,27 +6,33 @@ class TrackList {
   }
 
   render(container, album) {
+    console.log("[TrackList] Rendering album:", album.title);
+    console.log("[TrackList] Tracks:", album.tracks);
+    console.log("[TrackList] First track:", album.tracks[0]);
+
     this.container = container;
     this.currentAlbum = album;
     if (!this.container) return;
+
     this.container.innerHTML = album.tracks
-      .map(
-        (track, idx) => `
-            <div class="track-item" data-track-index="${idx}">
-                <span class="track-number">${(idx + 1).toString().padStart(2, "0")}</span>
-                <span class="track-name" title="${this._escape(track.displayName)}">${this._escape(track.displayName)}</span>
-                <span class="track-duration">${track.displayDuration}</span>
-                <div class="track-actions">
-                    <button class="track-play-btn" data-index="${idx}" title="Воспроизвести">
-                        <i class="fas fa-play"></i>
-                    </button>
-                    <button class="track-edit-btn" data-index="${idx}" title="Редактировать метаданные">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                </div>
-            </div>
-        `,
-      )
+      .map((track, idx) => {
+        console.log(`[TrackList] Track ${idx}:`, track);
+        return `
+      <div class="track-item" data-track-index="${idx}">
+        <span class="track-number">${(idx + 1).toString().padStart(2, "0")}</span>
+        <span class="track-name" title="${this._escape(track.displayName || track.title || "Unknown")}">${this._escape(track.displayName || track.title || "Unknown")}</span>
+        <span class="track-duration">${track.displayDuration || ""}</span>
+        <div class="track-actions">
+          <button class="track-play-btn" data-index="${idx}" title="Воспроизвести">
+            <i class="fas fa-play"></i>
+          </button>
+          <button class="track-edit-btn" data-index="${idx}" title="Редактировать метаданные">
+            <i class="fas fa-edit"></i>
+          </button>
+        </div>
+      </div>
+    `;
+      })
       .join("");
     this._attachEvents();
   }

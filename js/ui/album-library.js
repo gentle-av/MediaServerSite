@@ -74,6 +74,12 @@ class AlbumLibrary {
     return div.innerHTML;
   }
 
+  _extractNameFromPath(path) {
+    if (!path) return "Без названия";
+    const fileName = path.split("/").pop();
+    return fileName.replace(/\.(flac|mp3|m4a|wav)$/i, "");
+  }
+
   async _loadAlbumsAsync() {
     if (this._loading || this._isDestroyed) return;
     this._loading = true;
@@ -82,6 +88,7 @@ class AlbumLibrary {
         '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка альбомов...</div>';
     }
     const artistsData = await this.api.getArtists();
+    console.log("[DEBUG] artistsData:", artistsData);
     if (!artistsData?.artists || this._isDestroyed) {
       if (!this._isDestroyed) this._showError();
       this._loading = false;
@@ -93,6 +100,7 @@ class AlbumLibrary {
     for (const artist of artistsData.artists) {
       if (this._isDestroyed) break;
       const albumsData = await this.api.getAlbums(artist);
+      console.log("[DEBUG] albumsData for", artist, ":", albumsData);
       if (albumsData?.albums) {
         for (const albumData of albumsData.albums) {
           if (this._isDestroyed) break;
@@ -102,17 +110,36 @@ class AlbumLibrary {
               albumData.album,
               albumData.artist,
             );
+            console.log(
+              "[DEBUG] tracksData for",
+              albumData.album,
+              ":",
+              tracksData,
+            );
+            console.log("[DEBUG] tracksData.tracks:", tracksData?.tracks);
+            if (tracksData?.tracks && tracksData.tracks.length > 0) {
+              console.log("[DEBUG] First track:", tracksData.tracks[0]);
+            }
             const coverUrl = await this.api.fetchAlbumCover(
               albumData.album,
               albumData.artist,
             );
+            const normalizedTracks = (tracksData.tracks || []).map((track) => ({
+              ...track,
+              title:
+                track.title ||
+                track.name ||
+                this._extractNameFromPath(track.path),
+            }));
+            console.log("[DEBUG] normalizedTracks:", normalizedTracks);
             const album = new Album({
               title: albumData.album,
               artist: albumData.artist,
               year: albumData.year,
-              tracks: tracksData.tracks || [],
+              tracks: normalizedTracks,
               coverUrl,
             });
+            console.log("[DEBUG] Created album:", album);
             uniqueAlbums.set(key, album);
             this.albums.push(album);
             if (window.MediaCenter && window.MediaCenter.playback) {
@@ -131,6 +158,8 @@ class AlbumLibrary {
     }
     this.albums = Array.from(uniqueAlbums.values());
     this.filteredAlbums = [...this.albums];
+    console.log("[DEBUG] Total albums loaded:", this.albums.length);
+    console.log("[DEBUG] First album tracks:", this.albums[0]?.tracks);
     this._render();
     this._loading = false;
   }
