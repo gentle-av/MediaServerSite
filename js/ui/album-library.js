@@ -100,7 +100,6 @@ class AlbumLibrary {
     for (const artist of artistsData.artists) {
       if (this._isDestroyed) break;
       const albumsData = await this.api.getAlbums(artist);
-      console.log("[DEBUG] albumsData for", artist, ":", albumsData);
       if (albumsData?.albums) {
         for (const albumData of albumsData.albums) {
           if (this._isDestroyed) break;
@@ -110,16 +109,6 @@ class AlbumLibrary {
               albumData.album,
               albumData.artist,
             );
-            console.log(
-              "[DEBUG] tracksData for",
-              albumData.album,
-              ":",
-              tracksData,
-            );
-            console.log("[DEBUG] tracksData.tracks:", tracksData?.tracks);
-            if (tracksData?.tracks && tracksData.tracks.length > 0) {
-              console.log("[DEBUG] First track:", tracksData.tracks[0]);
-            }
             const coverUrl = await this.api.fetchAlbumCover(
               albumData.album,
               albumData.artist,
@@ -131,7 +120,6 @@ class AlbumLibrary {
                 track.name ||
                 this._extractNameFromPath(track.path),
             }));
-            console.log("[DEBUG] normalizedTracks:", normalizedTracks);
             const album = new Album({
               title: albumData.album,
               artist: albumData.artist,
@@ -139,7 +127,6 @@ class AlbumLibrary {
               tracks: normalizedTracks,
               coverUrl,
             });
-            console.log("[DEBUG] Created album:", album);
             uniqueAlbums.set(key, album);
             this.albums.push(album);
             if (window.MediaCenter && window.MediaCenter.playback) {

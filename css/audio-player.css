@@ -6,7 +6,7 @@
   background: var(--bg1);
   border-top: 1px solid var(--bg3);
   padding: 12px 20px;
-  z-index: 1000;
+  z-index: 500;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
   transition: transform 0.3s ease;
