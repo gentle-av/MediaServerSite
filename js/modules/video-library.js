@@ -253,7 +253,6 @@ class VideoLibrary {
       this.events.off("playback:timeUpdate", onTimeUpdate);
     };
     const onTimeUpdate = (currentTime, duration) => {
-      console.log("timeUpdate received:", currentTime, duration);
       if (currentTime === 0 && (duration === 0 || duration === undefined)) {
         console.log("triggering closeWindow");
         this.events.emit("playback:closeWindow");

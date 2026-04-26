@@ -25,6 +25,11 @@
     -ms-overflow-style: none;
   }
 
+  .player-control-page {
+    justify-content: center;
+    padding-bottom: 30px;
+  }
+
   .main-content::-webkit-scrollbar {
     display: none;
     width: 0;
@@ -223,11 +228,6 @@
 
   .breadcrumb .breadcrumb-text {
     max-width: 180px;
-  }
-
-  .player-control-page {
-    justify-content: flex-end;
-    padding-bottom: 30px;
   }
 
   .player-control-page .player-control-header {
