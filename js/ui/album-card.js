@@ -100,7 +100,7 @@ class AlbumCard {
         if (Math.abs(deltaX) > 10 && !isSwiping) {
           isSwiping = true;
         }
-        if (isSwiping && deltaX < 0 && Math.abs(deltaX) <= 80) {
+        if (isSwiping && deltaX < 0 && Math.abs(deltaX) <= 160) {
           e.preventDefault();
           touchMoveX = e.changedTouches[0].clientX;
           this.element.style.transform = `translateX(${deltaX}px)`;
@@ -115,9 +115,9 @@ class AlbumCard {
       }
       const deltaX = touchMoveX - touchStartX;
       this.element.style.transition = "transform 0.3s ease";
-      if (deltaX < -this.swipeThreshold) {
+      if (deltaX < -70) {
         this.element.classList.add("swipe-left");
-        this.element.style.transform = "translateX(-80px)";
+        this.element.style.transform = "translateX(-120px)";
       } else {
         this.element.classList.remove("swipe-left");
         this.element.style.transform = "translateX(0)";
