@@ -16,6 +16,316 @@ class VideoLibrary {
     window.addEventListener("resize", this._boundHandleOrientation);
   }
 
+  async checkActivePlayback() {
+    try {
+      const status = await this.api.get("/api/video/status");
+      if (status.success && status.playing) {
+        this._restorePlaybackControl(status);
+        return true;
+      }
+    } catch (error) {
+      console.error("Failed to check playback status:", error);
+    }
+    return false;
+  }
+
+  _restorePlaybackControl(status) {
+    const playerPage = document.getElementById("playerControlPage");
+    if (playerPage) {
+      playerPage.style.display = "flex";
+      playerPage.classList.add("active");
+    }
+    const fileNameSpan = document.getElementById("videoFileName");
+    if (fileNameSpan && status.currentFile) {
+      const fileName = status.currentFile.split("/").pop();
+      fileNameSpan.textContent = fileName;
+    }
+    this._updateTimeDisplay(status.currentTime, status.duration);
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    if (playPauseBtn) {
+      const icon = playPauseBtn.querySelector("i");
+      if (status.paused) {
+        icon.className = "fas fa-play";
+        playPauseBtn.title = "Воспроизвести";
+      } else {
+        icon.className = "fas fa-pause";
+        playPauseBtn.title = "Пауза";
+      }
+    }
+    this._startStatusPolling();
+  }
+
+  _startStatusPolling() {
+    if (this._statusPollingInterval) {
+      clearInterval(this._statusPollingInterval);
+    }
+    this._statusPollingInterval = setInterval(async () => {
+      try {
+        const status = await this.api.get("/api/video/status");
+        if (status.success && status.playing) {
+          this._updateTimeDisplay(status.currentTime, status.duration);
+          const playPauseBtn = document.getElementById("playPauseBtn");
+          if (playPauseBtn) {
+            const icon = playPauseBtn.querySelector("i");
+            const shouldBePause = !status.paused;
+            if (shouldBePause && icon.className !== "fas fa-pause") {
+              icon.className = "fas fa-pause";
+              playPauseBtn.title = "Пауза";
+            } else if (!shouldBePause && icon.className !== "fas fa-play") {
+              icon.className = "fas fa-play";
+              playPauseBtn.title = "Воспроизвести";
+            }
+          }
+        } else if (!status.playing) {
+          this._stopStatusPolling();
+          this._hidePlaybackControl();
+        }
+      } catch (error) {
+        console.error("Status polling error:", error);
+      }
+    }, 1000);
+  }
+
+  _stopStatusPolling() {
+    if (this._statusPollingInterval) {
+      clearInterval(this._statusPollingInterval);
+      this._statusPollingInterval = null;
+    }
+  }
+
+  _updateTimeDisplay(currentTime, duration) {
+    const currentTimeSpan = document.getElementById("videoCurrentTime");
+    const durationSpan = document.getElementById("videoDuration");
+    const progressFill = document.getElementById("videoProgressFill");
+    if (currentTimeSpan) {
+      currentTimeSpan.textContent = this._formatTime(currentTime);
+    }
+    if (durationSpan && duration) {
+      durationSpan.textContent = this._formatTime(duration);
+    }
+    if (progressFill && duration > 0) {
+      const percent = (currentTime / duration) * 100;
+      progressFill.style.width = `${percent}%`;
+    }
+  }
+
+  _formatTime(seconds) {
+    if (!seconds || isNaN(seconds)) return "0:00";
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, "0")}`;
+  }
+
+  _hidePlaybackControl() {
+    const playerPage = document.getElementById("playerControlPage");
+    if (playerPage) {
+      playerPage.style.display = "none";
+      playerPage.classList.remove("active");
+    }
+    this._stopStatusPolling();
+  }
+
+  playVideo(path) {
+    if (this._debounceTimeout) {
+      clearTimeout(this._debounceTimeout);
+    }
+    this._debounceTimeout = setTimeout(() => {
+      this._executePlayVideo(path);
+    }, 300);
+  }
+
+  async _executePlayVideo(path) {
+    if (this.activeVideos && this.activeVideos.has(path)) {
+      console.log("playVideo ignored - video already playing:", path);
+      return;
+    }
+    this._stopStatusPolling();
+    if (!this.activeVideos) {
+      this.activeVideos = new Set();
+    }
+    if (this.currentPlayingPath) {
+      await this.api.post("/api/video/close");
+    }
+    this.currentPlayingPath = path;
+    const fileName = path.split("/").pop();
+    const playerPage = document.getElementById("playerControlPage");
+    if (playerPage) {
+      playerPage.style.display = "flex";
+      playerPage.classList.add("active");
+      const fileNameSpan = document.getElementById("videoFileName");
+      if (fileNameSpan) {
+        fileNameSpan.textContent = fileName;
+      }
+      const placeholder = document.getElementById("videoPreviewPlaceholder");
+      const previewImg = document.getElementById("videoPreviewImg");
+      if (placeholder) placeholder.style.display = "flex";
+      if (previewImg) previewImg.style.display = "none";
+    }
+    const data = await this.api.post("/api/open", { path });
+    if (data.success) {
+      console.log("Video started successfully, socket:", data.socket);
+      this.activeVideos.add(path);
+      this._loadVideoPreview(path);
+      this._startStatusPolling();
+      this._setupControlButtons();
+      setTimeout(() => {
+        if (this.activeVideos && this.activeVideos.has(path)) {
+          this.activeVideos.delete(path);
+        }
+      }, 3600000);
+    } else {
+      console.error("Failed to start video:", data.error);
+      Utils.showNotification(data.error || "Ошибка воспроизведения", "error");
+      this._hidePlaybackControl();
+    }
+  }
+
+  async _loadVideoPreview(path) {
+    try {
+      const thumbnailUrl = `/api/thumbnail?path=${encodeURIComponent(path)}&width=640&quality=85`;
+      const response = await fetch(thumbnailUrl);
+      const data = await response.json();
+      if (data.success && data.thumbnail) {
+        const previewImg = document.getElementById("videoPreviewImg");
+        const placeholder = document.getElementById("videoPreviewPlaceholder");
+        if (previewImg && placeholder) {
+          previewImg.onload = () => {
+            previewImg.style.display = "block";
+            placeholder.style.display = "none";
+          };
+          previewImg.src = data.thumbnail;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load preview:", error);
+    }
+  }
+
+  _setupControlButtons() {
+    if (this._controlsSetup) return;
+    this._controlsSetup = true;
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    const seekBackwardBtn = document.getElementById("seekBackwardBtn");
+    const seekForwardBtn = document.getElementById("seekForwardBtn");
+    const fullscreenBtn = document.getElementById("fullscreenBtn");
+    const deleteFileBtn = document.getElementById("deleteFileBtn");
+    const closeFileBtn = document.getElementById("closeFileBtn");
+    const closeControlPage = document.getElementById("closeControlPage");
+    const progressBar = document.getElementById("videoProgressBar");
+    if (playPauseBtn) {
+      playPauseBtn.onclick = () => this._togglePlayPause();
+    }
+    if (seekBackwardBtn) {
+      seekBackwardBtn.onclick = () => this._seek(-10);
+    }
+    if (seekForwardBtn) {
+      seekForwardBtn.onclick = () => this._seek(10);
+    }
+    if (fullscreenBtn) {
+      fullscreenBtn.onclick = () => this._toggleFullscreen();
+    }
+    if (deleteFileBtn) {
+      deleteFileBtn.onclick = () => this._deleteCurrentVideo();
+    }
+    if (closeFileBtn) {
+      closeFileBtn.onclick = () => this._closeVideo();
+    }
+    if (closeControlPage) {
+      closeControlPage.onclick = () => this._minimizeControl();
+    }
+    if (progressBar) {
+      progressBar.onclick = (e) => this._seekToPosition(e);
+    }
+  }
+
+  async _togglePlayPause() {
+    try {
+      const status = await this.api.get("/api/video/status");
+      if (status.success && status.playing) {
+        const command = status.paused ? "play" : "pause";
+        await this.api.post("/api/mpv/control", { command });
+      }
+    } catch (error) {
+      console.error("Toggle play/pause error:", error);
+    }
+  }
+
+  async _seek(seconds) {
+    try {
+      const status = await this.api.get("/api/video/status");
+      if (status.success && status.playing) {
+        const newTime = Math.max(0, status.currentTime + seconds);
+        await this.api.post("/api/mpv/seek", { time: newTime });
+      }
+    } catch (error) {
+      console.error("Seek error:", error);
+    }
+  }
+
+  async _seekToPosition(event) {
+    const progressBar = document.getElementById("videoProgressBar");
+    const rect = progressBar.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const percent = x / rect.width;
+    try {
+      const status = await this.api.get("/api/video/status");
+      if (status.success && status.playing && status.duration > 0) {
+        const newTime = percent * status.duration;
+        await this.api.post("/api/mpv/seek", { time: newTime });
+      }
+    } catch (error) {
+      console.error("Seek to position error:", error);
+    }
+  }
+
+  _toggleFullscreen() {
+    const playerPage = document.getElementById("playerControlPage");
+    if (!document.fullscreenElement) {
+      playerPage.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
+  async _deleteCurrentVideo() {
+    if (!this.currentPlayingPath) return;
+    const confirmed = await CustomDeleteDialogInstance.showConfirm(
+      this.currentPlayingPath.split("/").pop(),
+      false,
+    );
+    if (confirmed) {
+      await this._closeVideo();
+      await this.api.post("/api/trash", { path: this.currentPlayingPath });
+      Utils.showNotification("Видео удалено", "success");
+      if (this.refresh) {
+        this.refresh();
+      }
+    }
+  }
+
+  async _closeVideo() {
+    this._stopStatusPolling();
+    try {
+      await this.api.post("/api/video/close");
+    } catch (error) {
+      console.error("Close video error:", error);
+    }
+    this.currentPlayingPath = null;
+    this._hidePlaybackControl();
+    this._controlsSetup = false;
+  }
+
+  _minimizeControl() {
+    const playerPage = document.getElementById("playerControlPage");
+    if (playerPage) {
+      playerPage.classList.toggle("minimized");
+    }
+  }
+
   destroy() {
     console.log("[VideoLibrary] destroy called");
     if (this.container) {
@@ -224,52 +534,6 @@ class VideoLibrary {
       this._currentContextMenu.parentNode.removeChild(this._currentContextMenu);
       this._currentContextMenu = null;
     }
-  }
-
-  playVideo(path) {
-    if (this._debounceTimeout) {
-      clearTimeout(this._debounceTimeout);
-    }
-    this._debounceTimeout = setTimeout(() => {
-      this._executePlayVideo(path);
-    }, 300);
-  }
-
-  async _executePlayVideo(path) {
-    if (this.activeVideos && this.activeVideos.has(path)) {
-      console.log("playVideo ignored - video already playing:", path);
-      return;
-    }
-    if (!this.activeVideos) {
-      this.activeVideos = new Set();
-    }
-    const onClose = () => {
-      console.log("video closed, removing from active set:", path);
-      if (this.activeVideos) {
-        this.activeVideos.delete(path);
-      }
-      this.events.off("playback:videoClose", onClose);
-      this.events.off("playback:timeUpdate", onTimeUpdate);
-    };
-    const onTimeUpdate = (currentTime, duration) => {
-      if (currentTime === 0 && (duration === 0 || duration === undefined)) {
-        console.log("triggering closeWindow");
-        this.activeVideos.delete(path);
-        this.events.off("playback:videoClose", onClose);
-        this.events.off("playback:timeUpdate", onTimeUpdate);
-      }
-    };
-    this.events.on("playback:videoClose", onClose);
-    this.events.on("playback:timeUpdate", onTimeUpdate);
-    this.activeVideos.add(path);
-    console.log("playVideo called with path:", path);
-    this.events.emit("playback:videoStart", path);
-    setTimeout(() => {
-      if (this.activeVideos && this.activeVideos.has(path)) {
-        this.activeVideos.delete(path);
-      }
-      this.events.off("playback:timeUpdate", onTimeUpdate);
-    }, 3600000);
   }
 
   async deleteItem(path, name, isDirectory) {

@@ -72,6 +72,7 @@ const MediaCenter = {
       this.events,
       NavigationManager,
     );
+    this.videoLibrary.checkActivePlayback();
     this.events.on("video:refresh", () => this.videoLibrary.refresh());
     this.events.on("playTrack", ({ album, trackIndex }) => {
       this.playback.playTrack(album, trackIndex);
@@ -85,7 +86,6 @@ const MediaCenter = {
     this.events.on("track:editMetadata", ({ album, track, trackIndex }) => {
       if (window.TagEditor) {
         window.TagEditor.showTrackTagEditor(track, album);
-      } else {
       }
     });
   },
