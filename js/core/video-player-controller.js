@@ -10,17 +10,28 @@ class VideoPlayerController {
     this._duration = 0;
     this._currentTime = 0;
     this._isDestroyed = false;
+    this._currentVolume = 100;
+    this._isMuted = false;
+    this._volumePollInterval = null;
+    this._volumeUpHandler = null;
+    this._volumeDownHandler = null;
+    this._volumeMuteHandler = null;
     this._bindEvents();
     this._initPanel();
     this._startProgressPolling();
+    this._loadCurrentVolume();
+    this._startVolumePolling();
   }
 
   destroy() {
-    console.log("[VideoPlayerController] destroy called");
     this._isDestroyed = true;
     if (this._progressInterval) {
       clearInterval(this._progressInterval);
       this._progressInterval = null;
+    }
+    if (this._volumePollInterval) {
+      clearInterval(this._volumePollInterval);
+      this._volumePollInterval = null;
     }
     if (this.panel) {
       this.panel.style.display = "none";
@@ -49,7 +60,6 @@ class VideoPlayerController {
     if (this._isDestroyed) return false;
     try {
       const response = await this.api.get("/api/video/status");
-      console.log("[VideoPlayerController] checkExistingPlayback:", response);
       if (response.success && response.playing && response.currentFile) {
         this.currentFile = response.currentFile;
         this.isPlaying = !response.paused;
@@ -60,6 +70,7 @@ class VideoPlayerController {
         this._updateTimeDisplay(this._currentTime, this._duration);
         this._updatePlayPauseButton();
         this._loadVideoPreview(this.currentFile);
+        await this._loadCurrentVolume();
         this.show();
         return true;
       } else if (
@@ -67,12 +78,10 @@ class VideoPlayerController {
         !response.playing &&
         response.currentFile
       ) {
-        console.log(
-          "[VideoPlayerController] MPV process exists but not playing",
-        );
         this.currentFile = response.currentFile;
         this.isPlaying = false;
         this._updateFileInfo(this.currentFile);
+        await this._loadCurrentVolume();
         this.show();
         return true;
       }
@@ -111,6 +120,27 @@ class VideoPlayerController {
     document
       .getElementById("closeControlPage")
       ?.addEventListener("click", () => this.hide());
+    const volumeUpBtn = document.getElementById("volumeUpBtn");
+    const volumeDownBtn = document.getElementById("volumeDownBtn");
+    const volumeMuteBtn = document.getElementById("volumeMuteBtn");
+    if (volumeUpBtn) {
+      if (this._volumeUpHandler)
+        volumeUpBtn.removeEventListener("click", this._volumeUpHandler);
+      this._volumeUpHandler = () => this.increaseVolume();
+      volumeUpBtn.addEventListener("click", this._volumeUpHandler);
+    }
+    if (volumeDownBtn) {
+      if (this._volumeDownHandler)
+        volumeDownBtn.removeEventListener("click", this._volumeDownHandler);
+      this._volumeDownHandler = () => this.decreaseVolume();
+      volumeDownBtn.addEventListener("click", this._volumeDownHandler);
+    }
+    if (volumeMuteBtn) {
+      if (this._volumeMuteHandler)
+        volumeMuteBtn.removeEventListener("click", this._volumeMuteHandler);
+      this._volumeMuteHandler = () => this.toggleMute();
+      volumeMuteBtn.addEventListener("click", this._volumeMuteHandler);
+    }
     const progressBar = document.getElementById("videoProgressBar");
     if (progressBar) {
       progressBar.addEventListener("click", (e) =>
@@ -122,6 +152,132 @@ class VideoPlayerController {
       progressBar.addEventListener("mouseleave", () =>
         this._hideProgressHover(),
       );
+    }
+  }
+
+  async _loadCurrentVolume() {
+    try {
+      const response = await this.api.get("/api/simple/volume");
+      if (response.success && response.data) {
+        if (response.data.volume !== undefined) {
+          this._currentVolume = response.data.volume;
+        }
+        if (response.data.muted !== undefined) {
+          this._isMuted = response.data.muted;
+        }
+        this._updateVolumeDisplay();
+      }
+    } catch (error) {
+      console.error("Failed to load volume:", error);
+    }
+  }
+
+  _startVolumePolling() {
+    if (this._volumePollInterval) clearInterval(this._volumePollInterval);
+    this._volumePollInterval = setInterval(async () => {
+      if (this._isDestroyed) return;
+      try {
+        const response = await this.api.get("/api/simple/volume");
+        if (response.success && response.data) {
+          let updated = false;
+          if (
+            response.data.volume !== undefined &&
+            this._currentVolume !== response.data.volume
+          ) {
+            this._currentVolume = response.data.volume;
+            updated = true;
+          }
+          if (
+            response.data.muted !== undefined &&
+            this._isMuted !== response.data.muted
+          ) {
+            this._isMuted = response.data.muted;
+            updated = true;
+          }
+          if (updated) {
+            this._updateVolumeDisplay();
+          }
+        }
+      } catch (error) {
+        console.error("Failed to poll volume:", error);
+      }
+    }, 2000);
+  }
+
+  _updateVolumeDisplay() {
+    const volumeValueSpan = document.getElementById("volumeValue");
+    if (volumeValueSpan) {
+      volumeValueSpan.textContent = this._isMuted
+        ? "0%"
+        : `${this._currentVolume}%`;
+    }
+    const volumeMuteBtn = document.getElementById("volumeMuteBtn");
+    if (volumeMuteBtn) {
+      const icon = volumeMuteBtn.querySelector("i");
+      if (this._isMuted || this._currentVolume === 0) {
+        icon.className = "fas fa-volume-mute";
+        volumeMuteBtn.title = "Включить звук";
+      } else if (this._currentVolume < 30) {
+        icon.className = "fas fa-volume-off";
+        volumeMuteBtn.title = "Выключить звук";
+      } else if (this._currentVolume < 70) {
+        icon.className = "fas fa-volume-down";
+        volumeMuteBtn.title = "Выключить звук";
+      } else {
+        icon.className = "fas fa-volume-up";
+        volumeMuteBtn.title = "Выключить звук";
+      }
+    }
+  }
+
+  async increaseVolume() {
+    try {
+      const response = await this.api.post("/api/simple/volume/increase", {
+        delta: 5,
+      });
+      if (response.success && response.data) {
+        if (response.data.volume !== undefined) {
+          this._currentVolume = response.data.volume;
+        }
+        this._isMuted = false;
+        this._updateVolumeDisplay();
+      }
+    } catch (error) {
+      console.error("Failed to increase volume:", error);
+    }
+  }
+
+  async decreaseVolume() {
+    try {
+      const response = await this.api.post("/api/simple/volume/decrease", {
+        delta: 5,
+      });
+      if (response.success && response.data) {
+        if (response.data.volume !== undefined) {
+          this._currentVolume = response.data.volume;
+        }
+        this._isMuted = this._currentVolume === 0;
+        this._updateVolumeDisplay();
+      }
+    } catch (error) {
+      console.error("Failed to decrease volume:", error);
+    }
+  }
+
+  async toggleMute() {
+    try {
+      const response = await this.api.post("/api/simple/volume/mute");
+      if (response.success && response.data) {
+        if (response.data.muted !== undefined) {
+          this._isMuted = response.data.muted;
+        }
+        if (response.data.volume !== undefined) {
+          this._currentVolume = response.data.volume;
+        }
+        this._updateVolumeDisplay();
+      }
+    } catch (error) {
+      console.error("Failed to toggle mute:", error);
     }
   }
 
@@ -138,7 +294,6 @@ class VideoPlayerController {
     }
     try {
       this.currentFile = path;
-      console.log("Saved currentFile:", this.currentFile);
       this._updateFileInfo(path);
       await this._loadVideoPreview(path);
       this._updateProgressBar(0, 0);
@@ -303,7 +458,6 @@ class VideoPlayerController {
     }
     try {
       await this.api.post("/api/video/close");
-      console.log("Video stopped via /api/video/close");
     } catch (error) {
       console.error("Failed to close video:", error);
     }
@@ -333,7 +487,6 @@ class VideoPlayerController {
       return;
     }
     const fileName = filePath.split("/").pop();
-    console.log("Closing and deleting video, saved path:", filePath);
     const confirmed = await CustomDeleteDialogInstance.showConfirm(
       fileName,
       false,
@@ -342,7 +495,6 @@ class VideoPlayerController {
       CustomDeleteDialogInstance.close();
       try {
         await this.api.post("/api/video/close");
-        console.log("Video closed successfully");
       } catch (error) {
         console.error("Failed to close video:", error);
       }
@@ -375,7 +527,6 @@ class VideoPlayerController {
     if (this.panel) {
       this.panel.style.display = "flex";
       this.panel.classList.add("active");
-      console.log("Player panel shown");
     }
   }
 
@@ -383,7 +534,6 @@ class VideoPlayerController {
     if (this.panel) {
       this.panel.style.display = "none";
       this.panel.classList.remove("active");
-      console.log("Player panel hidden");
     }
   }
 
