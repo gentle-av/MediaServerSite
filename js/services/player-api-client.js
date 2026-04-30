@@ -6,7 +6,7 @@ class PlayerApiClient extends ApiClient {
 
   async checkAvailability() {
     try {
-      const response = await fetch(`${this.baseUrl}/api/playbackState`);
+      const response = await fetch(`${this.baseUrl}/api/new/playbackState`);
       this._available = response.ok;
       return this._available;
     } catch {
@@ -16,7 +16,7 @@ class PlayerApiClient extends ApiClient {
   }
 
   async addToPlaylist(track) {
-    return this.post("/api/add", { track });
+    return this.post("/api/new/add", { track });
   }
 
   get isAvailable() {
@@ -24,7 +24,7 @@ class PlayerApiClient extends ApiClient {
   }
 
   async getPlaybackState() {
-    const response = await this.get("/api/playbackState");
+    const response = await this.get("/api/new/playbackState");
     if (response.success && response.data) {
       if (
         response.data.currentTrack &&
@@ -46,46 +46,46 @@ class PlayerApiClient extends ApiClient {
   }
 
   async getPlaylist() {
-    return this.get("/api/getPlaylist");
+    return this.get("/api/new/getPlaylist");
   }
 
   async getCurrentTime() {
-    return this.get("/api/currentTime");
+    return this.get("/api/new/currentTime");
   }
 
   async play() {
-    return this.post("/api/play");
+    return this.post("/api/new/play");
   }
 
   async pause() {
-    return this.post("/api/pause");
+    return this.post("/api/new/pause");
   }
 
   async stop() {
-    return this.post("/api/stop");
+    return this.post("/api/new/stop");
   }
 
   async next() {
-    return this.post("/api/next");
+    return this.post("/api/new/next");
   }
 
   async previous() {
-    return this.post("/api/previous");
+    return this.post("/api/new/previous");
   }
 
   async seek(position) {
-    return this.post("/api/seek", { position });
+    return this.post("/api/new/seek", { position });
   }
 
   async setPlaylist(tracks) {
-    return this.post("/api/setPlaylist", { tracks });
+    return this.post("/api/new/setPlaylist", { tracks });
   }
 
   async clearPlaylist() {
-    return this.post("/api/clear");
+    return this.post("/api/new/clear");
   }
 
   async playIndex(index) {
-    return this.post("/api/playIndex", { index });
+    return this.post("/api/new/playIndex", { index });
   }
 }

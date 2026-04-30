@@ -10,6 +10,7 @@ class VideoLibrary {
     this.thumbnailCache = new Map();
     this._debounceTimeout = null;
     this._boundHandleOrientation = this._handleOrientationChange.bind(this);
+    this._isRestoring = false;
     this._bindEvents();
     this.loadDirectory(this.currentPath, false);
     window.addEventListener("orientationchange", this._boundHandleOrientation);
@@ -17,14 +18,23 @@ class VideoLibrary {
   }
 
   async checkActivePlayback() {
+    if (this._isRestoring) return false;
+    this._isRestoring = true;
     try {
       const status = await this.api.get("/api/video/status");
-      if (status.success && status.playing) {
+      if (status.success && status.playing && status.currentFile) {
+        console.log(
+          "[VideoLibrary] Restoring active playback:",
+          status.currentFile,
+        );
+        this.currentPlayingPath = status.currentFile;
         this._restorePlaybackControl(status);
         return true;
       }
     } catch (error) {
       console.error("Failed to check playback status:", error);
+    } finally {
+      this._isRestoring = false;
     }
     return false;
   }
@@ -40,7 +50,7 @@ class VideoLibrary {
       const fileName = status.currentFile.split("/").pop();
       fileNameSpan.textContent = fileName;
     }
-    this._updateTimeDisplay(status.currentTime, status.duration);
+    this._updateTimeDisplay(status.currentTime || 0, status.duration || 0);
     const playPauseBtn = document.getElementById("playPauseBtn");
     if (playPauseBtn) {
       const icon = playPauseBtn.querySelector("i");
@@ -52,7 +62,9 @@ class VideoLibrary {
         playPauseBtn.title = "Пауза";
       }
     }
+    this._loadVideoPreview(status.currentFile);
     this._startStatusPolling();
+    this._setupControlButtons();
   }
 
   _startStatusPolling() {
@@ -77,8 +89,7 @@ class VideoLibrary {
             }
           }
         } else if (!status.playing) {
-          this._stopStatusPolling();
-          this._hidePlaybackControl();
+          this._cleanup();
         }
       } catch (error) {
         console.error("Status polling error:", error);
@@ -126,7 +137,33 @@ class VideoLibrary {
       playerPage.style.display = "none";
       playerPage.classList.remove("active");
     }
+    this._cleanup();
+  }
+
+  _cleanup() {
     this._stopStatusPolling();
+    if (this._cleanupTimeout) {
+      clearTimeout(this._cleanupTimeout);
+      this._cleanupTimeout = null;
+    }
+    if (this._debounceTimeout) {
+      clearTimeout(this._debounceTimeout);
+      this._debounceTimeout = null;
+    }
+    if (this._progressCleanupInterval) {
+      clearInterval(this._progressCleanupInterval);
+      this._progressCleanupInterval = null;
+    }
+    this._controlsSetup = false;
+    this.currentPlayingPath = null;
+    if (this.activeVideos) {
+      this.activeVideos.clear();
+    }
+    const previewImg = document.getElementById("videoPreviewImg");
+    if (previewImg) {
+      previewImg.onload = null;
+      previewImg.src = "";
+    }
   }
 
   playVideo(path) {
@@ -143,7 +180,7 @@ class VideoLibrary {
       console.log("playVideo ignored - video already playing:", path);
       return;
     }
-    this._stopStatusPolling();
+    this._cleanup();
     if (!this.activeVideos) {
       this.activeVideos = new Set();
     }
@@ -172,6 +209,7 @@ class VideoLibrary {
       this._loadVideoPreview(path);
       this._startStatusPolling();
       this._setupControlButtons();
+      this._startMemoryCleanup();
       setTimeout(() => {
         if (this.activeVideos && this.activeVideos.has(path)) {
           this.activeVideos.delete(path);
@@ -181,6 +219,41 @@ class VideoLibrary {
       console.error("Failed to start video:", data.error);
       Utils.showNotification(data.error || "Ошибка воспроизведения", "error");
       this._hidePlaybackControl();
+    }
+  }
+
+  _startMemoryCleanup() {
+    if (this._progressCleanupInterval) {
+      clearInterval(this._progressCleanupInterval);
+    }
+    this._progressCleanupInterval = setInterval(() => {
+      const playerPage = document.getElementById("playerControlPage");
+      if (!playerPage || playerPage.style.display !== "flex") {
+        this._cleanup();
+        return;
+      }
+      const progressFill = document.getElementById("videoProgressFill");
+      if (progressFill && progressFill.style.width === "100%") {
+        this._cleanupTimeout = setTimeout(() => {
+          this._checkIfVideoFinished();
+        }, 5000);
+      }
+    }, 30000);
+  }
+
+  async _checkIfVideoFinished() {
+    try {
+      const status = await this.api.get("/api/video/status");
+      if (
+        status.success &&
+        status.playing &&
+        status.currentTime >= status.duration - 1
+      ) {
+        this._cleanup();
+        this._hidePlaybackControl();
+      }
+    } catch (error) {
+      console.error("Check video finished error:", error);
     }
   }
 
@@ -216,28 +289,36 @@ class VideoLibrary {
     const closeFileBtn = document.getElementById("closeFileBtn");
     const closeControlPage = document.getElementById("closeControlPage");
     const progressBar = document.getElementById("videoProgressBar");
-    if (playPauseBtn) {
+    if (playPauseBtn && !playPauseBtn._hasListener) {
+      playPauseBtn._hasListener = true;
       playPauseBtn.onclick = () => this._togglePlayPause();
     }
-    if (seekBackwardBtn) {
+    if (seekBackwardBtn && !seekBackwardBtn._hasListener) {
+      seekBackwardBtn._hasListener = true;
       seekBackwardBtn.onclick = () => this._seek(-10);
     }
-    if (seekForwardBtn) {
+    if (seekForwardBtn && !seekForwardBtn._hasListener) {
+      seekForwardBtn._hasListener = true;
       seekForwardBtn.onclick = () => this._seek(10);
     }
-    if (fullscreenBtn) {
+    if (fullscreenBtn && !fullscreenBtn._hasListener) {
+      fullscreenBtn._hasListener = true;
       fullscreenBtn.onclick = () => this._toggleFullscreen();
     }
-    if (deleteFileBtn) {
+    if (deleteFileBtn && !deleteFileBtn._hasListener) {
+      deleteFileBtn._hasListener = true;
       deleteFileBtn.onclick = () => this._deleteCurrentVideo();
     }
-    if (closeFileBtn) {
+    if (closeFileBtn && !closeFileBtn._hasListener) {
+      closeFileBtn._hasListener = true;
       closeFileBtn.onclick = () => this._closeVideo();
     }
-    if (closeControlPage) {
+    if (closeControlPage && !closeControlPage._hasListener) {
+      closeControlPage._hasListener = true;
       closeControlPage.onclick = () => this._minimizeControl();
     }
-    if (progressBar) {
+    if (progressBar && !progressBar._hasListener) {
+      progressBar._hasListener = true;
       progressBar.onclick = (e) => this._seekToPosition(e);
     }
   }
@@ -308,7 +389,7 @@ class VideoLibrary {
   }
 
   async _closeVideo() {
-    this._stopStatusPolling();
+    this._cleanup();
     try {
       await this.api.post("/api/video/close");
     } catch (error) {
@@ -327,7 +408,7 @@ class VideoLibrary {
   }
 
   destroy() {
-    console.log("[VideoLibrary] destroy called");
+    this._cleanup();
     if (this.container) {
       this.container.innerHTML = "";
     }

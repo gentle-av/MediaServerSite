@@ -1,6 +1,14 @@
 const MediaCenter = {
   async init() {
     console.log("MediaCenter v2.0 initializing...");
+    window.addEventListener("beforeunload", () => {
+      if (this.videoLibrary) {
+        this.videoLibrary.destroy();
+      }
+      if (this.videoPlayer) {
+        this.videoPlayer.destroy();
+      }
+    });
     this.events = new EventBus();
     this.api = new ApiClient();
     this.playerApi = new PlayerApiClient();
@@ -59,7 +67,7 @@ const MediaCenter = {
     console.log("Video page loaded, initializing VideoLibrary...");
     this._updateUIForPage("video");
     if (this.videoPlayer) {
-      this.videoPlayer.hide();
+      this.videoPlayer.destroy();
       this.videoPlayer = null;
     }
     this.videoPlayer = new VideoPlayerController(this.api, this.events);
@@ -72,7 +80,14 @@ const MediaCenter = {
       this.events,
       NavigationManager,
     );
-    this.videoLibrary.checkActivePlayback();
+    // Восстанавливаем воспроизведение через videoPlayer, а не через videoLibrary
+    setTimeout(async () => {
+      const restored = await this.videoPlayer.checkExistingPlayback();
+      if (!restored) {
+        // Если нет активного воспроизведения, просто показываем библиотеку
+        console.log("No active playback to restore");
+      }
+    }, 500);
     this.events.on("video:refresh", () => this.videoLibrary.refresh());
     this.events.on("playTrack", ({ album, trackIndex }) => {
       this.playback.playTrack(album, trackIndex);

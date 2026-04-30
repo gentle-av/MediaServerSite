@@ -9,10 +9,23 @@ class VideoPlayerController {
     this._progressInterval = null;
     this._duration = 0;
     this._currentTime = 0;
+    this._isDestroyed = false;
     this._bindEvents();
     this._initPanel();
     this._startProgressPolling();
-    setTimeout(() => this._checkExistingPlayback(), 1000);
+  }
+
+  destroy() {
+    console.log("[VideoPlayerController] destroy called");
+    this._isDestroyed = true;
+    if (this._progressInterval) {
+      clearInterval(this._progressInterval);
+      this._progressInterval = null;
+    }
+    if (this.panel) {
+      this.panel.style.display = "none";
+    }
+    this.currentFile = null;
   }
 
   _initPanel() {
@@ -20,7 +33,7 @@ class VideoPlayerController {
     if (!this.panel) {
       const observer = new MutationObserver(() => {
         this.panel = document.getElementById("playerControlPage");
-        if (this.panel) {
+        if (this.panel && !this._isDestroyed) {
           this._bindUIEvents();
           observer.disconnect();
         }
@@ -32,9 +45,11 @@ class VideoPlayerController {
     }
   }
 
-  async _checkExistingPlayback() {
+  async checkExistingPlayback() {
+    if (this._isDestroyed) return false;
     try {
       const response = await this.api.get("/api/video/status");
+      console.log("[VideoPlayerController] checkExistingPlayback:", response);
       if (response.success && response.playing && response.currentFile) {
         this.currentFile = response.currentFile;
         this.isPlaying = !response.paused;
@@ -46,15 +61,29 @@ class VideoPlayerController {
         this._updatePlayPauseButton();
         this._loadVideoPreview(this.currentFile);
         this.show();
+        return true;
+      } else if (
+        response.success &&
+        !response.playing &&
+        response.currentFile
+      ) {
+        console.log(
+          "[VideoPlayerController] MPV process exists but not playing",
+        );
+        this.currentFile = response.currentFile;
+        this.isPlaying = false;
+        this._updateFileInfo(this.currentFile);
+        this.show();
+        return true;
       }
     } catch (error) {
       console.error("Failed to check existing playback:", error);
     }
+    return false;
   }
 
   _bindEvents() {
     this.events.on("playback:videoStart", (path) => this.startPlayback(path));
-    this.events.on("page:videoLoaded", () => this._checkExistingPlayback());
     this.events.on("playback:closeWindow", () => this.stop());
   }
 
@@ -143,7 +172,7 @@ class VideoPlayerController {
       clearInterval(this._progressInterval);
     }
     this._progressInterval = setInterval(async () => {
-      if (!this.currentFile) return;
+      if (this._isDestroyed) return;
       try {
         const response = await this.api.get("/api/video/status");
         if (response.success && response.playing) {
@@ -272,102 +301,6 @@ class VideoPlayerController {
       clearInterval(this._progressInterval);
       this._progressInterval = null;
     }
-    await this.api.post("/api/video/close");
-    this.currentFile = null;
-    this.isPlaying = false;
-    this._duration = 0;
-    this._currentTime = 0;
-    const previewImg = document.getElementById("videoPreviewImg");
-    const previewPlaceholder = document.getElementById(
-      "videoPreviewPlaceholder",
-    );
-    if (previewImg) {
-      previewImg.src = "";
-      previewImg.style.display = "none";
-    }
-    if (previewPlaceholder) {
-      previewPlaceholder.style.display = "flex";
-    }
-    this.hide();
-    this.events.emit("playback:videoStopped");
-  }
-
-  async deleteCurrentFile() {
-    const filePath = this.currentFile;
-    if (!filePath) {
-      console.error("No current file to delete");
-      return;
-    }
-    const fileName = filePath.split("/").pop();
-    console.log("Deleting file, saved path:", filePath);
-    const confirmed = await CustomDeleteDialogInstance.showConfirm(
-      fileName,
-      false,
-    );
-    if (confirmed) {
-      CustomDeleteDialogInstance.close();
-      await this.stop();
-      const response = await this.api.post("/api/trash", { path: filePath });
-      console.log("Trash response:", response);
-      this.events.emit("video:refresh");
-    }
-  }
-
-  async closeAndDelete() {
-    const filePath = this.currentFile;
-    if (!filePath) {
-      console.error("No current file to delete");
-      return;
-    }
-    const fileName = filePath.split("/").pop();
-    console.log("Closing and deleting video, saved path:", filePath);
-    const confirmed = await CustomDeleteDialogInstance.showConfirm(
-      fileName,
-      false,
-    );
-    if (confirmed) {
-      CustomDeleteDialogInstance.close();
-
-      // Используем /api/video/close для закрытия видео
-      try {
-        await this.api.post("/api/video/close");
-        console.log("Video closed successfully");
-      } catch (error) {
-        console.error("Failed to close video:", error);
-      }
-
-      // Очищаем состояние плеера
-      if (this._progressInterval) {
-        clearInterval(this._progressInterval);
-        this._progressInterval = null;
-      }
-      const previewImg = document.getElementById("videoPreviewImg");
-      const previewPlaceholder = document.getElementById(
-        "videoPreviewPlaceholder",
-      );
-      if (previewImg) {
-        previewImg.src = "";
-        previewImg.style.display = "none";
-      }
-      if (previewPlaceholder) {
-        previewPlaceholder.style.display = "flex";
-      }
-      this.hide();
-      this.api.post("/api/trash", { path: filePath });
-      this.currentFile = null;
-      this.isPlaying = false;
-      this._duration = 0;
-      this._currentTime = 0;
-
-      this.events.emit("video:refresh");
-    }
-  }
-
-  async stop() {
-    if (this._progressInterval) {
-      clearInterval(this._progressInterval);
-      this._progressInterval = null;
-    }
     try {
       await this.api.post("/api/video/close");
       console.log("Video stopped via /api/video/close");
@@ -391,6 +324,51 @@ class VideoPlayerController {
     }
     this.hide();
     this.events.emit("playback:videoStopped");
+  }
+
+  async closeAndDelete() {
+    const filePath = this.currentFile;
+    if (!filePath) {
+      console.error("No current file to delete");
+      return;
+    }
+    const fileName = filePath.split("/").pop();
+    console.log("Closing and deleting video, saved path:", filePath);
+    const confirmed = await CustomDeleteDialogInstance.showConfirm(
+      fileName,
+      false,
+    );
+    if (confirmed) {
+      CustomDeleteDialogInstance.close();
+      try {
+        await this.api.post("/api/video/close");
+        console.log("Video closed successfully");
+      } catch (error) {
+        console.error("Failed to close video:", error);
+      }
+      if (this._progressInterval) {
+        clearInterval(this._progressInterval);
+        this._progressInterval = null;
+      }
+      const previewImg = document.getElementById("videoPreviewImg");
+      const previewPlaceholder = document.getElementById(
+        "videoPreviewPlaceholder",
+      );
+      if (previewImg) {
+        previewImg.src = "";
+        previewImg.style.display = "none";
+      }
+      if (previewPlaceholder) {
+        previewPlaceholder.style.display = "flex";
+      }
+      this.hide();
+      this.api.post("/api/trash", { path: filePath });
+      this.currentFile = null;
+      this.isPlaying = false;
+      this._duration = 0;
+      this._currentTime = 0;
+      this.events.emit("video:refresh");
+    }
   }
 
   show() {
