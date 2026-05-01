@@ -41,7 +41,7 @@ class BottomPlayerPanel {
 
   async _loadInitialVolume() {
     try {
-      const response = await fetch("/api/simple/volume");
+      const response = await fetch("/api/audio/volume");
       const data = await response.json();
       if (data.success && data.data && typeof data.data.volume === "number") {
         this._volume = data.data.volume;
@@ -264,7 +264,7 @@ class BottomPlayerPanel {
     this._volume = newVolume;
     this._updateVolumeUI();
     try {
-      const response = await fetch("/api/simple/volume", {
+      const response = await fetch("/api/audio/volume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ volume: this._volume }),
@@ -286,7 +286,7 @@ class BottomPlayerPanel {
 
   async _toggleMute() {
     try {
-      const response = await fetch("/api/simple/volume/mute", {
+      const response = await fetch("/api/audio/volume/mute", {
         method: "POST",
       });
       const data = await response.json();

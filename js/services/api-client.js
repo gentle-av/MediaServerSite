@@ -5,7 +5,7 @@ class ApiClient {
 
   async request(endpoint, options = {}) {
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      const response = await fetch(endpoint, {
         headers: { "Content-Type": "application/json" },
         ...options,
       });

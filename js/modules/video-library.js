@@ -129,25 +129,27 @@ class VideoLibrary {
       const path = card.dataset.path;
       const isDir = card.dataset.isDir === "true";
       const name = card.querySelector(".item-name")?.textContent || "";
-      console.log(
-        "[VideoLibrary] Attaching events for:",
-        path,
-        "isDir:",
-        isDir,
-      );
+      let clickTimeout = null;
       const clickHandler = async (e) => {
-        console.log("[VideoLibrary] Card clicked:", path, "isDir:", isDir);
         if (e.target.closest(".swipe-delete-btn")) {
           console.log("[VideoLibrary] Delete button clicked, ignoring");
           return;
         }
-        if (isDir) {
-          console.log("[VideoLibrary] Loading directory:", path);
-          await this.loadDirectory(path, true);
-        } else {
-          console.log("[VideoLibrary] Emitting video:play event for:", path);
-          this.events.emit("video:play", path);
+        if (clickTimeout) {
+          clearTimeout(clickTimeout);
+          clickTimeout = null;
+          return;
         }
+        clickTimeout = setTimeout(async () => {
+          clickTimeout = null;
+          if (isDir) {
+            console.log("[VideoLibrary] Loading directory:", path);
+            await this.loadDirectory(path, true);
+          } else {
+            console.log("[VideoLibrary] Emitting video:play event for:", path);
+            this.events.emit("video:play", path);
+          }
+        }, 200);
       };
       card.addEventListener("click", clickHandler);
       card._clickHandler = clickHandler;

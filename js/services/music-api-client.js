@@ -12,7 +12,7 @@ class MusicApiClient extends ApiClient {
   async getFileMetadata(filePath) {
     try {
       const response = await fetch(
-        `${this.baseUrl}/api/music/file-metadata?path=${encodeURIComponent(filePath)}`,
+        `/api/music/file-metadata?path=${encodeURIComponent(filePath)}`,
       );
       const data = await response.json();
       return data;

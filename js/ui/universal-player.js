@@ -15,6 +15,7 @@ class UniversalPlayer {
     this._volumePollInterval = null;
     this._currentOutput = "speakers";
     this._progressInterval = null;
+    this._isPollingStarted = false;
     this._isMinimized = false;
     this._settingsCollapsed = true;
     this.element = null;
@@ -26,7 +27,6 @@ class UniversalPlayer {
     this._startAutoUpdate();
     this._loadInitialVolume();
     this._loadInitialAudioOutput();
-    this._startProgressPolling();
     this._startVolumePolling();
   }
 
@@ -273,11 +273,19 @@ class UniversalPlayer {
   }
 
   setMediaType(type) {
+    console.log(
+      "[UniversalPlayer] setMediaType called, type:",
+      type,
+      "old type:",
+      this.mediaType,
+    );
     this.mediaType = type;
     this._updateMediaIcon();
     if (this._progressInterval) {
+      console.log("[UniversalPlayer] Clearing existing progress interval");
       clearInterval(this._progressInterval);
       this._progressInterval = null;
+      this._isPollingStarted = false;
     }
     this._startProgressPolling();
   }
@@ -325,7 +333,13 @@ class UniversalPlayer {
   }
 
   async startPlayback(path, type) {
-    this.mediaType = type;
+    console.log(
+      "[UniversalPlayer] startPlayback called, path:",
+      path,
+      "type:",
+      type,
+    );
+    this.setMediaType(type);
     this.currentFile = path;
     this._updateFileInfo(path);
     this._updateMediaIcon();
@@ -342,7 +356,6 @@ class UniversalPlayer {
           );
         } else {
           this.show();
-          this._startProgressPolling();
           this._updatePlayPauseButton(true);
         }
       } catch (error) {
@@ -350,13 +363,14 @@ class UniversalPlayer {
         Utils.showNotification("Ошибка запуска видео", "error");
       }
     } else {
+      console.log("[UniversalPlayer] Starting audio playback");
       await this._loadAlbumCover(path);
       this.show();
-      this._startProgressPolling();
       this._updatePlayPauseButton(true);
       setTimeout(async () => {
         if (this.playerApi) {
           const timeInfo = await this.playerApi.getCurrentTime();
+          console.log("[UniversalPlayer] Initial audio timeInfo:", timeInfo);
           if (timeInfo && timeInfo.data && timeInfo.data.duration > 0) {
             this._duration = timeInfo.data.duration;
             this._updateTimeDisplay(this._currentTime, this._duration);
@@ -465,19 +479,35 @@ class UniversalPlayer {
   }
 
   _startProgressPolling() {
-    if (this._progressInterval) clearInterval(this._progressInterval);
+    if (this._progressInterval || this._isPollingStarted) return;
+    this._isPollingStarted = true;
+    console.log(
+      "[UniversalPlayer] _startProgressPolling started, mediaType:",
+      this.mediaType,
+    );
     this._progressInterval = setInterval(async () => {
       if (this._isDestroyed) return;
       try {
+        console.log(
+          "[UniversalPlayer] Polling tick, mediaType:",
+          this.mediaType,
+          "playerApi:",
+          !!this.playerApi,
+        );
         if (this.mediaType === "video") {
+          console.log("[UniversalPlayer] Polling video...");
           const response = await this.api.get("/api/video/status");
+          console.log("[UniversalPlayer] Video status response:", response);
           if (response.success && response.playing) {
-            this.isPlaying = !response.paused;
+            const newPlaying = !response.paused;
+            if (this.isPlaying !== newPlaying) {
+              this.isPlaying = newPlaying;
+              this._updatePlayPauseButton(this.isPlaying);
+            }
             this._currentTime = response.currentTime || 0;
             this._duration = response.duration || 0;
             this._updateProgressBar(this._currentTime, this._duration);
             this._updateTimeDisplay(this._currentTime, this._duration);
-            this._updatePlayPauseButton(this.isPlaying);
             if (response.currentFile && !this.currentFile) {
               this.currentFile = response.currentFile;
               this._updateFileInfo(this.currentFile);
@@ -490,18 +520,28 @@ class UniversalPlayer {
             if (response.reason === "process_dead") {
               this.currentFile = null;
               this._updateFileInfo("");
+              this._updatePlayPauseButton(false);
             }
           }
         }
-        if (this.playerApi) {
+        if (this.mediaType === "audio" && this.playerApi) {
+          console.log("[UniversalPlayer] Polling audio...");
           const timeInfo = await this.playerApi.getCurrentTime();
-          if (timeInfo && timeInfo.data) {
+          console.log("[UniversalPlayer] Audio timeInfo:", timeInfo);
+          if (timeInfo && timeInfo.success && timeInfo.data) {
             this._currentTime = timeInfo.data.currentTime || 0;
             this._duration = timeInfo.data.duration || 0;
+            console.log(
+              "[UniversalPlayer] Audio currentTime:",
+              this._currentTime,
+              "duration:",
+              this._duration,
+            );
             this._updateProgressBar(this._currentTime, this._duration);
             this._updateTimeDisplay(this._currentTime, this._duration);
           }
           const state = await this.playerApi.getPlaybackState();
+          console.log("[UniversalPlayer] Audio state:", state);
           if (state && state.success && state.data) {
             const wasPlaying = this.isPlaying;
             this.isPlaying = state.data.isPlaying || false;
@@ -538,7 +578,7 @@ class UniversalPlayer {
           }
         }
       } catch (error) {
-        console.error("Failed to get status:", error);
+        console.error("[UniversalPlayer] Failed to get status:", error);
       }
     }, 500);
   }
@@ -596,11 +636,29 @@ class UniversalPlayer {
   }
 
   async _togglePlayPause() {
+    console.log(
+      "[UniversalPlayer] _togglePlayPause called, mediaType:",
+      this.mediaType,
+      "isPlaying:",
+      this.isPlaying,
+    );
     if (this.mediaType === "video") {
       if (this.currentFile) {
         const command = this.isPlaying ? "pause" : "play";
-        await this.api.post("/api/mpv/control", { command: command });
-        this.isPlaying = !this.isPlaying;
+        console.log(
+          "[UniversalPlayer] Sending command to /api/mpv/control:",
+          command,
+        );
+        try {
+          const response = await this.api.post("/api/mpv/control", {
+            command: command,
+          });
+          console.log("[UniversalPlayer] Response from mpv control:", response);
+          this.isPlaying = !this.isPlaying;
+          this._updatePlayPauseButton(this.isPlaying);
+        } catch (error) {
+          console.error("[UniversalPlayer] Error toggling play/pause:", error);
+        }
       } else {
         Utils.showNotification("Нет активного видео", "info");
       }
@@ -613,11 +671,11 @@ class UniversalPlayer {
           await this.playerApi.play();
         }
         this.isPlaying = !this.isPlaying;
+        this._updatePlayPauseButton(this.isPlaying);
       } else {
         Utils.showNotification("Плейлист пуст", "info");
       }
     }
-    this._updatePlayPauseButton(this.isPlaying);
   }
 
   async _previous() {
@@ -720,7 +778,7 @@ class UniversalPlayer {
     this._currentVolume = newVolume;
     this._updateVolumeUI();
     try {
-      await this.api.post("/api/simple/volume", {
+      await this.api.post("/api/audio/volume", {
         volume: this._currentVolume,
       });
       if (this._isMuted && newVolume > 0) {
@@ -737,7 +795,7 @@ class UniversalPlayer {
 
   async _toggleMute() {
     try {
-      const response = await this.api.post("/api/simple/volume/mute");
+      const response = await this.api.post("/api/audio/volume/mute");
       if (response.success && response.data) {
         this._isMuted = response.data.muted;
         if (this.volumeMute) {
@@ -833,7 +891,7 @@ class UniversalPlayer {
 
   async _loadInitialVolume() {
     try {
-      const response = await this.api.get("/api/simple/volume");
+      const response = await this.api.get("/api/audio/volume");
       if (
         response.success &&
         response.data &&
@@ -852,7 +910,7 @@ class UniversalPlayer {
     this._volumePollInterval = setInterval(async () => {
       if (this._isDestroyed) return;
       try {
-        const response = await this.api.get("/api/simple/volume");
+        const response = await this.api.get("/api/audio/volume");
         if (response.success && response.data) {
           let updated = false;
           if (

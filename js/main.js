@@ -1,6 +1,8 @@
 const MediaCenter = {
   async init() {
     console.log("MediaCenter v2.0 initializing...");
+    this._lastPlayPath = null;
+    this._lastPlayTime = 0;
     window.addEventListener("beforeunload", () => {
       if (this.videoLibrary) {
         this.videoLibrary.destroy();
@@ -78,6 +80,15 @@ const MediaCenter = {
       if (this.videoLibrary) this.videoLibrary.refresh();
     });
     this.events.on("video:play", (path) => {
+      if (
+        this._lastPlayPath === path &&
+        Date.now() - this._lastPlayTime < 500
+      ) {
+        console.log("[MediaCenter] Ignoring duplicate video:play event");
+        return;
+      }
+      this._lastPlayPath = path;
+      this._lastPlayTime = Date.now();
       this.universalPlayer.startPlayback(path, "video");
     });
     setTimeout(async () => {

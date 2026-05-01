@@ -6,7 +6,7 @@ class PlayerApiClient extends ApiClient {
 
   async checkAvailability() {
     try {
-      const response = await fetch(`${this.baseUrl}/api/new/playbackState`);
+      const response = await fetch(`${this.baseUrl}/api/audio/playbackState`);
       this._available = response.ok;
       return this._available;
     } catch {
@@ -16,7 +16,7 @@ class PlayerApiClient extends ApiClient {
   }
 
   async addToPlaylist(track) {
-    return this.post("/api/new/add", { track });
+    return this.post("/api/audio/add", { track });
   }
 
   get isAvailable() {
@@ -24,7 +24,7 @@ class PlayerApiClient extends ApiClient {
   }
 
   async getPlaybackState() {
-    const response = await this.get("/api/new/playbackState");
+    const response = await this.get("/api/audio/playbackState");
     if (response.success && response.data) {
       if (
         response.data.currentTrack &&
@@ -46,46 +46,46 @@ class PlayerApiClient extends ApiClient {
   }
 
   async getPlaylist() {
-    return this.get("/api/new/getPlaylist");
+    return this.get("/api/audio/getPlaylist");
   }
 
   async getCurrentTime() {
-    return this.get("/api/new/currentTime");
+    return this.get("/api/audio/currentTime");
   }
 
   async play() {
-    return this.post("/api/new/play");
+    return this.post("/api/audio/play");
   }
 
   async pause() {
-    return this.post("/api/new/pause");
+    return this.post("/api/audio/pause");
   }
 
   async stop() {
-    return this.post("/api/new/stop");
+    return this.post("/api/audio/stop");
   }
 
   async next() {
-    return this.post("/api/new/next");
+    return this.post("/api/audio/next");
   }
 
   async previous() {
-    return this.post("/api/new/previous");
+    return this.post("/api/audio/previous");
   }
 
   async seek(position) {
-    return this.post("/api/new/seek", { position });
+    return this.post("/api/audio/seek", { position });
   }
 
   async setPlaylist(tracks) {
-    return this.post("/api/new/setPlaylist", { tracks });
+    return this.post("/api/audio/setPlaylist", { tracks });
   }
 
   async clearPlaylist() {
-    return this.post("/api/new/clear");
+    return this.post("/api/audio/clear");
   }
 
   async playIndex(index) {
-    return this.post("/api/new/playIndex", { index });
+    return this.post("/api/audio/playIndex", { index });
   }
 }
