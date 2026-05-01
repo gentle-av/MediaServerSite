@@ -20,6 +20,7 @@ class UniversalPlayer {
     this._settingsCollapsed = true;
     this.element = null;
     this._currentAlbumArt = null;
+    this._isStartingVideo = false;
     this._createPanel();
     this._initElements();
     this._attachEvents();
@@ -28,6 +29,7 @@ class UniversalPlayer {
     this._loadInitialVolume();
     this._loadInitialAudioOutput();
     this._startVolumePolling();
+    this._ignorePollingUpdate = false;
   }
 
   _createPanel() {
@@ -129,10 +131,10 @@ class UniversalPlayer {
       );
     }
     if (this.prevBtn) {
-      this.prevBtn.addEventListener("click", () => this._previous());
+      this.prevBtn.addEventListener("click", () => this._seekBackward());
     }
     if (this.nextBtn) {
-      this.nextBtn.addEventListener("click", () => this._next());
+      this.nextBtn.addEventListener("click", () => this._seekForward());
     }
     if (this.stopBtn) {
       this.stopBtn.addEventListener("click", () => this.stop());
@@ -177,7 +179,10 @@ class UniversalPlayer {
   }
 
   _subscribeToEvents() {
-    this.events.on("playback:videoStart", (path) => {
+    this.events.on("video:play", (path) => {
+      if (this.currentFile === path && this.mediaType === "video") {
+        return;
+      }
       if (this.mediaType === "audio" && this.currentFile) {
         this.stop();
       }
@@ -211,6 +216,14 @@ class UniversalPlayer {
       }
     });
     this.events.on("page:changed", (page) => {
+      if (page === "video" && this.mediaType === "video" && this.currentFile) {
+        this.show();
+        return;
+      }
+      if (page === "audio" && this.mediaType === "audio" && this.currentFile) {
+        this.show();
+        return;
+      }
       if (page === "video" || page === "audio") {
         this.show();
       } else {
@@ -221,6 +234,9 @@ class UniversalPlayer {
 
   _updateFromState(state) {
     if (!state) return;
+    if (this.mediaType === "video") {
+      return;
+    }
     if (state.currentTrack) {
       this.currentFile = state.currentTrack;
       let fileName = this.currentFile.split("/").pop();
@@ -287,16 +303,9 @@ class UniversalPlayer {
   }
 
   setMediaType(type) {
-    console.log(
-      "[UniversalPlayer] setMediaType called, type:",
-      type,
-      "old type:",
-      this.mediaType,
-    );
     this.mediaType = type;
     this._updateMediaIcon();
     if (this._progressInterval) {
-      console.log("[UniversalPlayer] Clearing existing progress interval");
       clearInterval(this._progressInterval);
       this._progressInterval = null;
       this._isPollingStarted = false;
@@ -347,17 +356,14 @@ class UniversalPlayer {
   }
 
   async startPlayback(path, type) {
-    console.log(
-      "[UniversalPlayer] startPlayback called, path:",
-      path,
-      "type:",
-      type,
-    );
+    if (this._isStartingVideo) return;
+    if (this.currentFile === path && this.mediaType === type && this.isPlaying)
+      return;
     if (this.mediaType && this.mediaType !== type && this.currentFile) {
-      console.log(
-        "[UniversalPlayer] Stopping current playback before switching",
-      );
       await this.stop();
+    }
+    if (type === "video") {
+      this._isStartingVideo = true;
     }
     this.setMediaType(type);
     this.currentFile = path;
@@ -372,7 +378,6 @@ class UniversalPlayer {
       try {
         const response = await this.api.post("/api/open", { path });
         if (!response.success) {
-          console.error("Failed to open video:", response.error);
           Utils.showNotification(
             response.error || "Ошибка воспроизведения",
             "error",
@@ -380,25 +385,33 @@ class UniversalPlayer {
         } else {
           this.show();
           this._updatePlayPauseButton(true);
+          this.isPlaying = true;
+          setTimeout(async () => {
+            const status = await this.api.get("/api/video/status");
+            if (status.success) {
+              const isActuallyPlaying = !status.paused;
+              if (this.isPlaying !== isActuallyPlaying) {
+                this.isPlaying = isActuallyPlaying;
+                this._updatePlayPauseButton(this.isPlaying);
+              }
+            }
+            this._isStartingVideo = false;
+          }, 500);
         }
       } catch (error) {
-        console.error("Error calling /api/open:", error);
         Utils.showNotification("Ошибка запуска видео", "error");
+        this._isStartingVideo = false;
       }
     } else {
-      console.log("[UniversalPlayer] Starting audio playback");
       try {
         await this.api.post("/api/video/close").catch(() => {});
-      } catch (error) {
-        console.error("Failed to close video for audio:", error);
-      }
+      } catch (error) {}
       await this._loadAlbumCover(path);
       this.show();
       this._updatePlayPauseButton(true);
       setTimeout(async () => {
         if (this.playerApi) {
           const timeInfo = await this.playerApi.getCurrentTime();
-          console.log("[UniversalPlayer] Initial audio timeInfo:", timeInfo);
           if (timeInfo && timeInfo.data && timeInfo.data.duration > 0) {
             this._duration = timeInfo.data.duration;
             this._updateTimeDisplay(this._currentTime, this._duration);
@@ -440,9 +453,7 @@ class UniversalPlayer {
         this.previewImg.style.display = "block";
         this.previewIcon.style.display = "none";
       }
-    } catch (error) {
-      console.error("Failed to load preview:", error);
-    }
+    } catch (error) {}
   }
 
   async _loadAlbumCover(filePath) {
@@ -501,34 +512,20 @@ class UniversalPlayer {
         this.previewImg.style.display = "block";
         this.previewIcon.style.display = "none";
       }
-    } catch (error) {
-      console.error("Failed to load album cover:", error);
-    }
+    } catch (error) {}
   }
 
   _startProgressPolling() {
     if (this._progressInterval || this._isPollingStarted) return;
     this._isPollingStarted = true;
-    console.log(
-      "[UniversalPlayer] _startProgressPolling started, mediaType:",
-      this.mediaType,
-    );
     this._progressInterval = setInterval(async () => {
       if (this._isDestroyed) return;
       try {
-        console.log(
-          "[UniversalPlayer] Polling tick, mediaType:",
-          this.mediaType,
-          "playerApi:",
-          !!this.playerApi,
-        );
         if (this.mediaType === "video") {
-          console.log("[UniversalPlayer] Polling video...");
           const response = await this.api.get("/api/video/status");
-          console.log("[UniversalPlayer] Video status response:", response);
-          if (response.success && response.playing) {
-            const newPlaying = !response.paused;
-            if (this.isPlaying !== newPlaying) {
+          if (response.success) {
+            const newPlaying = response.playing && !response.paused;
+            if (this.isPlaying !== newPlaying && !this._ignorePollingUpdate) {
               this.isPlaying = newPlaying;
               this._updatePlayPauseButton(this.isPlaying);
             }
@@ -553,23 +550,14 @@ class UniversalPlayer {
           }
         }
         if (this.mediaType === "audio" && this.playerApi) {
-          console.log("[UniversalPlayer] Polling audio...");
           const timeInfo = await this.playerApi.getCurrentTime();
-          console.log("[UniversalPlayer] Audio timeInfo:", timeInfo);
           if (timeInfo && timeInfo.success && timeInfo.data) {
             this._currentTime = timeInfo.data.currentTime || 0;
             this._duration = timeInfo.data.duration || 0;
-            console.log(
-              "[UniversalPlayer] Audio currentTime:",
-              this._currentTime,
-              "duration:",
-              this._duration,
-            );
             this._updateProgressBar(this._currentTime, this._duration);
             this._updateTimeDisplay(this._currentTime, this._duration);
           }
           const state = await this.playerApi.getPlaybackState();
-          console.log("[UniversalPlayer] Audio state:", state);
           if (state && state.success && state.data) {
             const wasPlaying = this.isPlaying;
             this.isPlaying = state.data.isPlaying || false;
@@ -605,9 +593,7 @@ class UniversalPlayer {
             }
           }
         }
-      } catch (error) {
-        console.error("[UniversalPlayer] Failed to get status:", error);
-      }
+      } catch (error) {}
     }, 500);
   }
 
@@ -653,7 +639,7 @@ class UniversalPlayer {
           this._updateTimeDisplay(this._currentTime, this._duration);
         }
       } catch (error) {
-        console.error("Seek failed:", error);
+        Utils.showNotification("Ошибка перемотки", "error");
       }
     } else if (this.playerApi) {
       await this.playerApi.seek(time);
@@ -664,28 +650,49 @@ class UniversalPlayer {
   }
 
   async _togglePlayPause() {
-    console.log(
-      "[UniversalPlayer] _togglePlayPause called, mediaType:",
-      this.mediaType,
-      "isPlaying:",
-      this.isPlaying,
-    );
+    console.log("[DEBUG] _togglePlayPause called", {
+      mediaType: this.mediaType,
+      isPlaying: this.isPlaying,
+      currentFile: this.currentFile,
+      ignorePollingUpdate: this._ignorePollingUpdate,
+    });
     if (this.mediaType === "video") {
       if (this.currentFile) {
-        const command = this.isPlaying ? "pause" : "play";
-        console.log(
-          "[UniversalPlayer] Sending command to /api/mpv/control:",
-          command,
-        );
         try {
+          const status = await this.api.get("/api/video/status");
+          console.log("[DEBUG] Video status:", status);
+          if (!status.success || status.reason === "process_dead") {
+            Utils.showNotification(
+              "Видео не загружено или процесс завершён",
+              "error",
+            );
+            return;
+          }
+          const command = this.isPlaying ? "pause" : "play";
+          console.log("[DEBUG] Sending command:", command);
           const response = await this.api.post("/api/mpv/control", {
             command: command,
           });
-          console.log("[UniversalPlayer] Response from mpv control:", response);
-          this.isPlaying = !this.isPlaying;
-          this._updatePlayPauseButton(this.isPlaying);
+          console.log("[DEBUG] Control response:", response);
+          if (response.success) {
+            this._ignorePollingUpdate = true;
+            const oldState = this.isPlaying;
+            this.isPlaying = !this.isPlaying;
+            console.log("[DEBUG] State changed:", {
+              oldState,
+              newState: this.isPlaying,
+            });
+            this._updatePlayPauseButton(this.isPlaying);
+            setTimeout(() => {
+              this._ignorePollingUpdate = false;
+              console.log("[DEBUG] Ignore flag reset");
+            }, 500);
+          } else {
+            Utils.showNotification("Ошибка управления видео", "error");
+          }
         } catch (error) {
-          console.error("[UniversalPlayer] Error toggling play/pause:", error);
+          console.log("[DEBUG] Error:", error);
+          Utils.showNotification("Ошибка связи с сервером", "error");
         }
       } else {
         Utils.showNotification("Нет активного видео", "info");
@@ -704,6 +711,19 @@ class UniversalPlayer {
         Utils.showNotification("Плейлист пуст", "info");
       }
     }
+  }
+
+  async _updateVideoProgress() {
+    if (this.mediaType !== "video") return;
+    try {
+      const response = await this.api.get("/api/video/status");
+      if (response.success && response.playing) {
+        this._currentTime = response.currentTime || 0;
+        this._duration = response.duration || 0;
+        this._updateProgressBar(this._currentTime, this._duration);
+        this._updateTimeDisplay(this._currentTime, this._duration);
+      }
+    } catch (error) {}
   }
 
   async _previous() {
@@ -729,9 +749,7 @@ class UniversalPlayer {
     if (this.mediaType === "video") {
       try {
         this.api.post("/api/video/close").catch(() => {});
-      } catch (error) {
-        console.error("Failed to close video:", error);
-      }
+      } catch (error) {}
     } else if (this.playerApi) {
       this.playerApi.stop().catch(() => {});
     }
@@ -817,9 +835,7 @@ class UniversalPlayer {
           this.volumeMute.classList.remove("muted");
         }
       }
-    } catch (error) {
-      console.error("Error setting volume:", error);
-    }
+    } catch (error) {}
   }
 
   async _toggleMute() {
@@ -837,9 +853,7 @@ class UniversalPlayer {
           }
         }
       }
-    } catch (error) {
-      console.error("Error toggling mute:", error);
-    }
+    } catch (error) {}
   }
 
   async _switchToSpeakers() {
@@ -849,9 +863,7 @@ class UniversalPlayer {
         this._currentOutput = "speakers";
         this._updateOutputUI();
       }
-    } catch (error) {
-      console.error("Error switching to speakers:", error);
-    }
+    } catch (error) {}
   }
 
   async _switchToHeadphones() {
@@ -861,9 +873,7 @@ class UniversalPlayer {
         this._currentOutput = "headphones";
         this._updateOutputUI();
       }
-    } catch (error) {
-      console.error("Error switching to headphones:", error);
-    }
+    } catch (error) {}
   }
 
   _updateVolumeUI() {
@@ -929,9 +939,7 @@ class UniversalPlayer {
         this._currentVolume = response.data.volume;
         this._updateVolumeUI();
       }
-    } catch (error) {
-      console.error("Failed to load volume:", error);
-    }
+    } catch (error) {}
   }
 
   _startVolumePolling() {
@@ -969,9 +977,7 @@ class UniversalPlayer {
           this._currentOutput = outputResponse.data.current;
           this._updateOutputUI();
         }
-      } catch (error) {
-        console.error("Failed to poll volume:", error);
-      }
+      } catch (error) {}
     }, 2000);
   }
 
@@ -982,9 +988,7 @@ class UniversalPlayer {
         this._currentOutput = response.data.current;
         this._updateOutputUI();
       }
-    } catch (error) {
-      console.error("Failed to load audio output:", error);
-    }
+    } catch (error) {}
   }
 
   _startAutoUpdate() {
@@ -1000,9 +1004,7 @@ class UniversalPlayer {
             this._updateTimeDisplay(this._currentTime, this._duration);
           }
         }
-      } catch (e) {
-        console.error("Auto update error:", e);
-      }
+      } catch (e) {}
     }, 1000);
   }
 
@@ -1046,6 +1048,26 @@ class UniversalPlayer {
     }
     if (this.element) {
       this.element.remove();
+    }
+  }
+
+  async _seekBackward() {
+    if (this.mediaType === "video") {
+      const seekTime = Math.max(0, this._currentTime - 10);
+      await this._seekTo(seekTime);
+    } else if (this.playerApi) {
+      await this.playerApi.previous();
+      this.events.emit("playback:previous");
+    }
+  }
+
+  async _seekForward() {
+    if (this.mediaType === "video") {
+      const seekTime = Math.min(this._duration, this._currentTime + 10);
+      await this._seekTo(seekTime);
+    } else if (this.playerApi) {
+      await this.playerApi.next();
+      this.events.emit("playback:next");
     }
   }
 }
