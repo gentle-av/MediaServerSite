@@ -100,10 +100,13 @@ class AlbumCard {
         if (Math.abs(deltaX) > 10 && !isSwiping) {
           isSwiping = true;
         }
-        if (isSwiping && deltaX < 0 && Math.abs(deltaX) <= 160) {
-          e.preventDefault();
+        if (isSwiping && deltaX < 0) {
+          if (e.cancelable) {
+            e.preventDefault();
+          }
           touchMoveX = e.changedTouches[0].clientX;
-          this.element.style.transform = `translateX(${deltaX}px)`;
+          const translateX = Math.max(-90, deltaX);
+          this.element.style.transform = `translateX(${translateX}px)`;
         }
       },
       { passive: false },
@@ -115,9 +118,9 @@ class AlbumCard {
       }
       const deltaX = touchMoveX - touchStartX;
       this.element.style.transition = "transform 0.3s ease";
-      if (deltaX < -70) {
+      if (deltaX < -40) {
         this.element.classList.add("swipe-left");
-        this.element.style.transform = "translateX(-120px)";
+        this.element.style.transform = "translateX(-90px)";
       } else {
         this.element.classList.remove("swipe-left");
         this.element.style.transform = "translateX(0)";
@@ -125,6 +128,7 @@ class AlbumCard {
       setTimeout(() => {
         this.element.style.transition = "";
       }, 300);
+      isSwiping = false;
     });
     document.addEventListener("click", (e) => {
       if (this.container && !this.container.contains(e.target)) {

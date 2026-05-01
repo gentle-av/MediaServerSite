@@ -179,7 +179,6 @@
     gap: 14px;
     padding: 12px;
   }
-
   .album-card {
     flex-direction: row;
     align-items: center;
@@ -192,24 +191,21 @@
     transition: transform 0.3s ease;
     transform: translateX(0);
     z-index: 2;
+    margin: 0;
   }
-
   .album-card.swipe-left {
-    transform: translateX(-150px);
+    transform: translateX(-80px);
   }
-
   .album-card-art {
     width: 90px;
     height: 90px;
     flex-shrink: 0;
     border-radius: var(--radius-md);
   }
-
   .album-card-info {
     padding: 0;
     flex: 1;
   }
-
   .album-card-title {
     font-size: 1rem;
     white-space: normal;
@@ -219,7 +215,6 @@
     display: block;
     -webkit-line-clamp: unset;
   }
-
   .album-card-artist {
     font-size: 0.85rem;
     white-space: normal;
@@ -227,21 +222,18 @@
     overflow-wrap: break-word;
     word-break: break-word;
   }
-
   .album-card-meta {
     margin-top: 4px;
   }
-
   .album-delete-btn {
     display: none;
   }
-
   .album-swipe-delete-container {
     position: relative;
     width: 100%;
     margin-bottom: 14px;
+    overflow: visible;
   }
-
   .album-swipe-delete-container .album-swipe-delete-btn {
     display: flex;
     position: absolute;
@@ -263,55 +255,14 @@
     transition: all 0.2s ease;
     z-index: 1;
   }
-
   .album-swipe-delete-container .album-swipe-delete-btn i {
     font-size: 28px;
     margin-bottom: 4px;
   }
-
   .album-swipe-delete-container .album-swipe-delete-btn:active {
     transform: scale(0.97);
   }
-
   .album-swipe-delete-container .album-card {
     margin: 0;
   }
-}
-
-@media (min-width: 769px) {
-  .album-swipe-delete-container .album-swipe-delete-btn {
-    display: none;
-  }
-}
-
-@media (min-width: 1400px) {
-  .albums-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 14px;
-  }
-}
-
-@media (min-width: 1800px) {
-  .albums-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 12px;
-  }
-
-  .album-card-info {
-    padding: 8px;
-  }
-
-  .album-card-title {
-    font-size: 0.8rem;
-  }
-
-  .album-card-artist {
-    font-size: 0.7rem;
-  }
-}
-
-.album-card-year {
-  font-size: 0.75rem;
-  color: var(--fg3);
-  margin-top: 4px;
 }

@@ -22,6 +22,12 @@ class VideoLibrary {
     }
     this.currentPath = null;
     this.history = [];
+    if (this.container) {
+      const cards = this.container.querySelectorAll(".item-card");
+      cards.forEach((card) => {
+        if (card._cleanupSwipe) card._cleanupSwipe();
+      });
+    }
   }
 
   _bindEvents() {
@@ -221,7 +227,94 @@ class VideoLibrary {
         card.addEventListener("contextmenu", contextHandler);
         card._contextHandler = contextHandler;
       }
+      this._attachSwipeEvents(card);
     });
+  }
+
+  _attachSwipeEvents(card) {
+    if (card._swipeAttached) return;
+    card._swipeAttached = true;
+    let touchStartX = 0;
+    let touchMoveX = 0;
+    let isSwiping = false;
+    const content = card.querySelector(".item-card-content");
+    const onTouchStart = (e) => {
+      if (e.target.closest(".swipe-delete-btn")) return;
+      touchStartX = e.changedTouches[0].clientX;
+      isSwiping = false;
+      content.style.transition = "none";
+    };
+    const onTouchMove = (e) => {
+      const deltaX = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(deltaX) > 10 && !isSwiping) {
+        isSwiping = true;
+      }
+      if (isSwiping && deltaX < 0) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+        touchMoveX = e.changedTouches[0].clientX;
+        const translateX = Math.max(-80, deltaX);
+        content.style.transform = `translateX(${translateX}px)`;
+      }
+    };
+    const onTouchEnd = () => {
+      if (!isSwiping) {
+        content.style.transition = "";
+        return;
+      }
+      const deltaX = touchMoveX - touchStartX;
+      content.style.transition = "transform 0.3s ease";
+      if (deltaX < -40) {
+        card.classList.add("swipe-left");
+        content.style.transform = "translateX(-80px)";
+      } else {
+        card.classList.remove("swipe-left");
+        content.style.transform = "translateX(0)";
+      }
+      setTimeout(() => {
+        content.style.transition = "";
+      }, 300);
+      isSwiping = false;
+    };
+    const onClickOutside = (e) => {
+      if (card.classList.contains("swipe-left") && !card.contains(e.target)) {
+        card.classList.remove("swipe-left");
+        content.style.transform = "translateX(0)";
+      }
+    };
+    card.addEventListener("touchstart", onTouchStart, { passive: true });
+    card.addEventListener("touchmove", onTouchMove, { passive: false });
+    card.addEventListener("touchend", onTouchEnd);
+    document.addEventListener("click", onClickOutside);
+    const deleteBtn = card.querySelector(".swipe-delete-btn");
+    if (deleteBtn && !deleteBtn._swipeDeleteHandler) {
+      deleteBtn._swipeDeleteHandler = async (e) => {
+        e.stopPropagation();
+        const path = card.dataset.path;
+        const isDir = card.dataset.isDir === "true";
+        const name = card.querySelector(".item-name")?.textContent || "";
+        const confirmed = await CustomDeleteDialogInstance.showConfirm(
+          name,
+          isDir,
+        );
+        if (confirmed) {
+          await this.deleteItem(path, name, isDir);
+          if (CustomDeleteDialogInstance.close) {
+            CustomDeleteDialogInstance.close();
+          }
+        }
+        card.classList.remove("swipe-left");
+        content.style.transform = "translateX(0)";
+      };
+      deleteBtn.addEventListener("click", deleteBtn._swipeDeleteHandler);
+    }
+    card._cleanupSwipe = () => {
+      card.removeEventListener("touchstart", onTouchStart);
+      card.removeEventListener("touchmove", onTouchMove);
+      card.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("click", onClickOutside);
+    };
   }
 
   _showContextMenu(x, y, path, name, isDirectory) {
@@ -412,7 +505,7 @@ class VideoLibrary {
             icon.style.width = "auto";
             icon.style.height = "auto";
             icon.style.fontSize = "20px";
-            icon.style.color = "#f39c12"; // Цвет для папки
+            icon.style.color = "#f39c12";
           }
         }
       }
