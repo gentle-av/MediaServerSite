@@ -307,3 +307,12 @@
     min-width: 44px;
   }
 }
+
+.mobile-nav-buttons .header-btn.nav-power-btn.active {
+  background: var(--yellow);
+  color: var(--bg0);
+}
+
+.mobile-nav-buttons .header-btn.nav-power-btn.active i {
+  color: var(--bg0);
+}

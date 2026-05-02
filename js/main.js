@@ -37,6 +37,31 @@ const MediaCenter = {
     await NavigationManager.switchTo("video");
     window.MediaCenter = this;
     console.log("MediaCenter v2.0 ready");
+
+    await this._checkExistingPlaybackAndShowPlayer();
+  },
+
+  async _checkExistingPlaybackAndShowPlayer() {
+    try {
+      const state = await this.playerApi.getPlaybackState();
+      if (state && state.success && state.data && state.data.totalTracks > 0) {
+        console.log("[MediaCenter] Existing audio playback detected");
+        this.universalPlayer.setMediaType("audio");
+        await this.universalPlayer.checkExistingPlayback("audio");
+        this.universalPlayer.show();
+        this._updateUIForPage("audio");
+      } else {
+        const videoStatus = await this.api.get("/api/video/status");
+        if (videoStatus.success && videoStatus.currentFile) {
+          console.log("[MediaCenter] Existing video playback detected");
+          this.universalPlayer.setMediaType("video");
+          await this.universalPlayer.checkExistingPlayback("video");
+          this.universalPlayer.show();
+        }
+      }
+    } catch (error) {
+      console.error("[MediaCenter] Failed to check existing playback:", error);
+    }
   },
 
   _onPowerPageLoaded() {
@@ -110,7 +135,9 @@ const MediaCenter = {
       this.events,
       NavigationManager,
     );
-    this.universalPlayer.setMediaType("video");
+    if (this.universalPlayer && this.universalPlayer.mediaType !== "video") {
+      this.universalPlayer.setMediaType("video");
+    }
     this.events.on("video:refresh", () => {
       if (this.videoLibrary) this.videoLibrary.refresh();
     });
@@ -140,7 +167,9 @@ const MediaCenter = {
   _onAudioPageLoaded() {
     console.log("Audio page loaded, initializing AlbumLibrary...");
     this._updateUIForPage("audio");
-    this.universalPlayer.setMediaType("audio");
+    if (this.universalPlayer && this.universalPlayer.mediaType !== "audio") {
+      this.universalPlayer.setMediaType("audio");
+    }
     if (typeof AlbumModal !== "undefined") {
       if (this.albumModal) {
         this.albumModal.hide();
@@ -231,8 +260,14 @@ const MediaCenter = {
     this.events.on("album:playTrack", ({ album, trackIndex }) => {
       this.playback.playTrack(album, trackIndex);
     });
+    this.events.on("playlistChanged", () => {
+      if (this.universalPlayer) {
+        this.universalPlayer.show();
+      }
+    });
     setTimeout(async () => {
       await this.universalPlayer.checkExistingPlayback("audio");
+      this.universalPlayer.show();
     }, 500);
   },
 

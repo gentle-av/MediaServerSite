@@ -225,9 +225,16 @@ class UniversalPlayer {
         return;
       }
       if (page === "video" || page === "audio") {
-        this.show();
+        if (this.currentFile) {
+          this.show();
+        }
       } else {
         this.hide();
+      }
+    });
+    this.events.on("playlistChanged", () => {
+      if (this.currentFile) {
+        this.show();
       }
     });
   }
@@ -350,6 +357,54 @@ class UniversalPlayer {
         }
       } catch (error) {
         console.error("Failed to check video playback:", error);
+      }
+    }
+    if (type === "audio" && this.playerApi) {
+      try {
+        const state = await this.playerApi.getPlaybackState();
+        if (state && state.success && state.data) {
+          const hasPlayback = state.data.totalTracks > 0;
+          if (hasPlayback) {
+            this.mediaType = type;
+            this.currentFile = state.data.currentTrack;
+            this.isPlaying = state.data.isPlaying || false;
+            this._updateFileInfo(this.currentFile);
+            this._updatePlayPauseButton(this.isPlaying);
+            this._updateMediaIcon();
+            if (
+              this.trackCount &&
+              state.data.currentIndex !== undefined &&
+              state.data.totalTracks !== undefined
+            ) {
+              this.trackCount.textContent = `${state.data.currentIndex + 1}/${state.data.totalTracks}`;
+            }
+            if (this.currentFile && this.musicApi) {
+              const metadata = await this.musicApi.getFileMetadata(
+                this.currentFile,
+              );
+              if (metadata && metadata.data && metadata.data.file) {
+                if (metadata.data.file.title) {
+                  let trackTitle = metadata.data.file.title;
+                  const match = trackTitle.match(/^\d+\s*[-.]?\s*(.+)$/);
+                  if (match) trackTitle = match[1];
+                  if (this.trackName)
+                    this.trackName.textContent = this._escape(trackTitle);
+                }
+                if (metadata.data.file.artist && this.trackArtist) {
+                  this.trackArtist.textContent = this._escape(
+                    metadata.data.file.artist,
+                  );
+                }
+              }
+              await this._loadAlbumCover(this.currentFile);
+            }
+            this.show();
+            this._startProgressPolling();
+            return true;
+          }
+        }
+      } catch (error) {
+        console.error("Failed to check audio playback:", error);
       }
     }
     return false;
@@ -1002,6 +1057,9 @@ class UniversalPlayer {
     if (this.element) {
       this.element.classList.add("active");
       this.element.style.display = "flex";
+      if (this._adjustBottomPadding) {
+        this._adjustBottomPadding();
+      }
       if (
         window.MediaCenter &&
         window.MediaCenter.videoLibrary &&
@@ -1012,6 +1070,16 @@ class UniversalPlayer {
           50,
         );
       }
+    }
+  }
+
+  _adjustBottomPadding() {
+    const scrollable = document.querySelector(".scrollable-content");
+    if (scrollable) {
+      scrollable.style.paddingBottom = "80px";
+    }
+    if (window.innerWidth <= 768 && scrollable) {
+      scrollable.style.paddingBottom = "100px";
     }
   }
 
