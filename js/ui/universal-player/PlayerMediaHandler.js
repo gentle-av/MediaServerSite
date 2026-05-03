@@ -8,8 +8,10 @@ export class PlayerMediaHandler {
   }
 
   async startPlayback(path, type) {
+    console.log("[PlayerMediaHandler] startPlayback called", { path, type });
     if (this.core.isStartingVideo()) return;
     if (this.core.isSameFile(path, type) && this.core.isPlaying) {
+      console.log("[PlayerMediaHandler] same file and playing, calling onShow");
       this.onShow?.();
       return;
     }
@@ -32,13 +34,17 @@ export class PlayerMediaHandler {
   }
 
   async _startVideo(path) {
+    console.log("[PlayerMediaHandler] _startVideo called", path);
     this.core.startStartingVideo();
     this.uiUpdater.updateTrackInfo("Видео", "");
+    console.log("[PlayerMediaHandler] calling onShow before openFile");
+    this.onShow?.();
     try {
       const thumbnail = await this.api.getVideoThumbnail(path);
       if (thumbnail) this.uiUpdater.showPreviewImage(thumbnail);
       await this.api.closeVideo();
       const response = await this.api.openFile(path);
+      console.log("[PlayerMediaHandler] openFile response", response);
       if (!response.success) {
         Utils.showNotification(
           response.error || "Ошибка воспроизведения",
@@ -47,7 +53,6 @@ export class PlayerMediaHandler {
         this.core.finishStartingVideo();
         return;
       }
-      this.onShow?.();
       this.uiUpdater.updatePlayPauseButton(true);
       this.core.setPlaying(true);
       this.core.finishStartingVideo();

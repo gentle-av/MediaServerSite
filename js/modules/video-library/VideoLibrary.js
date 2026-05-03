@@ -36,7 +36,7 @@ export class VideoLibrary {
   }
 
   playVideo(path) {
-    console.log("[VIDEO] playVideo START", path);
+    console.log("[VideoLibrary] playVideo called with path:", path);
     this.events.emit("video:play", path);
     const modal = document.getElementById("videoPreviewModal");
     if (modal) modal.classList.remove("active");

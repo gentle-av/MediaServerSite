@@ -47,7 +47,12 @@ export class UniversalPlayer {
   }
 
   async _init() {
+    console.log("[UniversalPlayer] _init started");
     this.dom.init();
+    console.log(
+      "[UniversalPlayer] DOM initialized, element exists:",
+      !!this.dom.element,
+    );
     this._attachEvents();
     this.eventSubscriber.subscribe();
     await this.volume.loadInitial();
@@ -55,6 +60,7 @@ export class UniversalPlayer {
     this.volume.startPolling();
     this.output.startPolling();
     await this._checkExistingPlayback();
+    console.log("[UniversalPlayer] _init finished");
   }
 
   _attachEvents() {
@@ -141,7 +147,25 @@ export class UniversalPlayer {
   }
 
   show() {
+    console.log("[UniversalPlayer] show called");
+    if (!this.dom.element) {
+      console.log("[UniversalPlayer] DOM element not found, initializing...");
+      this.dom.init();
+    }
+    console.log("[UniversalPlayer] DOM element:", this.dom.element);
+    console.log(
+      "[UniversalPlayer] Current display style:",
+      this.dom.element?.style.display,
+    );
     this.dom.show();
+    console.log(
+      "[UniversalPlayer] After show, display style:",
+      this.dom.element?.style.display,
+    );
+    console.log(
+      "[UniversalPlayer] Active class:",
+      this.dom.element?.classList.contains("active"),
+    );
     this._adjustBottomPadding();
   }
 

@@ -1,4 +1,3 @@
-// js/ui/universal-player/PlayerDOM.js
 export class PlayerDOM {
   constructor() {
     this.element = null;
@@ -6,7 +5,9 @@ export class PlayerDOM {
   }
 
   init() {
+    console.log("[PlayerDOM] init called");
     this.element = document.getElementById("universalBottomPlayer");
+    console.log("[PlayerDOM] element found:", this.element);
     if (!this.element) return false;
     this._cacheElements();
     return true;
@@ -52,9 +53,16 @@ export class PlayerDOM {
   }
 
   show() {
+    console.log("[PlayerDOM] show called");
     if (this.element) {
       this.element.classList.add("active");
       this.element.style.display = "flex";
+      console.log(
+        "[PlayerDOM] after show - display:",
+        this.element.style.display,
+        "active:",
+        this.element.classList.contains("active"),
+      );
     }
   }
 

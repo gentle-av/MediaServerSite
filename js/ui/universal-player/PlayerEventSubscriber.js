@@ -9,6 +9,7 @@ export class PlayerEventSubscriber {
   }
 
   subscribe() {
+    console.log("[PlayerEventSubscriber] subscribe called");
     this.events.on("video:play", (path) => this._onVideoPlay(path));
     this.events.on("playback:audioStart", (path) => this._onAudioStart(path));
     this.events.on("playback:videoStopped", () => this._onVideoStopped());
@@ -20,6 +21,7 @@ export class PlayerEventSubscriber {
   }
 
   _onVideoPlay(path) {
+    console.log("[PlayerEventSubscriber] _onVideoPlay called", path);
     if (this.core.isStartingVideo()) return;
     if (this.core.isSameFile(path, "video")) {
       this.onShow?.();
