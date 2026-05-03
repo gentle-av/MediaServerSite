@@ -1,5 +1,6 @@
 import { UniversalPlayer } from "./ui/universal-player.js";
 import { PlaybackController } from "./core/playback-controller/PlaybackController.js";
+import { VideoLibrary } from "./modules/video-library/VideoLibrary.js";
 
 const MediaCenter = {
   async init() {
