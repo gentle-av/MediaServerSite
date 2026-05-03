@@ -60,9 +60,12 @@ class PlaybackController {
         const state = await this.api.getPlaybackState();
         if (state?.success) {
           this._isPlaying = state.data.isPlaying;
-          this.events.emit("stateChange", state.data);
           if (state.data.currentTrack && window.universalPlayerInstance) {
-            if (!window.universalPlayerInstance.currentFile) {
+            if (
+              !window.universalPlayerInstance.currentFile ||
+              window.universalPlayerInstance.currentFile !==
+                state.data.currentTrack
+            ) {
               window.universalPlayerInstance.currentFile =
                 state.data.currentTrack;
               window.universalPlayerInstance.mediaType = "audio";
@@ -73,13 +76,15 @@ class PlaybackController {
               window.universalPlayerInstance._updatePlayPauseButton(
                 state.data.isPlaying,
               );
+              window.universalPlayerInstance._loadAlbumCover(
+                state.data.currentTrack,
+              );
               window.universalPlayerInstance.show();
-              window.universalPlayerInstance._startProgressPolling();
             }
           }
         }
       }
-    }, 1000);
+    }, 2000);
   }
 
   _stopPolling() {

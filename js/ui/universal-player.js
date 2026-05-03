@@ -368,9 +368,11 @@ class UniversalPlayer {
 
   syncWithPlayback() {
     if (!this.playerApi) return;
-    this.playerApi
-      .getPlaybackState()
-      .then((state) => {
+    Promise.all([
+      this.playerApi.getPlaybackState(),
+      this.playerApi.getCurrentTime(),
+    ])
+      .then(([state, timeInfo]) => {
         if (state && state.success && state.currentTrack) {
           this.currentFile = state.currentTrack;
           this.mediaType = "audio";
@@ -385,6 +387,12 @@ class UniversalPlayer {
             state.totalTracks !== undefined
           ) {
             this.trackCount.textContent = `${state.currentIndex + 1}/${state.totalTracks}`;
+          }
+          if (timeInfo && timeInfo.success) {
+            this._currentTime = timeInfo.currentTime || 0;
+            this._duration = timeInfo.duration || 0;
+            this._updateProgressBar(this._currentTime, this._duration);
+            this._updateTimeDisplay(this._currentTime, this._duration);
           }
           this.show();
           this._startProgressPolling();
@@ -508,6 +516,13 @@ class UniversalPlayer {
       if (this._isDestroyed) return;
       try {
         if (this.mediaType === "audio" && this.playerApi) {
+          const timeInfo = await this.playerApi.getCurrentTime();
+          if (timeInfo && timeInfo.success) {
+            this._currentTime = timeInfo.currentTime || 0;
+            this._duration = timeInfo.duration || 0;
+            this._updateProgressBar(this._currentTime, this._duration);
+            this._updateTimeDisplay(this._currentTime, this._duration);
+          }
           const state = await this.playerApi.getPlaybackState();
           if (state && state.success) {
             if (state.currentTrack && state.currentTrack !== this.currentFile) {
@@ -527,21 +542,10 @@ class UniversalPlayer {
             ) {
               this.trackCount.textContent = `${state.currentIndex + 1}/${state.totalTracks}`;
             }
-            const timeInfo = await this.playerApi.getCurrentTime();
-            if (
-              timeInfo &&
-              timeInfo.success &&
-              timeInfo.currentTime !== undefined
-            ) {
-              this._currentTime = timeInfo.currentTime || 0;
-              this._duration = timeInfo.duration || 0;
-              this._updateProgressBar(this._currentTime, this._duration);
-              this._updateTimeDisplay(this._currentTime, this._duration);
-            }
           }
         }
       } catch (error) {}
-    }, 1000);
+    }, 500);
   }
 
   _updateProgressBar(currentTime, duration) {

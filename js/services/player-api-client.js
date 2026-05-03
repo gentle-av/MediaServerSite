@@ -47,7 +47,15 @@ class PlayerApiClient extends ApiClient {
   }
 
   async getCurrentTime() {
-    return this.get("/api/audio/currentTime");
+    const response = await this.get("/api/audio/currentTime");
+    if (response.success) {
+      return {
+        success: true,
+        currentTime: response.currentTime || response.data?.currentTime || 0,
+        duration: response.duration || response.data?.duration || 0,
+      };
+    }
+    return { success: false, currentTime: 0, duration: 0 };
   }
 
   async play() {
