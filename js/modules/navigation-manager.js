@@ -36,53 +36,35 @@ const NavigationManager = {
   },
 
   async switchTo(page) {
-    if (this.currentPage === page) {
-      console.log("[NavigationManager] Already on page:", page);
-      return;
-    }
-    console.log("[NavigationManager] switchTo:", page);
+    if (this.currentPage === page) return;
     this.currentPage = page;
     this.events.emit("page:changed", page);
     this._updatePageTitle(page);
     this._updateActiveButtons(page);
-
     const searchBox = document.getElementById("globalSearchBox");
-    if (searchBox) {
-      searchBox.style.display = page === "audio" ? "flex" : "none";
-    }
+    if (searchBox) searchBox.style.display = page === "audio" ? "flex" : "none";
     const headerPlaylistBtn = document.getElementById("headerPlaylistBtn");
-    if (headerPlaylistBtn) {
+    if (headerPlaylistBtn)
       headerPlaylistBtn.style.display = page === "audio" ? "flex" : "none";
-    }
     const refreshBtn = document.getElementById("headerRefreshBtn");
-    if (refreshBtn) {
+    if (refreshBtn)
       refreshBtn.style.display = page === "video" ? "flex" : "none";
-    }
     const refreshMetadataBtn = document.getElementById(
       "headerRefreshMetadataBtn",
     );
-    if (refreshMetadataBtn) {
+    if (refreshMetadataBtn)
       refreshMetadataBtn.style.display = page === "audio" ? "flex" : "none";
-    }
-
     const container = document.getElementById("pageContainer");
-    if (!container) {
-      console.error("[NavigationManager] pageContainer not found");
-      return;
-    }
-    console.log("[NavigationManager] Loading page:", page);
+    if (!container) return;
     container.innerHTML =
       '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>';
     try {
       const response = await fetch(`pages/${page}.html`);
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
       const html = await response.text();
       container.innerHTML = html;
-      console.log("[NavigationManager] Page loaded:", page);
       this.events.emit(`page:${page}Loaded`);
-
       const universalPlayer = document.getElementById("universalBottomPlayer");
       if (universalPlayer && window.universalPlayerInstance) {
         const hasActivePlayback =
@@ -95,8 +77,13 @@ const NavigationManager = {
           universalPlayer.classList.remove("active");
         }
       }
+      if (
+        window.universalPlayerInstance &&
+        window.universalPlayerInstance.currentFile
+      ) {
+        window.universalPlayerInstance.show();
+      }
     } catch (error) {
-      console.error("[NavigationManager] Failed to load page:", page, error);
       container.innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle"></i> Ошибка загрузки: ${error.message}</div>`;
     }
   },

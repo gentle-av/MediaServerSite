@@ -3,7 +3,6 @@ const MediaCenter = {
     console.log("MediaCenter v2.0 initializing...");
     this._lastPlayPath = null;
     this._lastPlayTime = 0;
-
     window.addEventListener("beforeunload", () => {
       if (this.videoLibrary) {
         this.videoLibrary.destroy();
@@ -12,12 +11,10 @@ const MediaCenter = {
         this.universalPlayer.destroy();
       }
     });
-
     this.events = new EventBus();
     this.api = new ApiClient();
     this.playerApi = new PlayerApiClient();
     this.musicApi = new MusicApiClient();
-
     if (this.musicApi && !this.musicApi.openMusium) {
       this.musicApi.openMusium = async (tracks) => {
         console.log(
@@ -39,16 +36,13 @@ const MediaCenter = {
         }
       };
     }
-
     NavigationManager.init(this.events);
     this.events.on("page:videoLoaded", () => this._onVideoPageLoaded());
     this.events.on("page:audioLoaded", () => this._onAudioPageLoaded());
     this.events.on("page:powerLoaded", () => this._onPowerPageLoaded());
-
     await this.playerApi.checkAvailability();
     this.playback = new PlaybackController(this.playerApi, this.events);
     await this.playback.init();
-
     this.universalPlayer = new UniversalPlayer(
       this.api,
       this.events,
@@ -59,14 +53,12 @@ const MediaCenter = {
       "[DEBUG] UniversalPlayer instance after init:",
       this.universalPlayer,
     );
-
     this.events.on("player:show", () => {
       console.log("[DEBUG] player:show event received");
       if (this.universalPlayer) {
         this.universalPlayer.show();
       }
     });
-
     window.universalPlayerInstance = this.universalPlayer;
     this.videoLibrary = null;
     this.albumLibrary = null;
@@ -84,12 +76,10 @@ const MediaCenter = {
       "[MediaCenter] Video page loaded, initializing VideoLibrary...",
     );
     this._updateUIForPage("video");
-
     if (this.videoLibrary) {
       this.videoLibrary.destroy();
       this.videoLibrary = null;
     }
-
     setTimeout(() => {
       this.videoLibrary = new VideoLibrary(
         this.api,
@@ -100,7 +90,6 @@ const MediaCenter = {
       this.events.on("video:refresh", () => {
         if (this.videoLibrary) this.videoLibrary.refresh();
       });
-
       setTimeout(async () => {
         await this.universalPlayer.checkExistingPlayback("video");
         if (this.videoLibrary && this.videoLibrary._adjustBottomPadding) {
@@ -111,12 +100,8 @@ const MediaCenter = {
   },
 
   _onAudioPageLoaded() {
-    console.log(
-      "[MediaCenter] Audio page loaded, initializing AlbumLibrary...",
-    );
     this._updateUIForPage("audio");
     this.universalPlayer.setMediaType("audio");
-
     if (typeof AlbumModal !== "undefined") {
       if (this.albumModal) {
         this.albumModal.hide();
@@ -126,7 +111,6 @@ const MediaCenter = {
       const trackList = new TrackList(this.events);
       this.albumModal.setTrackList(trackList);
     }
-
     if (typeof AlbumLibrary !== "undefined") {
       if (this.albumLibrary) {
         this.albumLibrary.destroy();
@@ -143,9 +127,11 @@ const MediaCenter = {
             }
           }
         }
+        if (this.universalPlayer) {
+          this.universalPlayer.syncWithPlayback();
+        }
       });
     }
-
     if (typeof PlaylistPopup !== "undefined" && !this.playlistPopup) {
       this.playlistPopup = new PlaylistPopup(
         this.playback,
@@ -157,7 +143,6 @@ const MediaCenter = {
       this.playlistPopup.tracksCache.clear();
       this.playlistPopup.refresh();
     }
-
     const searchInput = document.getElementById("globalSearchInput");
     const searchClearBtn = document.getElementById("searchClearBtn");
     if (searchInput) {
@@ -192,9 +177,7 @@ const MediaCenter = {
         };
       }
     }
-
     this.events.on("album:play", (album) => {
-      console.log("[MediaCenter] album:play event received", album.title);
       if (album.tracks && album.tracks.length > 0) {
         const trackPaths = album.tracks.map((track) => track.path);
         if (this.musicApi && this.musicApi.playTracks) {
@@ -211,26 +194,15 @@ const MediaCenter = {
         }
       }
     });
-
     this.events.on("album:addToPlaylist", async (album) => {
-      console.log(
-        "[MediaCenter] album:addToPlaylist event received",
-        album.title,
-      );
       await this.playback.addAlbumToPlaylist(album);
     });
-
     this.events.on("album:open", async (album) => {
-      console.log("[MediaCenter] album:open event received", album.title);
       if (this.albumModal) {
         await this.albumModal.show(album);
-      } else {
-        console.error("[MediaCenter] albumModal not available");
       }
     });
-
     this.events.on("album:playMusium", async (album) => {
-      console.log("[MediaCenter] album:playMusium event received", album.title);
       const tracks = album.tracks || [];
       if (tracks.length === 0 && this.musicApi) {
         try {
@@ -240,39 +212,27 @@ const MediaCenter = {
             true,
           );
           tracks.push(...tracksData);
-        } catch (error) {
-          console.error(
-            "[MediaCenter] Failed to load tracks for Musium:",
-            error,
-          );
-        }
+        } catch (error) {}
       }
       const trackPaths = tracks.map((track) => track.path);
-      console.log(
-        "[MediaCenter] Sending to Musium:",
-        trackPaths.length,
-        "tracks",
-      );
       if (this.musicApi && this.musicApi.openMusium) {
         await this.musicApi.openMusium(trackPaths);
-      } else {
-        console.error("[MediaCenter] musicApi.openMusium not available");
       }
     });
-
     this.events.on("album:replacePlaylist", async (album) => {
       await this.playback.api.clearPlaylist();
       await this.playback.addAlbumToPlaylist(album);
       this.events.emit("playlistCleared");
       this.events.emit("playlistChanged");
     });
-
     this.events.on("album:playTrack", ({ album, trackIndex }) => {
       this.playback.playTrack(album, trackIndex);
     });
-
     setTimeout(async () => {
       await this.universalPlayer.checkExistingPlayback("audio");
+      if (this.universalPlayer && this.universalPlayer.currentFile) {
+        this.universalPlayer.show();
+      }
     }, 500);
   },
 
@@ -288,7 +248,6 @@ const MediaCenter = {
       "headerRefreshMetadataBtn",
     );
     const globalSearchBox = document.getElementById("globalSearchBox");
-
     if (page === "audio") {
       if (mainContent) {
         mainContent.classList.add("audio-page");

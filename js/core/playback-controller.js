@@ -60,14 +60,26 @@ class PlaybackController {
         const state = await this.api.getPlaybackState();
         if (state?.success) {
           this._isPlaying = state.data.isPlaying;
-          const trackName = state.data.track || "";
-          this.events.emit("stateChange", {
-            ...state.data,
-            currentTrackName: trackName,
-          });
+          this.events.emit("stateChange", state.data);
+          if (state.data.currentTrack && window.universalPlayerInstance) {
+            if (!window.universalPlayerInstance.currentFile) {
+              window.universalPlayerInstance.currentFile =
+                state.data.currentTrack;
+              window.universalPlayerInstance.mediaType = "audio";
+              window.universalPlayerInstance._updateFileInfo(
+                state.data.currentTrack,
+              );
+              window.universalPlayerInstance._updateMediaIcon();
+              window.universalPlayerInstance._updatePlayPauseButton(
+                state.data.isPlaying,
+              );
+              window.universalPlayerInstance.show();
+              window.universalPlayerInstance._startProgressPolling();
+            }
+          }
         }
       }
-    }, 2000);
+    }, 1000);
   }
 
   _stopPolling() {

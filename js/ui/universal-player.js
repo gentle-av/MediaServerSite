@@ -33,11 +33,9 @@ class UniversalPlayer {
   }
 
   async checkExistingPlayback(type) {
-    console.log("[UNIVERSAL] checkExistingPlayback called for type:", type);
     try {
       if (type === "audio" && this.playerApi) {
         const state = await this.playerApi.getPlaybackState();
-        console.log("[UNIVERSAL] Audio playback state:", state);
         if (state && state.success && state.currentTrack) {
           this.currentFile = state.currentTrack;
           this.mediaType = "audio";
@@ -52,7 +50,6 @@ class UniversalPlayer {
         }
       } else if (type === "video") {
         const status = await this.api.get("/api/video/status");
-        console.log("[UNIVERSAL] Video status:", status);
         if (status.success && status.currentFile) {
           this.currentFile = status.currentFile;
           this.mediaType = "video";
@@ -70,9 +67,7 @@ class UniversalPlayer {
           return true;
         }
       }
-    } catch (error) {
-      console.log("[UNIVERSAL] checkExistingPlayback error:", error);
-    }
+    } catch (error) {}
     return false;
   }
 
@@ -315,7 +310,7 @@ class UniversalPlayer {
     if (this.mediaType === "video") {
       return;
     }
-    if (state.currentTrack) {
+    if (state.currentTrack && state.currentTrack !== this.currentFile) {
       this.currentFile = state.currentTrack;
       let fileName = this.currentFile.split("/").pop();
       fileName = fileName.replace(/\.(flac|mp3|m4a|wav|ogg|aac)$/i, "");
@@ -357,13 +352,45 @@ class UniversalPlayer {
           .catch(() => {});
       }
     }
+    const wasPlaying = this.isPlaying;
     this.isPlaying = state.isPlaying || false;
-    this._updatePlayPauseButton(this.isPlaying);
-    if (state.currentIndex !== undefined && state.totalTracks !== undefined) {
-      if (this.trackCount) {
-        this.trackCount.textContent = `${state.currentIndex + 1}/${state.totalTracks}`;
-      }
+    if (wasPlaying !== this.isPlaying) {
+      this._updatePlayPauseButton(this.isPlaying);
     }
+    if (
+      state.currentIndex !== undefined &&
+      state.totalTracks !== undefined &&
+      this.trackCount
+    ) {
+      this.trackCount.textContent = `${state.currentIndex + 1}/${state.totalTracks}`;
+    }
+  }
+
+  syncWithPlayback() {
+    if (!this.playerApi) return;
+    this.playerApi
+      .getPlaybackState()
+      .then((state) => {
+        if (state && state.success && state.currentTrack) {
+          this.currentFile = state.currentTrack;
+          this.mediaType = "audio";
+          this.isPlaying = state.isPlaying || false;
+          this._updateFileInfo(this.currentFile);
+          this._updateMediaIcon();
+          this._updatePlayPauseButton(this.isPlaying);
+          this._loadAlbumCover(this.currentFile);
+          if (
+            this.trackCount &&
+            state.currentIndex !== undefined &&
+            state.totalTracks !== undefined
+          ) {
+            this.trackCount.textContent = `${state.currentIndex + 1}/${state.totalTracks}`;
+          }
+          this.show();
+          this._startProgressPolling();
+        }
+      })
+      .catch(() => {});
   }
 
   _updateTrackInfo(title, artist) {
@@ -480,47 +507,18 @@ class UniversalPlayer {
     this._progressInterval = setInterval(async () => {
       if (this._isDestroyed) return;
       try {
-        if (this.mediaType === "video") {
-          const response = await this.api.get("/api/video/status");
-          if (response.success) {
-            const newPlaying = response.playing && !response.paused;
-            if (this.isPlaying !== newPlaying && !this._ignorePollingUpdate) {
-              this.isPlaying = newPlaying;
-              this._updatePlayPauseButton(this.isPlaying);
-            }
-            this._currentTime = response.currentTime || 0;
-            this._duration = response.duration || 0;
-            this._updateProgressBar(this._currentTime, this._duration);
-            this._updateTimeDisplay(this._currentTime, this._duration);
-            if (response.currentFile && !this.currentFile) {
-              this.currentFile = response.currentFile;
-              this._updateFileInfo(this.currentFile);
-            }
-          }
-        }
         if (this.mediaType === "audio" && this.playerApi) {
-          const timeInfo = await this.playerApi.getCurrentTime();
-          if (
-            timeInfo &&
-            timeInfo.success &&
-            timeInfo.currentTime !== undefined
-          ) {
-            this._currentTime = timeInfo.currentTime || 0;
-            this._duration = timeInfo.duration || 0;
-            this._updateProgressBar(this._currentTime, this._duration);
-            this._updateTimeDisplay(this._currentTime, this._duration);
-          }
           const state = await this.playerApi.getPlaybackState();
           if (state && state.success) {
-            const wasPlaying = this.isPlaying;
-            this.isPlaying = state.isPlaying || false;
-            if (wasPlaying !== this.isPlaying) {
-              this._updatePlayPauseButton(this.isPlaying);
-            }
             if (state.currentTrack && state.currentTrack !== this.currentFile) {
               this.currentFile = state.currentTrack;
               this._updateFileInfo(this.currentFile);
               await this._loadAlbumCover(this.currentFile);
+            }
+            const wasPlaying = this.isPlaying;
+            this.isPlaying = state.isPlaying || false;
+            if (wasPlaying !== this.isPlaying) {
+              this._updatePlayPauseButton(this.isPlaying);
             }
             if (
               this.trackCount &&
@@ -529,22 +527,21 @@ class UniversalPlayer {
             ) {
               this.trackCount.textContent = `${state.currentIndex + 1}/${state.totalTracks}`;
             }
+            const timeInfo = await this.playerApi.getCurrentTime();
             if (
-              (!state.currentTrack || state.totalTracks === 0) &&
-              this.currentFile
+              timeInfo &&
+              timeInfo.success &&
+              timeInfo.currentTime !== undefined
             ) {
-              this.currentFile = null;
-              if (this.trackName) this.trackName.textContent = "—";
-              if (this.trackArtist) this.trackArtist.textContent = "";
-              if (this.trackCount) this.trackCount.textContent = "";
-              if (this.progressFill) this.progressFill.style.width = "0%";
-              if (this.timeCurrent) this.timeCurrent.textContent = "0:00";
-              if (this.timeTotal) this.timeTotal.textContent = "0:00";
+              this._currentTime = timeInfo.currentTime || 0;
+              this._duration = timeInfo.duration || 0;
+              this._updateProgressBar(this._currentTime, this._duration);
+              this._updateTimeDisplay(this._currentTime, this._duration);
             }
           }
         }
       } catch (error) {}
-    }, 2000);
+    }, 1000);
   }
 
   _updateProgressBar(currentTime, duration) {
@@ -1036,29 +1033,22 @@ class UniversalPlayer {
   }
 
   show() {
-    console.log("[UNIVERSAL] show() called", {
-      elementExists: !!this.element,
-      currentFile: this.currentFile,
-    });
     if (this.element) {
       this.element.classList.add("active");
       this.element.style.display = "flex";
-      console.log("[UNIVERSAL] Player shown, display: flex");
       if (this._adjustBottomPadding) {
         this._adjustBottomPadding();
       }
-      if (
-        window.MediaCenter &&
-        window.MediaCenter.videoLibrary &&
-        window.MediaCenter.videoLibrary._adjustBottomPadding
-      ) {
-        setTimeout(
-          () => window.MediaCenter.videoLibrary._adjustBottomPadding(),
-          50,
-        );
+      if (window.MediaCenter && window.MediaCenter.videoLibrary) {
+        setTimeout(() => {
+          if (
+            window.MediaCenter.videoLibrary &&
+            window.MediaCenter.videoLibrary._adjustBottomPadding
+          ) {
+            window.MediaCenter.videoLibrary._adjustBottomPadding();
+          }
+        }, 50);
       }
-    } else {
-      console.error("[UNIVERSAL] show() failed - element is null");
     }
   }
 
