@@ -1,24 +1,4 @@
-// Временно закомментировать или удалить эту строку:
-// import { ApiResponse, RequestOptions } from '../types/api';
-
-// И добавить прямо в файл:
-type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
-
-interface RequestOptions {
-  method?: HttpMethod;
-  headers?: HeadersInit;
-  body?: any;
-  signal?: AbortSignal;
-}
-
-interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-  statusCode?: number;
-  statusText?: string;
-}
+import { ApiResponse, RequestOptions } from "../types/api.js";
 
 export class ApiClient {
   protected baseUrl: string;
@@ -35,7 +15,10 @@ export class ApiClient {
   }
 
   private getDefaultBaseUrl(): string {
-    return `http://${window.location.hostname}:${window.location.port}`;
+    if (typeof window !== "undefined" && window.location) {
+      return `http://${window.location.hostname}:${window.location.port}`;
+    }
+    return "http://192.168.50.11:9093";
   }
 
   setAuthToken(token: string): void {
