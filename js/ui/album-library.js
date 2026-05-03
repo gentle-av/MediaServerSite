@@ -1,4 +1,3 @@
-// album-library.js
 class AlbumLibrary {
   constructor(musicApi, events) {
     this.api = musicApi;
@@ -17,6 +16,25 @@ class AlbumLibrary {
     this._isLoadingMore = false;
     this._lastClickedAlbum = null;
     this._lastClickTime = 0;
+    this._trackPathToMetadata = new Map();
+  }
+
+  _indexTracks() {
+    this._trackPathToMetadata.clear();
+    for (const album of this.albums) {
+      for (const track of album.tracks) {
+        this._trackPathToMetadata.set(track.path, {
+          title: track.title || track.name,
+          artist: album.artist,
+          album: album.title,
+          duration: track.duration || 0,
+        });
+      }
+    }
+  }
+
+  getMetadataByPath(path) {
+    return this._trackPathToMetadata.get(path);
   }
 
   destroy() {
@@ -59,6 +77,7 @@ class AlbumLibrary {
     this._currentArtistIndex = 0;
     this._artistsList = await this.api.getArtists();
     await this._loadMoreAlbums();
+    this._indexTracks();
     this._render();
   }
 
@@ -91,40 +110,62 @@ class AlbumLibrary {
     if (this._isLoadingMore || this._isDestroyed) return;
     this._isLoadingMore = true;
     this._render();
+    const PARALLEL_LIMIT = 5;
     while (this._currentArtistIndex < this._artistsList.length) {
-      const artist = this._artistsList[this._currentArtistIndex];
-      const result = await this.api.getAlbumsPaginated(
-        artist,
-        this._currentPage,
-        this._pageSize,
+      const batchArtists = this._artistsList.slice(
+        this._currentArtistIndex,
+        this._currentArtistIndex + PARALLEL_LIMIT,
       );
-      if (result.albums && result.albums.length > 0) {
-        for (const albumData of result.albums) {
+      const batchResults = await Promise.all(
+        batchArtists.map((artist) =>
+          this.api.getAlbumsPaginated(
+            artist,
+            this._currentPage,
+            this._pageSize,
+          ),
+        ),
+      );
+      const allAlbums = [];
+      for (const result of batchResults) {
+        if (result.albums) allAlbums.push(...result.albums);
+      }
+      const albumsWithCovers = await Promise.all(
+        allAlbums.map(async (albumData) => {
           const key = `${albumData.artist}|${albumData.album}`;
           if (!this.albums.some((a) => `${a.artist}|${a.title}` === key)) {
             const coverUrl = await this.api.fetchAlbumCover(
               albumData.album,
               albumData.artist,
             );
-            const album = new Album({
+            return new Album({
               title: albumData.album,
               artist: albumData.artist,
               year: albumData.year,
               tracks: [],
               coverUrl,
             });
-            this.albums.push(album);
           }
-        }
-        this.filteredAlbums = [...this.albums];
-        this._render();
-        if (result.pagination.hasNext) {
-          this._currentPage++;
-          this._isLoadingMore = false;
-          return;
+          return null;
+        }),
+      );
+      for (const album of albumsWithCovers) {
+        if (album) this.albums.push(album);
+      }
+      this.filteredAlbums = [...this.albums];
+      this._render();
+      let hasNext = false;
+      for (const result of batchResults) {
+        if (result.pagination && result.pagination.hasNext) {
+          hasNext = true;
+          break;
         }
       }
-      this._currentArtistIndex++;
+      if (hasNext) {
+        this._currentPage++;
+        this._isLoadingMore = false;
+        return;
+      }
+      this._currentArtistIndex += PARALLEL_LIMIT;
       this._currentPage = 1;
     }
     this._isLoadingMore = false;

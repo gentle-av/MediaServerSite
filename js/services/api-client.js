@@ -1,14 +1,27 @@
 class ApiClient {
   constructor() {
     this.baseUrl = `http://${window.location.hostname}:${window.location.port}`;
+    this._pendingRequests = new Map();
   }
 
-  _debugLog(message, data = null) {
-    const timestamp = new Date().toISOString().split("T")[1].slice(0, 12);
-    console.log(`[API-DEBUG ${timestamp}] ${message}`, data || "");
-  }
+  _debugLog(message, data = null) {}
 
   async request(endpoint, options = {}) {
+    const cacheKey = `${options.method || "GET"}:${endpoint}`;
+    if (this._pendingRequests.has(cacheKey)) {
+      return this._pendingRequests.get(cacheKey);
+    }
+    const promise = this._doRequest(endpoint, options);
+    this._pendingRequests.set(cacheKey, promise);
+    try {
+      const result = await promise;
+      return result;
+    } finally {
+      setTimeout(() => this._pendingRequests.delete(cacheKey), 100);
+    }
+  }
+
+  async _doRequest(endpoint, options = {}) {
     const startTime = Date.now();
     this._debugLog(`REQUEST ${options.method || "GET"} ${endpoint}`);
     try {
@@ -17,12 +30,20 @@ class ApiClient {
         ...options,
       });
       const duration = Date.now() - startTime;
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        data = { success: false, error: "Invalid JSON response" };
+      }
+      const success = data?.success !== undefined ? data.success : response.ok;
+      const result = { success, ...data };
       this._debugLog(`RESPONSE ${duration}ms ${endpoint}`, {
         status: response.status,
-        success: data?.success,
+        success: result.success,
+        hasData: !!result.data,
       });
-      return data;
+      return result;
     } catch (error) {
       const duration = Date.now() - startTime;
       this._debugLog(`ERROR ${duration}ms ${endpoint}`, error.message);
@@ -34,7 +55,7 @@ class ApiClient {
     return this.request(endpoint, { method: "GET" });
   }
 
-  async post(endpoint, data) {
+  async post(endpoint, data = {}) {
     return this.request(endpoint, {
       method: "POST",
       body: JSON.stringify(data),

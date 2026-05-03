@@ -32,6 +32,64 @@ class UniversalPlayer {
     this._ignorePollingUpdate = false;
   }
 
+  async checkExistingPlayback(type) {
+    console.log("[UNIVERSAL] checkExistingPlayback called for type:", type);
+    try {
+      if (type === "audio" && this.playerApi) {
+        const state = await this.playerApi.getPlaybackState();
+        console.log("[UNIVERSAL] Audio playback state:", state);
+        if (state && state.success && state.currentTrack) {
+          this.currentFile = state.currentTrack;
+          this.mediaType = "audio";
+          this.isPlaying = state.isPlaying || false;
+          this._updateFileInfo(this.currentFile);
+          this._updateMediaIcon();
+          this._updatePlayPauseButton(this.isPlaying);
+          await this._loadAlbumCover(this.currentFile);
+          this.show();
+          this._startProgressPolling();
+          return true;
+        }
+      } else if (type === "video") {
+        const status = await this.api.get("/api/video/status");
+        console.log("[UNIVERSAL] Video status:", status);
+        if (status.success && status.currentFile) {
+          this.currentFile = status.currentFile;
+          this.mediaType = "video";
+          this.isPlaying = status.playing && !status.paused;
+          this._duration = status.duration || 0;
+          this._currentTime = status.currentTime || 0;
+          this._updateFileInfo(this.currentFile);
+          this._updateMediaIcon();
+          this._updatePlayPauseButton(this.isPlaying);
+          this._updateProgressBar(this._currentTime, this._duration);
+          this._updateTimeDisplay(this._currentTime, this._duration);
+          await this._loadVideoPreview(this.currentFile);
+          this.show();
+          this._startProgressPolling();
+          return true;
+        }
+      }
+    } catch (error) {
+      console.log("[UNIVERSAL] checkExistingPlayback error:", error);
+    }
+    return false;
+  }
+
+  setMediaType(type) {
+    this.mediaType = type;
+    this._updateMediaIcon();
+    if (this._progressInterval) {
+      clearInterval(this._progressInterval);
+      this._progressInterval = null;
+      this._isPollingStarted = false;
+    }
+    this._startProgressPolling();
+    if (this.currentFile) {
+      this.show();
+    }
+  }
+
   _createPanel() {
     if (document.getElementById("universalBottomPlayer")) return;
     this.element = document.createElement("div");
@@ -184,13 +242,15 @@ class UniversalPlayer {
         path,
         currentFile: this.currentFile,
         mediaType: this.mediaType,
+        isStartingVideo: this._isStartingVideo,
       });
+      if (this._isStartingVideo) {
+        console.log("[UNIVERSAL] Already starting video, ignoring duplicate");
+        return;
+      }
       if (this.currentFile === path && this.mediaType === "video") {
         console.log("[UNIVERSAL] Same video, showing player");
         this.show();
-        if (!this.isPlaying) {
-          this._togglePlayPause();
-        }
         return;
       }
       if (this.mediaType === "audio" && this.currentFile) {
@@ -320,211 +380,6 @@ class UniversalPlayer {
     }
   }
 
-  setMediaType(type) {
-    this.mediaType = type;
-    this._updateMediaIcon();
-    if (this._progressInterval) {
-      clearInterval(this._progressInterval);
-      this._progressInterval = null;
-      this._isPollingStarted = false;
-    }
-    this._startProgressPolling();
-  }
-
-  async checkExistingPlayback(type) {
-    if (this._isDestroyed) return false;
-    if (type === "video") {
-      try {
-        const response = await this.api.get("/api/video/status");
-        if (response.success && response.playing && response.currentFile) {
-          this.mediaType = type;
-          this.currentFile = response.currentFile;
-          this.isPlaying = !response.paused;
-          this._currentTime = response.currentTime || 0;
-          this._duration = response.duration || 0;
-          this._updateFileInfo(this.currentFile);
-          this._updateProgressBar(this._currentTime, this._duration);
-          this._updateTimeDisplay(this._currentTime, this._duration);
-          this._updatePlayPauseButton(this.isPlaying);
-          this._updateMediaIcon();
-          await this._loadVideoPreview(this.currentFile);
-          if (this.trackArtist) this.trackArtist.textContent = "Видео";
-          this.show();
-          this._startProgressPolling();
-          return true;
-        } else if (
-          response.success &&
-          !response.playing &&
-          response.currentFile
-        ) {
-          this.mediaType = type;
-          this.currentFile = response.currentFile;
-          this.isPlaying = false;
-          this._updateFileInfo(this.currentFile);
-          this._updateMediaIcon();
-          await this._loadVideoPreview(this.currentFile);
-          this.show();
-          return true;
-        }
-      } catch (error) {
-        console.error("Failed to check video playback:", error);
-      }
-    }
-    if (type === "audio" && this.playerApi) {
-      try {
-        const state = await this.playerApi.getPlaybackState();
-        if (state && state.success && state.data) {
-          const hasPlayback = state.data.totalTracks > 0;
-          if (hasPlayback) {
-            this.mediaType = type;
-            this.currentFile = state.data.currentTrack;
-            this.isPlaying = state.data.isPlaying || false;
-            this._updateFileInfo(this.currentFile);
-            this._updatePlayPauseButton(this.isPlaying);
-            this._updateMediaIcon();
-            if (
-              this.trackCount &&
-              state.data.currentIndex !== undefined &&
-              state.data.totalTracks !== undefined
-            ) {
-              this.trackCount.textContent = `${state.data.currentIndex + 1}/${state.data.totalTracks}`;
-            }
-            if (this.currentFile && this.musicApi) {
-              const metadata = await this.musicApi.getFileMetadata(
-                this.currentFile,
-              );
-              if (metadata && metadata.data && metadata.data.file) {
-                if (metadata.data.file.title) {
-                  let trackTitle = metadata.data.file.title;
-                  const match = trackTitle.match(/^\d+\s*[-.]?\s*(.+)$/);
-                  if (match) trackTitle = match[1];
-                  if (this.trackName)
-                    this.trackName.textContent = this._escape(trackTitle);
-                }
-                if (metadata.data.file.artist && this.trackArtist) {
-                  this.trackArtist.textContent = this._escape(
-                    metadata.data.file.artist,
-                  );
-                }
-              }
-              await this._loadAlbumCover(this.currentFile);
-            }
-            this.show();
-            this._startProgressPolling();
-            return true;
-          }
-        }
-      } catch (error) {
-        console.error("Failed to check audio playback:", error);
-      }
-    }
-    return false;
-  }
-
-  async startPlayback(path, type) {
-    console.log("[UNIVERSAL] startPlayback called", {
-      path,
-      type,
-      isStartingVideo: this._isStartingVideo,
-    });
-    if (this._isStartingVideo) {
-      console.log("[UNIVERSAL] Already starting video, returning");
-      return;
-    }
-    if (
-      this.currentFile === path &&
-      this.mediaType === type &&
-      this.isPlaying
-    ) {
-      console.log("[UNIVERSAL] Same file already playing, just showing");
-      this.show();
-      return;
-    }
-    if (this.mediaType && this.mediaType !== type && this.currentFile) {
-      console.log("[UNIVERSAL] Switching media type, stopping current");
-      await this.stop();
-    }
-    if (type === "video") {
-      this._isStartingVideo = true;
-    }
-    this.setMediaType(type);
-    this.currentFile = path;
-    this._updateFileInfo(path);
-    this._updateMediaIcon();
-    if (type === "video") {
-      await this._loadVideoPreview(path);
-      if (this.trackArtist) this.trackArtist.textContent = "Видео";
-      try {
-        console.log("[UNIVERSAL] Calling /api/open");
-        const response = await this.api.post("/api/open", { path });
-        console.log("[UNIVERSAL] /api/open response", response);
-        if (!response.success) {
-          Utils.showNotification(
-            response.error || "Ошибка воспроизведения",
-            "error",
-          );
-          this._isStartingVideo = false;
-          return;
-        }
-        console.log("[UNIVERSAL] Calling show()");
-        this.show();
-        this._updatePlayPauseButton(true);
-        this.isPlaying = true;
-        setTimeout(async () => {
-          const status = await this.api.get("/api/video/status");
-          console.log("[UNIVERSAL] Video status after delay", status);
-          const isActuallyPlaying = !status.paused;
-          if (this.isPlaying !== isActuallyPlaying) {
-            this.isPlaying = isActuallyPlaying;
-            this._updatePlayPauseButton(this.isPlaying);
-          }
-          this._isStartingVideo = false;
-        }, 500);
-      } catch (error) {
-        console.error("[UNIVERSAL] Error starting video:", error);
-        Utils.showNotification("Ошибка запуска видео", "error");
-        this._isStartingVideo = false;
-      }
-    } else {
-      try {
-        await this.api.post("/api/video/close").catch(() => {});
-      } catch (error) {}
-      await this._loadAlbumCover(path);
-      console.log("[UNIVERSAL] Audio playback starting, showing player");
-      this.show();
-      this._updatePlayPauseButton(true);
-      this.isPlaying = true;
-      setTimeout(async () => {
-        if (this.playerApi) {
-          const timeInfo = await this.playerApi.getCurrentTime();
-          if (timeInfo && timeInfo.data && timeInfo.data.duration > 0) {
-            this._duration = timeInfo.data.duration;
-            this._updateTimeDisplay(this._currentTime, this._duration);
-          }
-          const state = await this.playerApi.getPlaybackState();
-          if (state && state.data && state.data.currentTrack) {
-            this.currentFile = state.data.currentTrack;
-            this._updateFileInfo(this.currentFile);
-          }
-        }
-      }, 500);
-    }
-  }
-
-  setMediaType(type) {
-    this.mediaType = type;
-    this._updateMediaIcon();
-    if (this._progressInterval) {
-      clearInterval(this._progressInterval);
-      this._progressInterval = null;
-      this._isPollingStarted = false;
-    }
-    this._startProgressPolling();
-    if (this.currentFile) {
-      this.show();
-    }
-  }
-
   _updateMediaIcon() {
     if (this.previewIcon) {
       if (this.mediaType === "video") {
@@ -645,36 +500,37 @@ class UniversalPlayer {
         }
         if (this.mediaType === "audio" && this.playerApi) {
           const timeInfo = await this.playerApi.getCurrentTime();
-          if (timeInfo && timeInfo.success && timeInfo.data) {
-            this._currentTime = timeInfo.data.currentTime || 0;
-            this._duration = timeInfo.data.duration || 0;
+          if (
+            timeInfo &&
+            timeInfo.success &&
+            timeInfo.currentTime !== undefined
+          ) {
+            this._currentTime = timeInfo.currentTime || 0;
+            this._duration = timeInfo.duration || 0;
             this._updateProgressBar(this._currentTime, this._duration);
             this._updateTimeDisplay(this._currentTime, this._duration);
           }
           const state = await this.playerApi.getPlaybackState();
-          if (state && state.success && state.data) {
+          if (state && state.success) {
             const wasPlaying = this.isPlaying;
-            this.isPlaying = state.data.isPlaying || false;
+            this.isPlaying = state.isPlaying || false;
             if (wasPlaying !== this.isPlaying) {
               this._updatePlayPauseButton(this.isPlaying);
             }
-            if (
-              state.data.currentTrack &&
-              state.data.currentTrack !== this.currentFile
-            ) {
-              this.currentFile = state.data.currentTrack;
+            if (state.currentTrack && state.currentTrack !== this.currentFile) {
+              this.currentFile = state.currentTrack;
               this._updateFileInfo(this.currentFile);
               await this._loadAlbumCover(this.currentFile);
             }
             if (
               this.trackCount &&
-              state.data.currentIndex !== undefined &&
-              state.data.totalTracks !== undefined
+              state.currentIndex !== undefined &&
+              state.totalTracks !== undefined
             ) {
-              this.trackCount.textContent = `${state.data.currentIndex + 1}/${state.data.totalTracks}`;
+              this.trackCount.textContent = `${state.currentIndex + 1}/${state.totalTracks}`;
             }
             if (
-              (!state.data.currentTrack || state.data.totalTracks === 0) &&
+              (!state.currentTrack || state.totalTracks === 0) &&
               this.currentFile
             ) {
               this.currentFile = null;
@@ -688,7 +544,7 @@ class UniversalPlayer {
           }
         }
       } catch (error) {}
-    }, 500);
+    }, 2000);
   }
 
   _updateProgressBar(currentTime, duration) {
@@ -1100,6 +956,83 @@ class UniversalPlayer {
         }
       } catch (e) {}
     }, 1000);
+  }
+
+  async startPlayback(path, type) {
+    console.log("[UNIVERSAL] startPlayback called", {
+      path,
+      type,
+      isStartingVideo: this._isStartingVideo,
+    });
+    if (this._isStartingVideo) {
+      console.log("[UNIVERSAL] Already starting video, returning");
+      return;
+    }
+    if (
+      this.currentFile === path &&
+      this.mediaType === type &&
+      this.isPlaying
+    ) {
+      console.log("[UNIVERSAL] Same file already playing, just showing");
+      this.show();
+      return;
+    }
+    if (this.mediaType && this.mediaType !== type && this.currentFile) {
+      console.log("[UNIVERSAL] Switching media type, stopping current");
+      await this.stop();
+    }
+    this.setMediaType(type);
+    this.currentFile = path;
+    this._updateFileInfo(path);
+    this._updateMediaIcon();
+    if (type === "video") {
+      this._isStartingVideo = true;
+      await this._loadVideoPreview(path);
+      if (this.trackArtist) this.trackArtist.textContent = "Видео";
+      try {
+        console.log("[UNIVERSAL] Calling /api/open");
+        const response = await this.api.post("/api/open", { path });
+        console.log("[UNIVERSAL] /api/open response", response);
+        if (!response.success) {
+          Utils.showNotification(
+            response.error || "Ошибка воспроизведения",
+            "error",
+          );
+          this._isStartingVideo = false;
+          return;
+        }
+        this.show();
+        this._updatePlayPauseButton(true);
+        this.isPlaying = true;
+        this._isStartingVideo = false;
+      } catch (error) {
+        console.error("[UNIVERSAL] Error starting video:", error);
+        Utils.showNotification("Ошибка запуска видео", "error");
+        this._isStartingVideo = false;
+      }
+    } else {
+      try {
+        await this.api.post("/api/video/close").catch(() => {});
+      } catch (error) {}
+      await this._loadAlbumCover(path);
+      this.show();
+      this._updatePlayPauseButton(true);
+      this.isPlaying = true;
+      setTimeout(async () => {
+        if (this.playerApi) {
+          const timeInfo = await this.playerApi.getCurrentTime();
+          if (timeInfo && timeInfo.data && timeInfo.data.duration > 0) {
+            this._duration = timeInfo.data.duration;
+            this._updateTimeDisplay(this._currentTime, this._duration);
+          }
+          const state = await this.playerApi.getPlaybackState();
+          if (state && state.data && state.data.currentTrack) {
+            this.currentFile = state.data.currentTrack;
+            this._updateFileInfo(this.currentFile);
+          }
+        }
+      }, 500);
+    }
   }
 
   show() {

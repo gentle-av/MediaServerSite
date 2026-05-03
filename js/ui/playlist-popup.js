@@ -5,7 +5,24 @@ class PlaylistPopup {
     this.albumLibrary = albumLibrary;
     this.musicApi = null;
     this.tracksCache = new Map();
+    this._trackIndex = new Map();
+    this._rebuildIndex();
     this._init();
+  }
+
+  _rebuildIndex() {
+    this._trackIndex.clear();
+    if (!this.albumLibrary?.albums) return;
+    for (const album of this.albumLibrary.albums) {
+      for (const track of album.tracks) {
+        this._trackIndex.set(track.path, {
+          title: track.title || track.name,
+          artist: album.artist,
+          album: album.title,
+          duration: track.duration || 0,
+        });
+      }
+    }
   }
 
   _getElements() {
@@ -27,21 +44,51 @@ class PlaylistPopup {
   }
 
   _findArtistFromLibrary(filePath) {
-    if (!this.albumLibrary || !this.albumLibrary.albums) {
-      return null;
-    }
-    for (const album of this.albumLibrary.albums) {
-      for (const track of album.tracks) {
-        if (track.path === filePath) {
+    return this._trackIndex.get(filePath) || null;
+  }
+  async refresh() {
+    this._getElements();
+    if (!this.container) return;
+    const playlistData = await this.playback.api.getPlaylist();
+    const state = await this.playback.api.getPlaybackState();
+    let currentPath = state?.data?.currentTrack;
+    let currentIndex = state?.data?.currentIndex ?? -1;
+    let tracks = playlistData?.data || [];
+    if (!Array.isArray(tracks)) tracks = [];
+    const BATCH_SIZE = 10;
+    const tracksWithMetadata = [];
+    for (let i = 0; i < tracks.length; i += BATCH_SIZE) {
+      const batch = tracks.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batch.map(async (track, idx) => {
+          const path = typeof track === "string" ? track : track.path;
+          let metadata = this._trackIndex.get(path);
+          if (!metadata) {
+            const fileName = this._getFileName(path);
+            const artistFromPath = this._extractArtistFromPath(path);
+            metadata = {
+              title: fileName,
+              artist: artistFromPath || "Неизвестный исполнитель",
+              album: "",
+              duration: 0,
+            };
+          }
           return {
-            artist: album.artist,
-            title: track.title || track.name,
-            album: album.title,
+            path: path,
+            title: metadata.title,
+            artist: metadata.artist,
+            album: metadata.album,
+            duration: metadata.duration,
+            index: i + idx,
           };
-        }
-      }
+        }),
+      );
+      tracksWithMetadata.push(...batchResults);
+      this._render(tracksWithMetadata, currentPath, currentIndex);
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
-    return null;
+    this._render(tracksWithMetadata, currentPath, currentIndex);
+    this._updateCount(tracksWithMetadata.length);
   }
 
   async _fetchTrackMetadata(filePath) {

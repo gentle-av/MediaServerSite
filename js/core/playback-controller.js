@@ -67,7 +67,7 @@ class PlaybackController {
           });
         }
       }
-    }, 500);
+    }, 2000);
   }
 
   _stopPolling() {

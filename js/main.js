@@ -3,6 +3,7 @@ const MediaCenter = {
     console.log("MediaCenter v2.0 initializing...");
     this._lastPlayPath = null;
     this._lastPlayTime = 0;
+
     window.addEventListener("beforeunload", () => {
       if (this.videoLibrary) {
         this.videoLibrary.destroy();
@@ -11,10 +12,12 @@ const MediaCenter = {
         this.universalPlayer.destroy();
       }
     });
+
     this.events = new EventBus();
     this.api = new ApiClient();
     this.playerApi = new PlayerApiClient();
     this.musicApi = new MusicApiClient();
+
     if (this.musicApi && !this.musicApi.openMusium) {
       this.musicApi.openMusium = async (tracks) => {
         console.log(
@@ -41,9 +44,11 @@ const MediaCenter = {
     this.events.on("page:videoLoaded", () => this._onVideoPageLoaded());
     this.events.on("page:audioLoaded", () => this._onAudioPageLoaded());
     this.events.on("page:powerLoaded", () => this._onPowerPageLoaded());
+
     await this.playerApi.checkAvailability();
     this.playback = new PlaybackController(this.playerApi, this.events);
     await this.playback.init();
+
     this.universalPlayer = new UniversalPlayer(
       this.api,
       this.events,
@@ -54,80 +59,24 @@ const MediaCenter = {
       "[DEBUG] UniversalPlayer instance after init:",
       this.universalPlayer,
     );
+
     this.events.on("player:show", () => {
       console.log("[DEBUG] player:show event received");
-      const playerEl = document.getElementById("universalBottomPlayer");
-      if (playerEl) {
-        playerEl.style.display = "flex";
-        playerEl.classList.add("active");
+      if (this.universalPlayer) {
+        this.universalPlayer.show();
       }
     });
+
     window.universalPlayerInstance = this.universalPlayer;
     this.videoLibrary = null;
     this.albumLibrary = null;
     this.albumModal = null;
     this.playlistPopup = null;
+    this.bottomPlayerPanel = null;
     this._updateUIForPage("video");
     await NavigationManager.switchTo("video");
     window.MediaCenter = this;
     console.log("MediaCenter v2.0 ready");
-  },
-
-  _onPowerPageLoaded() {
-    console.log("Power page loaded, initializing PowerManagement...");
-    this._updateUIForPage("power");
-    if (this.powerManagement) {
-      this.powerManagement.destroy();
-      this.powerManagement = null;
-    }
-    if (typeof PowerManagement !== "undefined") {
-      this.powerManagement = new PowerManagement(this.api, this.events, {
-        container: document.getElementById("pageContainer"),
-      });
-    }
-    const universalPlayer = document.getElementById("universalBottomPlayer");
-    if (
-      universalPlayer &&
-      this.universalPlayer &&
-      this.universalPlayer.currentFile
-    ) {
-      universalPlayer.style.display = "flex";
-      universalPlayer.classList.add("active");
-    }
-  },
-
-  _updateUIForPage(page) {
-    const mainContent = document.querySelector(".main-content");
-    const headerPlaylistBtn = document.getElementById("headerPlaylistBtn");
-    const headerRefreshMetadataBtn = document.getElementById(
-      "headerRefreshMetadataBtn",
-    );
-    const globalSearchBox = document.getElementById("globalSearchBox");
-    if (page === "audio") {
-      mainContent.classList.add("audio-page");
-      mainContent.classList.remove("video-page");
-      mainContent.classList.remove("power-page");
-      if (headerPlaylistBtn) headerPlaylistBtn.style.display = "flex";
-      if (headerRefreshMetadataBtn)
-        headerRefreshMetadataBtn.style.display = "flex";
-      if (globalSearchBox) globalSearchBox.style.display = "flex";
-    } else if (page === "power") {
-      mainContent.classList.add("power-page");
-      mainContent.classList.remove("video-page");
-      mainContent.classList.remove("audio-page");
-      if (headerPlaylistBtn) headerPlaylistBtn.style.display = "none";
-      if (headerRefreshMetadataBtn)
-        headerRefreshMetadataBtn.style.display = "none";
-      if (globalSearchBox) globalSearchBox.style.display = "none";
-    } else {
-      mainContent.classList.add("video-page");
-      mainContent.classList.remove("audio-page");
-      mainContent.classList.remove("power-page");
-      if (headerPlaylistBtn) headerPlaylistBtn.style.display = "none";
-      if (headerRefreshMetadataBtn)
-        headerRefreshMetadataBtn.style.display = "none";
-      if (globalSearchBox) globalSearchBox.style.display = "none";
-    }
   },
 
   _onVideoPageLoaded() {
@@ -135,31 +84,39 @@ const MediaCenter = {
       "[MediaCenter] Video page loaded, initializing VideoLibrary...",
     );
     this._updateUIForPage("video");
+
     if (this.videoLibrary) {
       this.videoLibrary.destroy();
       this.videoLibrary = null;
     }
-    this.videoLibrary = new VideoLibrary(
-      this.api,
-      this.events,
-      NavigationManager,
-    );
-    this.universalPlayer.setMediaType("video");
-    this.events.on("video:refresh", () => {
-      if (this.videoLibrary) this.videoLibrary.refresh();
-    });
-    setTimeout(async () => {
-      await this.universalPlayer.checkExistingPlayback("video");
-      if (this.videoLibrary && this.videoLibrary._adjustBottomPadding) {
-        setTimeout(() => this.videoLibrary._adjustBottomPadding(), 200);
-      }
-    }, 500);
+
+    setTimeout(() => {
+      this.videoLibrary = new VideoLibrary(
+        this.api,
+        this.events,
+        NavigationManager,
+      );
+      this.universalPlayer.setMediaType("video");
+      this.events.on("video:refresh", () => {
+        if (this.videoLibrary) this.videoLibrary.refresh();
+      });
+
+      setTimeout(async () => {
+        await this.universalPlayer.checkExistingPlayback("video");
+        if (this.videoLibrary && this.videoLibrary._adjustBottomPadding) {
+          setTimeout(() => this.videoLibrary._adjustBottomPadding(), 200);
+        }
+      }, 500);
+    }, 50);
   },
 
   _onAudioPageLoaded() {
-    console.log("Audio page loaded, initializing AlbumLibrary...");
+    console.log(
+      "[MediaCenter] Audio page loaded, initializing AlbumLibrary...",
+    );
     this._updateUIForPage("audio");
     this.universalPlayer.setMediaType("audio");
+
     if (typeof AlbumModal !== "undefined") {
       if (this.albumModal) {
         this.albumModal.hide();
@@ -169,6 +126,7 @@ const MediaCenter = {
       const trackList = new TrackList(this.events);
       this.albumModal.setTrackList(trackList);
     }
+
     if (typeof AlbumLibrary !== "undefined") {
       if (this.albumLibrary) {
         this.albumLibrary.destroy();
@@ -187,6 +145,7 @@ const MediaCenter = {
         }
       });
     }
+
     if (typeof PlaylistPopup !== "undefined" && !this.playlistPopup) {
       this.playlistPopup = new PlaylistPopup(
         this.playback,
@@ -198,6 +157,7 @@ const MediaCenter = {
       this.playlistPopup.tracksCache.clear();
       this.playlistPopup.refresh();
     }
+
     const searchInput = document.getElementById("globalSearchInput");
     const searchClearBtn = document.getElementById("searchClearBtn");
     if (searchInput) {
@@ -232,6 +192,7 @@ const MediaCenter = {
         };
       }
     }
+
     this.events.on("album:play", (album) => {
       console.log("[MediaCenter] album:play event received", album.title);
       if (album.tracks && album.tracks.length > 0) {
@@ -250,6 +211,7 @@ const MediaCenter = {
         }
       }
     });
+
     this.events.on("album:addToPlaylist", async (album) => {
       console.log(
         "[MediaCenter] album:addToPlaylist event received",
@@ -257,6 +219,7 @@ const MediaCenter = {
       );
       await this.playback.addAlbumToPlaylist(album);
     });
+
     this.events.on("album:open", async (album) => {
       console.log("[MediaCenter] album:open event received", album.title);
       if (this.albumModal) {
@@ -265,6 +228,7 @@ const MediaCenter = {
         console.error("[MediaCenter] albumModal not available");
       }
     });
+
     this.events.on("album:playMusium", async (album) => {
       console.log("[MediaCenter] album:playMusium event received", album.title);
       const tracks = album.tracks || [];
@@ -295,18 +259,67 @@ const MediaCenter = {
         console.error("[MediaCenter] musicApi.openMusium not available");
       }
     });
+
     this.events.on("album:replacePlaylist", async (album) => {
       await this.playback.api.clearPlaylist();
       await this.playback.addAlbumToPlaylist(album);
       this.events.emit("playlistCleared");
       this.events.emit("playlistChanged");
     });
+
     this.events.on("album:playTrack", ({ album, trackIndex }) => {
       this.playback.playTrack(album, trackIndex);
     });
+
     setTimeout(async () => {
       await this.universalPlayer.checkExistingPlayback("audio");
     }, 500);
+  },
+
+  _onPowerPageLoaded() {
+    console.log("Power page loaded");
+    this._updateUIForPage("power");
+  },
+
+  _updateUIForPage(page) {
+    const mainContent = document.querySelector(".main-content");
+    const headerPlaylistBtn = document.getElementById("headerPlaylistBtn");
+    const headerRefreshMetadataBtn = document.getElementById(
+      "headerRefreshMetadataBtn",
+    );
+    const globalSearchBox = document.getElementById("globalSearchBox");
+
+    if (page === "audio") {
+      if (mainContent) {
+        mainContent.classList.add("audio-page");
+        mainContent.classList.remove("video-page");
+        mainContent.classList.remove("power-page");
+      }
+      if (headerPlaylistBtn) headerPlaylistBtn.style.display = "flex";
+      if (headerRefreshMetadataBtn)
+        headerRefreshMetadataBtn.style.display = "flex";
+      if (globalSearchBox) globalSearchBox.style.display = "flex";
+    } else if (page === "power") {
+      if (mainContent) {
+        mainContent.classList.add("power-page");
+        mainContent.classList.remove("video-page");
+        mainContent.classList.remove("audio-page");
+      }
+      if (headerPlaylistBtn) headerPlaylistBtn.style.display = "none";
+      if (headerRefreshMetadataBtn)
+        headerRefreshMetadataBtn.style.display = "none";
+      if (globalSearchBox) globalSearchBox.style.display = "none";
+    } else {
+      if (mainContent) {
+        mainContent.classList.add("video-page");
+        mainContent.classList.remove("audio-page");
+        mainContent.classList.remove("power-page");
+      }
+      if (headerPlaylistBtn) headerPlaylistBtn.style.display = "none";
+      if (headerRefreshMetadataBtn)
+        headerRefreshMetadataBtn.style.display = "none";
+      if (globalSearchBox) globalSearchBox.style.display = "none";
+    }
   },
 
   _showOverlay() {

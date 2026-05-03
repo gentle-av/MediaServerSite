@@ -25,20 +25,17 @@ class PlayerApiClient extends ApiClient {
 
   async getPlaybackState() {
     const response = await this.get("/api/audio/playbackState");
-    if (response.success && response.data) {
-      if (
-        response.data.currentTrack &&
-        typeof response.data.currentTrack === "string"
-      ) {
+    if (response.success && response.currentTrack !== undefined) {
+      if (response.currentTrack && typeof response.currentTrack === "string") {
         try {
-          const decodedPath = decodeURIComponent(response.data.currentTrack);
+          const decodedPath = decodeURIComponent(response.currentTrack);
           const fileName = decodedPath
             .split("/")
             .pop()
             .replace(/\.(flac|mp3|m4a|wav)$/i, "");
-          response.data.currentTrackName = fileName;
+          response.currentTrackName = fileName;
         } catch (e) {
-          response.data.currentTrackName = "";
+          response.currentTrackName = "";
         }
       }
     }

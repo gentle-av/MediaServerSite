@@ -23,33 +23,17 @@ class VideoLibrary {
     console.error(`[VIDEO-DEBUG ${timestamp}] ERROR: ${message}`, error || "");
   }
 
-  async playVideo(videoPath) {
-    console.log("[VIDEO] playVideo START", videoPath);
-    this._showPlayingIndicator(true);
-    try {
-      console.log("[VIDEO] Sending /api/open request");
-      const response = await this.api.post("/api/open", { path: videoPath });
-      console.log("[VIDEO] /api/open response", response);
-      if (!response.success) {
-        Utils.showNotification(
-          response.error || "Ошибка запуска видео",
-          "error",
-        );
-        this._showPlayingIndicator(false);
-        return false;
-      }
-      console.log("[VIDEO] Emitting video:play event");
-      this.events.emit("video:play", videoPath);
-      setTimeout(() => {
-        this._showPlayingIndicator(false);
-      }, 500);
-      return true;
-    } catch (error) {
-      console.error("[VIDEO] playVideo error:", error);
-      Utils.showNotification("Ошибка запуска видео: " + error.message, "error");
-      this._showPlayingIndicator(false);
-      return false;
-    }
+  playVideo(path) {
+    console.log("[VIDEO] playVideo START", path);
+    this.events.emit("video:play", path);
+    const modal = document.getElementById("videoPreviewModal");
+    if (modal) modal.classList.remove("active");
+    console.log("[VIDEO] Emitted video:play event");
+  }
+
+  onVideoClick(filePath) {
+    console.log("[VIDEO] onVideoClick", filePath);
+    this.events.emit("video:play", filePath);
   }
 
   _showPlayingIndicator(show) {
@@ -109,14 +93,18 @@ class VideoLibrary {
   }
 
   async loadDirectory(path, addToHistory = true) {
+    console.log("[VideoLibrary] loadDirectory called with path:", path);
     this.currentPath = path;
     if (addToHistory) this.history.push(path);
     this._updateBreadcrumbs();
     this._showLoading();
     const data = await this.api.post("/api/list", { path });
+    console.log("[VideoLibrary] API response:", data);
     if (data.success) {
+      console.log("[VideoLibrary] Items count:", data.items?.length);
       this._renderContent(data.items);
     } else {
+      console.error("[VideoLibrary] Error:", data.error);
       this._showError(data.error || "Ошибка загрузки");
     }
   }
