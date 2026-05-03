@@ -34,9 +34,12 @@ export class PlayerEventSubscriber {
   }
 
   _onAudioStart(path) {
+    console.log("[DEBUG] _onAudioStart called with path:", path);
     if (this.core.isVideo() && this.core.hasActiveFile()) {
+      console.log("[DEBUG] stopping video because audio started");
       this.mediaHandler.stop();
     }
+    console.log("[DEBUG] calling mediaHandler.startPlayback with audio");
     this.mediaHandler.startPlayback(path, "audio");
   }
 

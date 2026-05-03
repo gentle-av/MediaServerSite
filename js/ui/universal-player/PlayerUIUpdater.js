@@ -22,21 +22,38 @@ export class PlayerUIUpdater {
     trackName.textContent = this._escape(fileName);
   }
 
-  updateTrackInfo(title, artist, trackCount = null) {
+  updateTrackFullInfo(title, artist, coverUrl) {
+    console.log("[DEBUG] updateTrackFullInfo called:", {
+      title,
+      artist,
+      coverUrl: coverUrl ? "exists" : "null",
+    });
     const trackName = this.dom.get("universalBottomTrackName");
-    const trackArtist = this.dom.get("universalBottomTrackArtist");
-    const trackCountEl = this.dom.get("universalBottomTrackCount");
+    console.log("[DEBUG] trackName element:", trackName);
     if (trackName && title) {
       let trackTitle = title;
       const match = trackTitle.match(/^\d+\s*[-.]?\s*(.+)$/);
       if (match) trackTitle = match[1];
       trackName.textContent = this._escape(trackTitle);
+      console.log("[DEBUG] trackName set to:", trackName.textContent);
     }
+    const trackArtist = this.dom.get("universalBottomTrackArtist");
+    console.log("[DEBUG] trackArtist element:", trackArtist);
     if (trackArtist) {
-      trackArtist.textContent = this._escape(artist || "");
+      trackArtist.textContent = artist ? this._escape(artist) : "";
+      trackArtist.style.display = artist ? "block" : "none";
+      console.log(
+        "[DEBUG] trackArtist set to:",
+        trackArtist.textContent,
+        "display:",
+        trackArtist.style.display,
+      );
     }
-    if (trackCountEl && trackCount) {
-      trackCountEl.textContent = trackCount;
+    if (coverUrl) {
+      console.log("[DEBUG] calling showPreviewImage with coverUrl");
+      this.showPreviewImage(coverUrl);
+    } else {
+      console.log("[DEBUG] no coverUrl provided");
     }
   }
 

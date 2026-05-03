@@ -25,6 +25,7 @@ export class PlayerPolling {
     }, 500);
   }
 
+  // PlayerPolling.js
   async _pollAudio() {
     const timeInfo = await this.api.getAudioCurrentTime();
     if (timeInfo && timeInfo.success) {
@@ -35,6 +36,35 @@ export class PlayerPolling {
       if (state.currentTrack && state.currentTrack !== this.core.currentFile) {
         this.core.currentFile = state.currentTrack;
         this.uiUpdater.updateFileInfo(this.core.currentFile);
+        const metadata = await this.api.getFileMetadata(this.core.currentFile);
+        let artist = "";
+        let title = "";
+        let coverUrl = null;
+        if (metadata?.data) {
+          if (metadata.data.file) {
+            artist = metadata.data.file.artist || "";
+            title = metadata.data.file.title || "";
+            coverUrl = metadata.data.file.cover || null;
+          }
+          if (!title && metadata.data.database) {
+            title = metadata.data.database.title || "";
+            artist = metadata.data.database.artist || "";
+          }
+          if (!coverUrl && title) {
+            coverUrl = await this.api.getAlbumCover(
+              this.core.currentFile,
+              title,
+              artist,
+            );
+          }
+        }
+        if (!title) {
+          let fileName = this.core.currentFile.split("/").pop();
+          fileName = fileName.replace(/\.(flac|mp3|m4a|wav|ogg|aac)$/i, "");
+          const match = fileName.match(/^\d+\s*[-.]?\s*(.+)$/);
+          title = match ? match[1] : fileName;
+        }
+        this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
         if (this.onStateChange) this.onStateChange(state);
       }
       const wasPlaying = this.core.isPlaying;

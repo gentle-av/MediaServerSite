@@ -40,6 +40,9 @@ class MusicApiClient {
       });
       if (response && response.success) {
         await this.post("/api/audio/play");
+        if (window.universalPlayer) {
+          await window.universalPlayer.syncWithPlayback();
+        }
       }
       return response;
     } catch (error) {

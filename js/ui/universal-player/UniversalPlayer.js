@@ -85,14 +85,62 @@ export class UniversalPlayer {
   }
 
   async _checkExistingPlayback() {
+    console.log("[DEBUG] _checkExistingPlayback called");
     const audioState = await this.api.getAudioPlaybackState();
     if (audioState?.success && audioState.currentTrack) {
+      console.log(
+        "[DEBUG] Found audio in _checkExistingPlayback:",
+        audioState.currentTrack,
+      );
       this.core.setMediaType("audio");
       this.core.setCurrentFile(audioState.currentTrack);
       this.core.setPlaying(audioState.isPlaying || false);
       this.uiUpdater.updateFileInfo(this.core.currentFile);
       this.uiUpdater.updateMediaIcon("audio");
       this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
+      const metadata = await this.api.getFileMetadata(audioState.currentTrack);
+      console.log("[DEBUG] _checkExistingPlayback metadata:", metadata);
+      let artist = "";
+      let title = "";
+      let coverUrl = null;
+      if (metadata?.data) {
+        if (metadata.data.file) {
+          artist = metadata.data.file.artist || "";
+          title = metadata.data.file.title || "";
+          coverUrl = metadata.data.file.cover || null;
+          console.log("[DEBUG] from file - title:", title, "artist:", artist);
+        }
+        if (!title && metadata.data.database) {
+          title = metadata.data.database.title || "";
+          artist = metadata.data.database.artist || "";
+          console.log(
+            "[DEBUG] from database - title:",
+            title,
+            "artist:",
+            artist,
+          );
+        }
+        if (!coverUrl && title) {
+          coverUrl = await this.api.getAlbumCover(
+            audioState.currentTrack,
+            title,
+            artist,
+          );
+        }
+      }
+      if (!title) {
+        let fileName = audioState.currentTrack.split("/").pop();
+        fileName = fileName.replace(/\.(flac|mp3|m4a|wav|ogg|aac)$/i, "");
+        const match = fileName.match(/^\d+\s*[-.]?\s*(.+)$/);
+        title = match ? match[1] : fileName;
+        console.log("[DEBUG] title from filename:", title);
+      }
+      console.log("[DEBUG] calling updateTrackFullInfo with:", {
+        title,
+        artist,
+        hasCover: !!coverUrl,
+      });
+      this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
       this.show();
       this.polling.start();
       return true;
@@ -220,31 +268,72 @@ export class UniversalPlayer {
     return false;
   }
 
-  syncWithPlayback() {
-    if (!this.api.playerApi) return;
-    Promise.all([
-      this.api.getAudioPlaybackState(),
-      this.api.getAudioCurrentTime(),
-    ])
-      .then(([state, timeInfo]) => {
-        if (state && state.success && state.currentTrack) {
-          this.core.setCurrentFile(state.currentTrack);
-          this.core.setMediaType("audio");
-          this.core.setPlaying(state.isPlaying || false);
-          this.uiUpdater.updateFileInfo(this.core.currentFile);
-          this.uiUpdater.updateMediaIcon("audio");
-          this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
-          if (timeInfo && timeInfo.success) {
-            this.progress.update(
-              timeInfo.currentTime || 0,
-              timeInfo.duration || 0,
-            );
-          }
-          this.show();
-          this.polling.start();
+  // UniversalPlayer.js - обновите метод syncWithPlayback
+  async syncWithPlayback() {
+    console.log("[DEBUG] syncWithPlayback called");
+    if (!this.api.playerApi) {
+      console.log("[DEBUG] playerApi is null, exiting");
+      return;
+    }
+    const state = await this.api.getAudioPlaybackState();
+    console.log(
+      "[DEBUG] syncWithPlayback state FULL:",
+      JSON.stringify(state, null, 2),
+    );
+    if (state && state.success && state.data && state.data.currentTrack) {
+      const currentTrack = state.data.currentTrack;
+      console.log("[DEBUG] Current track:", currentTrack);
+      this.core.setCurrentFile(currentTrack);
+      this.core.setMediaType("audio");
+      this.core.setPlaying(state.data.isPlaying || false);
+      this.uiUpdater.updateFileInfo(this.core.currentFile);
+      this.uiUpdater.updateMediaIcon("audio");
+      this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
+      console.log("[DEBUG] fetching metadata for:", currentTrack);
+      const metadata = await this.api.getFileMetadata(currentTrack);
+      console.log(
+        "[DEBUG] syncWithPlayback metadata FULL:",
+        JSON.stringify(metadata, null, 2),
+      );
+      let artist = "";
+      let title = "";
+      let coverUrl = null;
+      if (metadata?.data) {
+        if (metadata.data.file) {
+          artist = metadata.data.file.artist || "";
+          title = metadata.data.file.title || "";
+          coverUrl = metadata.data.file.cover || null;
+          console.log("[DEBUG] from file - title:", title, "artist:", artist);
         }
-      })
-      .catch(() => {});
+        if (!title && metadata.data.database) {
+          title = metadata.data.database.title || "";
+          artist = metadata.data.database.artist || "";
+          console.log(
+            "[DEBUG] from database - title:",
+            title,
+            "artist:",
+            artist,
+          );
+        }
+        if (!coverUrl && title) {
+          coverUrl = await this.api.getAlbumCover(currentTrack, title, artist);
+          console.log("[DEBUG] coverUrl obtained:", coverUrl ? "YES" : "NO");
+        }
+      }
+      if (!title) {
+        let fileName = currentTrack.split("/").pop();
+        fileName = fileName.replace(/\.(flac|mp3|m4a|wav|ogg|aac)$/i, "");
+        const match = fileName.match(/^\d+\s*[-.]?\s*(.+)$/);
+        title = match ? match[1] : fileName;
+        console.log("[DEBUG] title from filename:", title);
+      }
+      console.log("[DEBUG] Final values - title:", title, "artist:", artist);
+      this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
+      this.show();
+      this.polling.start();
+    } else {
+      console.log("[DEBUG] No active audio playback found. State:", state);
+    }
   }
 
   _adjustBottomPadding() {

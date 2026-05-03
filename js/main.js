@@ -192,11 +192,15 @@ const MediaCenter = {
               if (this.universalPlayer) {
                 this.universalPlayer.show();
                 this.universalPlayer.setMediaType("audio");
+                this.universalPlayer.syncWithPlayback();
               }
             }, 500);
           });
         } else {
           this.universalPlayer.startPlayback(album.tracks[0].path, "audio");
+          setTimeout(() => {
+            this.universalPlayer.syncWithPlayback();
+          }, 500);
         }
       }
     });

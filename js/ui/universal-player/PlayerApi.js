@@ -66,8 +66,19 @@ export class PlayerAPI {
   }
 
   async getFileMetadata(path) {
-    if (!this.musicApi) return null;
-    return this.musicApi.getFileMetadata(path);
+    console.log("[DEBUG] getFileMetadata called with path:", path);
+    if (!this.musicApi) {
+      console.log("[DEBUG] musicApi is null!");
+      return null;
+    }
+    try {
+      const result = await this.musicApi.getFileMetadata(path);
+      console.log("[DEBUG] getFileMetadata result:", result);
+      return result;
+    } catch (error) {
+      console.error("[DEBUG] getFileMetadata error:", error);
+      return null;
+    }
   }
 
   async getVideoThumbnail(path) {
@@ -79,24 +90,42 @@ export class PlayerAPI {
   }
 
   async getAlbumCover(filePath, title, artist) {
+    console.log("[DEBUG] getAlbumCover called with:", {
+      filePath,
+      title,
+      artist,
+    });
     let coverUrl = null;
-    if (title) {
+    const encodedPath = encodeURIComponent(filePath);
+    const directUrl = `/api/music/albumart?path=${encodedPath}`;
+    console.log("[DEBUG] direct albumart URL:", directUrl);
+    const directResponse = await fetch(directUrl);
+    console.log(
+      "[DEBUG] direct albumart response status:",
+      directResponse.status,
+    );
+    if (directResponse.ok) {
+      const blob = await directResponse.blob();
+      coverUrl = URL.createObjectURL(blob);
+      console.log("[DEBUG] got cover from direct path");
+      return coverUrl;
+    }
+    if (title && title !== "Unknown") {
       let url = `/api/music/albumart/album/${encodeURIComponent(title)}`;
-      if (artist) url += `?artist=${encodeURIComponent(artist)}`;
+      if (artist && artist !== "Unknown") {
+        url += `?artist=${encodeURIComponent(artist)}`;
+      }
+      console.log("[DEBUG] trying albumart URL:", url);
       const response = await fetch(url);
+      console.log("[DEBUG] albumart response status:", response.status);
       if (response.ok) {
         const blob = await response.blob();
         coverUrl = URL.createObjectURL(blob);
+        console.log("[DEBUG] got cover from album title");
+        return coverUrl;
       }
     }
-    if (!coverUrl) {
-      const encodedPath = encodeURIComponent(filePath).replace(/%2F/g, "/");
-      const response = await fetch(`/api/music/albumart/${encodedPath}`);
-      if (response.ok) {
-        const blob = await response.blob();
-        coverUrl = URL.createObjectURL(blob);
-      }
-    }
-    return coverUrl;
+    console.log("[DEBUG] no cover found");
+    return null;
   }
 }
