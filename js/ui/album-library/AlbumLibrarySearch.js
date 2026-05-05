@@ -8,10 +8,14 @@ export class AlbumLibrarySearch {
   search(term) {
     this.renderer.closeAllSwipes();
     this._currentTerm = term;
-    if (!term.trim()) {
+    this._applyFilter();
+  }
+
+  _applyFilter() {
+    if (!this._currentTerm.trim()) {
       this.state.filteredAlbums = [...this.state.albums];
     } else {
-      const lowerTerm = term.toLowerCase();
+      const lowerTerm = this._currentTerm.toLowerCase();
       this.state.filteredAlbums = this.state.albums.filter(
         (a) =>
           a.title.toLowerCase().includes(lowerTerm) ||
@@ -20,6 +24,10 @@ export class AlbumLibrarySearch {
     }
     this.renderer.clear();
     this.renderer.renderAlbums();
+  }
+
+  refreshFilter() {
+    this._applyFilter();
   }
 
   getCurrentTerm() {

@@ -1,8 +1,9 @@
 export class AlbumLibraryScroll {
-  constructor(loader, renderer, state) {
+  constructor(loader, renderer, state, onLoadMore) {
     this.loader = loader;
     this.renderer = renderer;
     this.state = state;
+    this.onLoadMore = onLoadMore;
     this._boundHandleScroll = this._handleScroll.bind(this);
   }
 
@@ -14,7 +15,7 @@ export class AlbumLibraryScroll {
     window.removeEventListener("scroll", this._boundHandleScroll);
   }
 
-  _handleScroll() {
+  async _handleScroll() {
     if (
       this.state.isDestroyed ||
       this.state.isLoadingMore ||
@@ -27,9 +28,11 @@ export class AlbumLibraryScroll {
     const scrollTop = scrollable.scrollTop;
     const clientHeight = scrollable.clientHeight;
     if (scrollHeight - scrollTop - clientHeight < 300) {
-      this.loader.loadMoreAlbums().then(() => {
-        this.renderer.renderAlbums();
-      });
+      const hasMore = await this.loader.loadMoreAlbums();
+      this.renderer.renderAlbums();
+      if (hasMore && this.onLoadMore) {
+        this.onLoadMore();
+      }
     }
   }
 }

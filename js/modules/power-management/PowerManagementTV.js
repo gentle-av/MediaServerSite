@@ -77,7 +77,6 @@ export class PowerManagementTV {
           notification.style.display = "none";
         }, 3000);
       } else {
-        console.log(`[${type}] ${message}`);
       }
     }
   }

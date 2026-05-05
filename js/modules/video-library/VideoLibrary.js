@@ -36,20 +36,17 @@ export class VideoLibrary {
   }
 
   playVideo(path) {
-    console.log("[VideoLibrary] playVideo called with path:", path);
     this.events.emit("video:play", path);
     const modal = document.getElementById("videoPreviewModal");
     if (modal) modal.classList.remove("active");
   }
 
   async loadDirectory(path, addToHistory = true) {
-    console.log("[VideoLibrary] loadDirectory called with path:", path);
     this.state.setCurrentPath(path, addToHistory);
     this._updateBreadcrumbs();
     this.dom.showLoading();
     const data = await this.api.post("/api/list", { path });
     if (data.success) {
-      console.log("[VideoLibrary] Items count:", data.items?.length);
       this.renderer.render(data.items);
       this.eventsHandler.attachItemEvents(this.dom.getContainer());
       await this.thumbnailLoader.loadVisibleThumbnails(this.dom.getContainer());

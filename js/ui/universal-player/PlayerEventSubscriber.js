@@ -11,7 +11,6 @@ export class PlayerEventSubscriber {
   }
 
   subscribe() {
-    console.log("[PlayerEventSubscriber] subscribe called");
     this.events.on("video:play", (path) => this._onVideoPlay(path));
     this.events.on("playback:audioStart", (path) => this._onAudioStart(path));
     this.events.on("playback:videoStopped", () => this._onVideoStopped());
@@ -23,9 +22,6 @@ export class PlayerEventSubscriber {
   }
 
   _onVideoPlay(path) {
-    console.log("[DEBUG] _onVideoPlay called with path:", path);
-    console.log("[DEBUG] core.mediaType:", this.core.mediaType);
-    console.log("[DEBUG] core.isAudio():", this.core.isAudio());
     if (this.core.isStartingVideo()) return;
     if (this.core.isSameFile(path, "video")) {
       this.onShow?.();
@@ -38,15 +34,9 @@ export class PlayerEventSubscriber {
   }
 
   _onAudioStart(path) {
-    console.log("[DEBUG] _onAudioStart called with path:", path);
-    console.log("[DEBUG] core.isVideo():", this.core.isVideo());
-    console.log("[DEBUG] core.hasActiveFile():", this.core.hasActiveFile());
-    console.log("[DEBUG] core.mediaType:", this.core.mediaType);
     if (this.core.isVideo() && this.core.hasActiveFile()) {
-      console.log("[DEBUG] stopping video because audio started");
       this.mediaHandler.stop();
     }
-    console.log("[DEBUG] calling mediaHandler.startPlayback with audio");
     this.mediaHandler.startPlayback(path, "audio");
   }
 
@@ -116,24 +106,14 @@ export class PlayerEventSubscriber {
   }
 
   _onPageChanged(page) {
-    console.log("[DEBUG] _onPageChanged called with page:", page);
-    console.log("[DEBUG] core.hasActiveFile():", this.core.hasActiveFile());
-    console.log("[DEBUG] core.isVideo():", this.core.isVideo());
-    console.log("[DEBUG] core.isAudio():", this.core.isAudio());
-    console.log("[DEBUG] core.currentFile:", this.core.currentFile);
     const isMediaPage = page === "video" || page === "audio";
     if (isMediaPage && this.core.hasActiveFile()) {
-      console.log("[DEBUG] Media page and has active file, calling onShow");
       this.onShow?.();
     } else if (!isMediaPage && !this.core.isVideo()) {
-      console.log("[DEBUG] Non-media page and not video, hiding player");
       const dom = document.getElementById("universalBottomPlayer");
       dom?.classList.remove("active");
       dom?.style.setProperty("display", "none");
     } else if (!isMediaPage && this.core.isVideo()) {
-      console.log(
-        "[DEBUG] Non-media page but video is playing, keeping player visible",
-      );
     }
   }
 

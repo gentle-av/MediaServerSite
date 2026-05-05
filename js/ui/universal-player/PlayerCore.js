@@ -10,9 +10,6 @@ export class PlayerCore {
   }
 
   setMediaType(type) {
-    console.log("[DEBUG] PlayerCore.setMediaType called with type:", type);
-    console.log("[DEBUG] Previous mediaType was:", this.mediaType);
-    console.log("[DEBUG] Stack trace:", new Error().stack);
     this.mediaType = type;
   }
 

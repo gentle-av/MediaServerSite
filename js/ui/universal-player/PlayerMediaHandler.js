@@ -8,15 +8,8 @@ export class PlayerMediaHandler {
   }
 
   async startPlayback(path, type) {
-    console.log("[DEBUG] PlayerMediaHandler.startPlayback called with:", {
-      path,
-      type,
-    });
-    console.log("[DEBUG] Current core.mediaType:", this.core.mediaType);
-    console.log("[DEBUG] Current core.currentFile:", this.core.currentFile);
     if (this.core.isStartingVideo()) return;
     if (this.core.isSameFile(path, type) && this.core.isPlaying) {
-      console.log("[DEBUG] same file and playing, calling onShow");
       this.onShow?.();
       return;
     }
@@ -25,9 +18,6 @@ export class PlayerMediaHandler {
       this.core.mediaType !== type &&
       this.core.hasActiveFile()
     ) {
-      console.log(
-        "[DEBUG] stopping current playback because media type changed",
-      );
       await this.stop();
     }
     this.core.setMediaType(type);
@@ -35,26 +25,21 @@ export class PlayerMediaHandler {
     this.uiUpdater.updateFileInfo(path);
     this.uiUpdater.updateMediaIcon(type);
     if (type === "video") {
-      console.log("[DEBUG] starting video playback");
       await this._startVideo(path);
     } else {
-      console.log("[DEBUG] starting audio playback");
       await this._startAudio(path);
     }
   }
 
   async _startVideo(path) {
-    console.log("[PlayerMediaHandler] _startVideo called", path);
     this.core.startStartingVideo();
     this.uiUpdater.updateTrackInfo("Видео", "");
-    console.log("[PlayerMediaHandler] calling onShow before openFile");
     this.onShow?.();
     try {
       const thumbnail = await this.api.getVideoThumbnail(path);
       if (thumbnail) this.uiUpdater.showPreviewImage(thumbnail);
       await this.api.closeVideo();
       const response = await this.api.openFile(path);
-      console.log("[PlayerMediaHandler] openFile response", response);
       if (!response.success) {
         Utils.showNotification(
           response.error || "Ошибка воспроизведения",
@@ -74,37 +59,23 @@ export class PlayerMediaHandler {
   }
 
   async _startAudio(path) {
-    console.log("[DEBUG] _startAudio called with path:", path);
     await this.api.closeVideo();
     const metadata = await this.api.getFileMetadata(path);
-    console.log("[DEBUG] getFileMetadata result:", metadata);
     let artist = "";
     let title = "";
     let coverUrl = null;
     if (metadata?.data) {
-      console.log("[DEBUG] metadata.data exists:", metadata.data);
       if (metadata.data.file) {
         artist = metadata.data.file.artist || "";
         title = metadata.data.file.title || "";
         coverUrl = metadata.data.file.cover || null;
-        console.log("[DEBUG] from file:", {
-          artist,
-          title,
-          coverUrl: coverUrl ? "exists" : "null",
-        });
       }
       if (!title && metadata.data.database) {
         title = metadata.data.database.title || "";
         artist = metadata.data.database.artist || "";
-        console.log("[DEBUG] from database:", { artist, title });
       }
       if (!coverUrl && title) {
-        console.log("[DEBUG] fetching album cover for:", title, artist);
         coverUrl = await this.api.getAlbumCover(path, title, artist);
-        console.log(
-          "[DEBUG] album cover result:",
-          coverUrl ? "exists" : "null",
-        );
       }
     }
     if (!title) {
@@ -112,13 +83,7 @@ export class PlayerMediaHandler {
       fileName = fileName.replace(/\.(flac|mp3|m4a|wav|ogg|aac)$/i, "");
       const match = fileName.match(/^\d+\s*[-.]?\s*(.+)$/);
       title = match ? match[1] : fileName;
-      console.log("[DEBUG] title from filename:", title);
     }
-    console.log("[DEBUG] final values before update:", {
-      title,
-      artist,
-      coverUrl: coverUrl ? "exists" : "null",
-    });
     this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
     this.onShow?.();
     this.uiUpdater.updatePlayPauseButton(true);
@@ -159,10 +124,6 @@ export class PlayerMediaHandler {
   }
 
   async stop() {
-    console.log("[DEBUG] PlayerMediaHandler.stop called");
-    console.log("[DEBUG] core.isVideo():", this.core.isVideo());
-    console.log("[DEBUG] core.isAudio():", this.core.isAudio());
-    console.log("[DEBUG] Stack trace:", new Error().stack);
     if (this.core.isVideo()) {
       await this.api.closeVideo();
     } else if (this.core.isAudio() && this.api.playerApi) {

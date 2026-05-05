@@ -53,7 +53,6 @@ export class AlbumCard {
         return;
       }
       if (this.events && this.events.emit) {
-        console.log("[AlbumCard] Clicked on album:", this.album.title);
         this.events.emit("albumClick", this.album);
       } else if (window.MediaCenter && window.MediaCenter.events) {
         window.MediaCenter.events.emit("albumClick", this.album);

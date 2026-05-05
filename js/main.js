@@ -6,7 +6,6 @@ import { AlbumModal } from "./ui/album-modal.js";
 
 const MediaCenter = {
   async init() {
-    console.log("MediaCenter v2.0 initializing...");
     this._lastPlayPath = null;
     this._lastPlayTime = 0;
     window.addEventListener("beforeunload", () => {
@@ -23,11 +22,6 @@ const MediaCenter = {
     this.musicApi = new MusicApiClient();
     if (this.musicApi && !this.musicApi.openMusium) {
       this.musicApi.openMusium = async (tracks) => {
-        console.log(
-          "[MusicAPI] openMusium called with",
-          tracks.length,
-          "tracks",
-        );
         try {
           const response = await fetch("/api/music/open", {
             method: "POST",
@@ -35,7 +29,6 @@ const MediaCenter = {
             body: JSON.stringify({ tracks }),
           });
           const data = await response.json();
-          console.log("[MusicAPI] openMusium response:", data);
           return data;
         } catch (error) {
           console.error("[MusicAPI] openMusium error:", error);
@@ -55,12 +48,7 @@ const MediaCenter = {
       this.musicApi,
       this.playerApi,
     );
-    console.log(
-      "[DEBUG] UniversalPlayer instance after init:",
-      this.universalPlayer,
-    );
     this.events.on("player:show", () => {
-      console.log("[DEBUG] player:show event received");
       if (this.universalPlayer) {
         this.universalPlayer.show();
       }
@@ -74,13 +62,9 @@ const MediaCenter = {
     this._updateUIForPage("video");
     await NavigationManager.switchTo("video");
     window.MediaCenter = this;
-    console.log("MediaCenter v2.0 ready");
   },
 
   _onVideoPageLoaded() {
-    console.log(
-      "[MediaCenter] Video page loaded, initializing VideoLibrary...",
-    );
     this._updateUIForPage("video");
     if (this.videoLibrary) {
       this.videoLibrary.destroy();
@@ -106,6 +90,28 @@ const MediaCenter = {
 
   _onAudioPageLoaded() {
     this._updateUIForPage("audio");
+    setTimeout(() => {
+      const searchInput = document.getElementById("globalSearchInput");
+      const searchClearBtn = document.getElementById("searchClearBtn");
+      if (searchClearBtn && !searchClearBtn._handlerAttached) {
+        searchClearBtn._handlerAttached = true;
+        searchClearBtn.onclick = () => {
+          if (searchInput) {
+            searchInput.value = "";
+            if (this.albumLibrary) {
+              this.albumLibrary.searchAlbums("");
+            }
+            const updateClearButton = () => {
+              if (searchClearBtn) {
+                searchClearBtn.style.display = "none";
+              }
+            };
+            updateClearButton();
+            searchInput.focus();
+          }
+        };
+      }
+    }, 100);
     if (typeof AlbumModal !== "undefined") {
       if (this.albumModal) {
         this.albumModal.hide();
@@ -161,7 +167,9 @@ const MediaCenter = {
         }
       };
       searchInput.oninput = (e) => {
-        if (this.albumLibrary) this.albumLibrary.search(e.target.value);
+        if (this.albumLibrary && this.albumLibrary.isReady) {
+          this.albumLibrary.searchAlbums(e.target.value);
+        }
         updateClearButton();
       };
       searchInput.onfocus = updateClearButton;
@@ -175,33 +183,27 @@ const MediaCenter = {
       if (searchClearBtn) {
         searchClearBtn.onclick = () => {
           searchInput.value = "";
-          if (this.albumLibrary) this.albumLibrary.search("");
+          if (this.albumLibrary) {
+            this.albumLibrary.searchAlbums("");
+          }
           updateClearButton();
           searchInput.focus();
         };
+      } else {
       }
+      updateClearButton();
     }
     this.events.on("album:play", (album) => {
-      console.log("[DEBUG] album:play event received, album:", album?.title);
       if (album.tracks && album.tracks.length > 0) {
         const trackPaths = album.tracks.map((track) => track.path);
-        console.log("[DEBUG] trackPaths count:", trackPaths.length);
         if (this.musicApi && this.musicApi.playTracks) {
-          console.log("[DEBUG] calling musicApi.playTracks");
           this.musicApi
             .playTracks(trackPaths)
             .then(() => {
-              console.log("[DEBUG] playTracks completed");
-              console.log(
-                "[DEBUG] universalPlayer exists:",
-                !!this.universalPlayer,
-              );
               setTimeout(() => {
                 if (this.universalPlayer) {
-                  console.log("[DEBUG] calling startPlaybackExternal");
                   this.universalPlayer.startPlaybackExternal();
                 } else {
-                  console.log("[DEBUG] universalPlayer is null!");
                 }
               }, 500);
             })
@@ -209,11 +211,9 @@ const MediaCenter = {
               console.error("[DEBUG] playTracks error:", err);
             });
         } else {
-          console.log("[DEBUG] using fallback startPlayback");
           this.universalPlayer.startPlayback(album.tracks[0].path, "audio");
         }
       } else {
-        console.log("[DEBUG] album has no tracks");
       }
     });
     this.events.on("album:addToPlaylist", async (album) => {
@@ -259,7 +259,6 @@ const MediaCenter = {
   },
 
   _onPowerPageLoaded() {
-    console.log("Power page loaded");
     this._updateUIForPage("power");
   },
 

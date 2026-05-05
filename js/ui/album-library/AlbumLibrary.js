@@ -22,6 +22,7 @@ export class AlbumLibrary {
       this.loader,
       this.renderer,
       this.state,
+      () => this.search.refreshFilter(),
     );
     this.eventsHandler = new AlbumLibraryEvents(
       this.api,
@@ -31,6 +32,7 @@ export class AlbumLibrary {
       this.renderer,
       () => this.refresh(),
     );
+    this.isReady = false;
   }
 
   async init() {
@@ -40,6 +42,7 @@ export class AlbumLibrary {
     this.renderer.renderAlbums();
     this.eventsHandler.bind();
     this.scroll.init();
+    this.isReady = true;
   }
 
   getMetadataByPath(path) {
@@ -56,7 +59,12 @@ export class AlbumLibrary {
   }
 
   searchAlbums(term) {
-    this.search.search(term);
+    if (!this.isReady) return;
+    if (term === "") {
+      this.search.reset();
+    } else {
+      this.search.search(term);
+    }
   }
 
   destroy() {

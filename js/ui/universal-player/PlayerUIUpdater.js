@@ -35,37 +35,21 @@ export class PlayerUIUpdater {
   }
 
   updateTrackFullInfo(title, artist, coverUrl) {
-    console.log("[DEBUG] updateTrackFullInfo called:", {
-      title,
-      artist,
-      coverUrl: coverUrl ? "exists" : "null",
-    });
     const trackName = this.dom.get("universalBottomTrackName");
-    console.log("[DEBUG] trackName element:", trackName);
     if (trackName && title) {
       let trackTitle = title;
       const match = trackTitle.match(/^\d+\s*[-.]?\s*(.+)$/);
       if (match) trackTitle = match[1];
       trackName.textContent = this._escape(trackTitle);
-      console.log("[DEBUG] trackName set to:", trackName.textContent);
     }
     const trackArtist = this.dom.get("universalBottomTrackArtist");
-    console.log("[DEBUG] trackArtist element:", trackArtist);
     if (trackArtist) {
       trackArtist.textContent = artist ? this._escape(artist) : "";
       trackArtist.style.display = artist ? "block" : "none";
-      console.log(
-        "[DEBUG] trackArtist set to:",
-        trackArtist.textContent,
-        "display:",
-        trackArtist.style.display,
-      );
     }
     if (coverUrl) {
-      console.log("[DEBUG] calling showPreviewImage with coverUrl");
       this.showPreviewImage(coverUrl);
     } else {
-      console.log("[DEBUG] no coverUrl provided");
     }
   }
 

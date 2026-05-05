@@ -11,20 +11,13 @@ export class VideoLibraryThumbnailLoader {
     const cacheKey = isFolder ? `folder_${folderPath}` : videoPath;
     const cached = this.state.getThumbnail(cacheKey);
     if (cached) {
-      console.log(`[loadThumbnail] CACHED for ${cacheKey}`);
       return cached;
     }
-    console.log(
-      `[loadThumbnail] FETCH for ${videoPath}, isFolder: ${isFolder}, cacheKey: ${cacheKey}`,
-    );
     const url = `/api/thumbnail?path=${encodeURIComponent(videoPath)}`;
     try {
       const response = await fetch(url);
       const data = await response.json();
       if (data.success && data.thumbnail) {
-        console.log(
-          `[loadThumbnail] STORED for ${cacheKey}, thumbnail starts with: ${data.thumbnail.substring(0, 50)}`,
-        );
         this.state.setThumbnail(cacheKey, data.thumbnail);
         return data.thumbnail;
       }
@@ -75,12 +68,8 @@ export class VideoLibraryThumbnailLoader {
   }
 
   async _loadFolderThumbnail(folderPath) {
-    console.log(`[_loadFolderThumbnail] Start for: ${folderPath}`);
     if (this.folderVideoCache.has(folderPath)) {
       const videoPath = this.folderVideoCache.get(folderPath);
-      console.log(
-        `[_loadFolderThumbnail] Cache hit for ${folderPath}: ${videoPath}`,
-      );
       if (videoPath) {
         return await this.loadThumbnail(videoPath, {
           isFolder: true,
@@ -89,27 +78,20 @@ export class VideoLibraryThumbnailLoader {
       }
       return null;
     }
-    console.log(`[_loadFolderThumbnail] Calling api.post for ${folderPath}`);
     const data = await this.api.post(
       "/api/list?path=" + encodeURIComponent(folderPath),
       {},
     );
-    console.log(`[_loadFolderThumbnail] Response for ${folderPath}:`, data);
-    console.log(`[_loadFolderThumbnail] Items count: ${data.items?.length}`);
     if (data.success && data.items) {
       const firstVideo = data.items.find(
         (item) => !item.isDirectory && item.isVideo,
       );
-      console.log(`[_loadFolderThumbnail] First video:`, firstVideo);
       if (firstVideo) {
         this.folderVideoCache.set(folderPath, firstVideo.path);
         const thumbnail = await this.loadThumbnail(firstVideo.path, {
           isFolder: true,
           folderPath,
         });
-        console.log(
-          `[_loadFolderThumbnail] Got thumbnail for ${folderPath}: ${thumbnail ? thumbnail.substring(0, 100) : "null"}`,
-        );
         return thumbnail;
       }
     }
