@@ -90,28 +90,6 @@ const MediaCenter = {
 
   _onAudioPageLoaded() {
     this._updateUIForPage("audio");
-    setTimeout(() => {
-      const searchInput = document.getElementById("globalSearchInput");
-      const searchClearBtn = document.getElementById("searchClearBtn");
-      if (searchClearBtn && !searchClearBtn._handlerAttached) {
-        searchClearBtn._handlerAttached = true;
-        searchClearBtn.onclick = () => {
-          if (searchInput) {
-            searchInput.value = "";
-            if (this.albumLibrary) {
-              this.albumLibrary.searchAlbums("");
-            }
-            const updateClearButton = () => {
-              if (searchClearBtn) {
-                searchClearBtn.style.display = "none";
-              }
-            };
-            updateClearButton();
-            searchInput.focus();
-          }
-        };
-      }
-    }, 100);
     if (typeof AlbumModal !== "undefined") {
       if (this.albumModal) {
         this.albumModal.hide();
@@ -159,11 +137,10 @@ const MediaCenter = {
       searchInput.value = "";
       const updateClearButton = () => {
         if (searchClearBtn) {
-          searchClearBtn.style.display =
+          const shouldShow =
             searchInput.value.length > 0 &&
-            document.activeElement === searchInput
-              ? "flex"
-              : "none";
+            document.activeElement === searchInput;
+          searchClearBtn.style.display = shouldShow ? "flex" : "none";
         }
       };
       searchInput.oninput = (e) => {
@@ -172,7 +149,9 @@ const MediaCenter = {
         }
         updateClearButton();
       };
-      searchInput.onfocus = updateClearButton;
+      searchInput.onfocus = () => {
+        updateClearButton();
+      };
       searchInput.onblur = () => {
         setTimeout(() => {
           if (searchClearBtn && document.activeElement !== searchInput) {
@@ -181,15 +160,17 @@ const MediaCenter = {
         }, 100);
       };
       if (searchClearBtn) {
-        searchClearBtn.onclick = () => {
+        searchClearBtn.onmousedown = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
           searchInput.value = "";
-          if (this.albumLibrary) {
+          if (this.albumLibrary && this.albumLibrary.isReady) {
             this.albumLibrary.searchAlbums("");
           }
           updateClearButton();
           searchInput.focus();
+          return false;
         };
-      } else {
       }
       updateClearButton();
     }
@@ -203,7 +184,6 @@ const MediaCenter = {
               setTimeout(() => {
                 if (this.universalPlayer) {
                   this.universalPlayer.startPlaybackExternal();
-                } else {
                 }
               }, 500);
             })
@@ -213,7 +193,6 @@ const MediaCenter = {
         } else {
           this.universalPlayer.startPlayback(album.tracks[0].path, "audio");
         }
-      } else {
       }
     });
     this.events.on("album:addToPlaylist", async (album) => {

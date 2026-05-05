@@ -46,6 +46,10 @@ export class AlbumLibraryRenderer {
   }
 
   renderAlbums(onCardRender) {
+    console.log(
+      "[AlbumLibraryRenderer] renderAlbums called, filteredAlbums count:",
+      this.state.filteredAlbums.length,
+    );
     if (!this.container || this.state.isDestroyed) return;
     const loadingIndicator = this.container.querySelector(".loading");
     if (
