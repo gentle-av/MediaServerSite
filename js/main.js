@@ -3,6 +3,7 @@ import { PlaybackController } from "./core/playback-controller/PlaybackControlle
 import { VideoLibrary } from "./modules/video-library/VideoLibrary.js";
 import { AlbumLibrary } from "./ui/album-library/AlbumLibrary.js";
 import { AlbumModal } from "./ui/album-modal.js";
+import { initPowerManagement } from "./modules/power-management/index.js";
 
 const MediaCenter = {
   async init() {
@@ -239,6 +240,11 @@ const MediaCenter = {
 
   _onPowerPageLoaded() {
     this._updateUIForPage("power");
+    if (!this.powerManagement) {
+      this.powerManagement = initPowerManagement(this.api, this.events, {
+        tvAddress: "192.168.50.13",
+      });
+    }
   },
 
   _updateUIForPage(page) {
