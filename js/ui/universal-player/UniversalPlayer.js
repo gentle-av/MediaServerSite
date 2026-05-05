@@ -5,8 +5,8 @@ import { PlayerVolume } from "./PlayerVolume.js";
 import { PlayerOutput } from "./PlayerOutput.js";
 import { PlayerProgress } from "./PlayerProgress.js";
 import { PlayerUIUpdater } from "./PlayerUIUpdater.js";
-import { PlayerPolling } from "./PlayerPolling.js";
 import { PlayerMediaHandler } from "./PlayerMediaHandler.js";
+import { PlayerPolling } from "./PlayerPolling.js";
 import { PlayerEventSubscriber } from "./PlayerEventSubscriber.js";
 import { PlayerAPI } from "./PlayerApi.js";
 
@@ -36,8 +36,10 @@ export class UniversalPlayer {
     );
     this.eventSubscriber = new PlayerEventSubscriber(
       events,
+      this.api,
       this.mediaHandler,
       this.core,
+      this.uiUpdater,
       () => this.show(),
       () => this.stop(),
     );

@@ -25,7 +25,6 @@ export class PlayerPolling {
     }, 500);
   }
 
-  // PlayerPolling.js
   async _pollAudio() {
     const timeInfo = await this.api.getAudioCurrentTime();
     if (timeInfo && timeInfo.success) {
@@ -33,13 +32,15 @@ export class PlayerPolling {
     }
     const state = await this.api.getAudioPlaybackState();
     if (state && state.success) {
-      if (state.currentTrack && state.currentTrack !== this.core.currentFile) {
+      const trackChanged =
+        state.currentTrack && state.currentTrack !== this.core.currentFile;
+      if (trackChanged) {
         this.core.currentFile = state.currentTrack;
         this.uiUpdater.updateFileInfo(this.core.currentFile);
         const metadata = await this.api.getFileMetadata(this.core.currentFile);
-        let artist = "";
-        let title = "";
-        let coverUrl = null;
+        let artist = "",
+          title = "",
+          coverUrl = null;
         if (metadata?.data) {
           if (metadata.data.file) {
             artist = metadata.data.file.artist || "";

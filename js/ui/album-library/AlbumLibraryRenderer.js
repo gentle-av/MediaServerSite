@@ -1,3 +1,5 @@
+import { AlbumCard } from "../album-card.js";
+
 export class AlbumLibraryRenderer {
   constructor(container, events, state) {
     this.container = container;

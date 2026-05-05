@@ -1,8 +1,10 @@
 export class PlayerEventSubscriber {
-  constructor(events, mediaHandler, core, onShow, onStop) {
+  constructor(events, api, mediaHandler, core, uiUpdater, onShow, onStop) {
     this.events = events;
+    this.api = api;
     this.mediaHandler = mediaHandler;
     this.core = core;
+    this.uiUpdater = uiUpdater;
     this.onShow = onShow;
     this.onStop = onStop;
     this._isStartingVideo = false;
@@ -59,15 +61,43 @@ export class PlayerEventSubscriber {
     if (!state || this.core.isVideo()) return;
     if (state.currentTrack && state.currentTrack !== this.core.currentFile) {
       this.core.currentFile = state.currentTrack;
-      let fileName = this.core.currentFile.split("/").pop();
-      fileName = fileName.replace(/\.(flac|mp3|m4a|wav|ogg|aac)$/i, "");
-      const match = fileName.match(/^\d+\s*[-.]?\s*(.+)$/);
-      if (match) fileName = match[1];
+      this._updateTrackInfoFromPath(this.core.currentFile);
     }
     const wasPlaying = this.core.isPlaying;
     this.core.isPlaying = state.isPlaying || false;
-    if (wasPlaying !== this.core.isPlaying) {
+  }
+
+  async _updateTrackInfoFromPath(path) {
+    if (!this.api || !this.uiUpdater) return;
+
+    const metadata = await this.api.getFileMetadata(path);
+    let artist = "";
+    let title = "";
+    let coverUrl = null;
+
+    if (metadata?.data) {
+      if (metadata.data.file) {
+        artist = metadata.data.file.artist || "";
+        title = metadata.data.file.title || "";
+        coverUrl = metadata.data.file.cover || null;
+      }
+      if (!title && metadata.data.database) {
+        title = metadata.data.database.title || "";
+        artist = metadata.data.database.artist || "";
+      }
+      if (!coverUrl && title) {
+        coverUrl = await this.api.getAlbumCover(path, title, artist);
+      }
     }
+
+    if (!title) {
+      let fileName = path.split("/").pop();
+      fileName = fileName.replace(/\.(flac|mp3|m4a|wav|ogg|aac)$/i, "");
+      const match = fileName.match(/^\d+\s*[-.]?\s*(.+)$/);
+      title = match ? match[1] : fileName;
+    }
+
+    this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
   }
 
   _onTrackChanged({ album, trackIndex }) {
@@ -75,6 +105,7 @@ export class PlayerEventSubscriber {
       const track = album.tracks[trackIndex];
       if (track.path) {
         this.core.currentFile = track.path;
+        this._updateTrackInfoFromPath(track.path);
       }
     }
   }

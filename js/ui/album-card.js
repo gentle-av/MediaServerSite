@@ -1,4 +1,4 @@
-class AlbumCard {
+export class AlbumCard {
   constructor(album, events) {
     this.album = album;
     this.events = events;
@@ -31,17 +31,16 @@ class AlbumCard {
       <div class="album-card-artist" title="${this._escape(this.album.artist)}">${this._escape(this.album.artist)}</div>
       ${this.album.year ? `<div class="album-card-year">${this.album.year}</div>` : ""}
     </div>
-  `;
+    `;
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "album-swipe-delete-btn";
     deleteBtn.title = "Удалить альбом";
     deleteBtn.innerHTML = `
     <i class="fas fa-trash-alt"></i>
     <span>Удалить</span>
-  `;
+    `;
     this.container.appendChild(this.element);
     this.container.appendChild(deleteBtn);
-    this._attachEvents(deleteBtn);
     this._initSwipe();
     this._initTitleScroll();
     return this.container;
@@ -135,28 +134,6 @@ class AlbumCard {
         this.element.classList.remove("swipe-left");
         this.element.style.transform = "translateX(0)";
       }
-    });
-  }
-
-  _attachEvents(deleteBtn) {
-    deleteBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this.events.emit("albumDelete", this.album);
-    });
-    this.element.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (this.element.classList.contains("swipe-left")) {
-        return;
-      }
-      this.events.emit("albumClick", this.album);
-    });
-    this.element.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      this.events.emit("albumContextMenu", {
-        x: e.clientX,
-        y: e.clientY,
-        album: this.album,
-      });
     });
   }
 
