@@ -89,7 +89,15 @@ export class UniversalPlayer {
   async _checkExistingPlayback() {
     console.log("[DEBUG] _checkExistingPlayback called");
     const audioState = await this.api.getAudioPlaybackState();
-    if (audioState?.success && audioState.currentTrack) {
+    console.log(
+      "[DEBUG] _checkExistingPlayback audioState:",
+      JSON.stringify(audioState, null, 2),
+    );
+    if (
+      audioState?.success &&
+      audioState.currentTrack &&
+      audioState.currentTrack !== ""
+    ) {
       console.log(
         "[DEBUG] Found audio in _checkExistingPlayback:",
         audioState.currentTrack,
@@ -99,6 +107,12 @@ export class UniversalPlayer {
       this.core.setMediaType("audio");
       this.core.setCurrentFile(audioState.currentTrack);
       this.core.setPlaying(audioState.isPlaying || false);
+      console.log(
+        "[DEBUG] Audio set - mediaType:",
+        this.core.mediaType,
+        "currentFile:",
+        this.core.currentFile,
+      );
       this.uiUpdater.updateFileInfo(this.core.currentFile);
       this.uiUpdater.updateMediaIcon("audio");
       this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
@@ -145,24 +159,39 @@ export class UniversalPlayer {
       this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
       this.show();
       this.polling.start();
+      console.log("[DEBUG] Audio playback restored successfully");
       return true;
     }
     const videoStatus = await this.api.getVideoStatus();
+    console.log(
+      "[DEBUG] _checkExistingPlayback videoStatus:",
+      JSON.stringify(videoStatus, null, 2),
+    );
     if (videoStatus?.success && videoStatus.currentFile) {
+      console.log(
+        "[DEBUG] Found video in _checkExistingPlayback:",
+        videoStatus.currentFile,
+      );
       this.core.setMediaType("video");
       this.core.setCurrentFile(videoStatus.currentFile);
-      this.core.setPlaying(videoStatus.playing && !videoStatus.paused);
+      const isPlaying = videoStatus.playing && !videoStatus.paused;
+      this.core.setPlaying(isPlaying);
       this.progress.update(
         videoStatus.currentTime || 0,
         videoStatus.duration || 0,
       );
       this.uiUpdater.updateFileInfo(this.core.currentFile);
       this.uiUpdater.updateMediaIcon("video");
-      this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
+      this.uiUpdater.updatePlayPauseButton(isPlaying);
       this.show();
       this.polling.start();
+      console.log(
+        "[DEBUG] Video playback restored successfully, isPlaying:",
+        isPlaying,
+      );
       return true;
     }
+    console.log("[DEBUG] No active playback found");
     return false;
   }
 
@@ -272,22 +301,51 @@ export class UniversalPlayer {
 
   async syncWithPlayback() {
     console.log("[DEBUG] syncWithPlayback called");
+    console.log("[DEBUG] core.isVideo():", this.core.isVideo());
+    console.log("[DEBUG] core.hasActiveFile():", this.core.hasActiveFile());
+    console.log("[DEBUG] core.currentFile:", this.core.currentFile);
+    console.log("[DEBUG] core.mediaType:", this.core.mediaType);
     if (!this.api.playerApi) {
       console.log("[DEBUG] playerApi is null, exiting");
       return;
     }
+    if (this.core.isVideo() && this.core.hasActiveFile()) {
+      console.log("[DEBUG] Video is playing, skipping audio sync");
+      return;
+    }
     const state = await this.api.getAudioPlaybackState();
-    console.log("[DEBUG] syncWithPlayback state:", state);
-    if (state && state.success && state.currentTrack) {
+    console.log(
+      "[DEBUG] syncWithPlayback state FULL:",
+      JSON.stringify(state, null, 2),
+    );
+    console.log("[DEBUG] state?.success:", state?.success);
+    console.log("[DEBUG] state?.currentTrack:", state?.currentTrack);
+    console.log(
+      "[DEBUG] state?.currentTrack === '':",
+      state?.currentTrack === "",
+    );
+    if (
+      state &&
+      state.success &&
+      state.currentTrack &&
+      state.currentTrack !== ""
+    ) {
+      console.log("[DEBUG] === ENTERING audio sync block ===");
       const currentTrack = state.currentTrack;
       console.log("[DEBUG] Current track:", currentTrack);
       this.core.setCurrentFile(currentTrack);
       this.core.setMediaType("audio");
       this.core.setPlaying(state.isPlaying || false);
+      console.log("[DEBUG] After set - core.mediaType:", this.core.mediaType);
+      console.log(
+        "[DEBUG] After set - core.currentFile:",
+        this.core.currentFile,
+      );
       this.uiUpdater.updateFileInfo(this.core.currentFile);
       this.uiUpdater.updateMediaIcon("audio");
       this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
       const metadata = await this.api.getFileMetadata(currentTrack);
+      console.log("[DEBUG] metadata received:", metadata);
       let artist = "";
       let title = "";
       let coverUrl = null;
@@ -296,10 +354,17 @@ export class UniversalPlayer {
           artist = metadata.data.file.artist || "";
           title = metadata.data.file.title || "";
           coverUrl = metadata.data.file.cover || null;
+          console.log("[DEBUG] from file - title:", title, "artist:", artist);
         }
         if (!title && metadata.data.database) {
           title = metadata.data.database.title || "";
           artist = metadata.data.database.artist || "";
+          console.log(
+            "[DEBUG] from database - title:",
+            title,
+            "artist:",
+            artist,
+          );
         }
         if (!coverUrl && title) {
           coverUrl = await this.api.getAlbumCover(currentTrack, title, artist);
@@ -310,12 +375,30 @@ export class UniversalPlayer {
         fileName = fileName.replace(/\.(flac|mp3|m4a|wav|ogg|aac)$/i, "");
         const match = fileName.match(/^\d+\s*[-.]?\s*(.+)$/);
         title = match ? match[1] : fileName;
+        console.log("[DEBUG] title from filename:", title);
       }
+      console.log(
+        "[DEBUG] calling updateTrackFullInfo with title:",
+        title,
+        "artist:",
+        artist,
+      );
       this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
       this.show();
       this.polling.start();
+      console.log("[DEBUG] === FINISHED audio sync block ===");
     } else {
-      console.log("[DEBUG] No active audio playback found");
+      console.log("[DEBUG] === SKIPPING audio sync, conditions not met ===");
+      console.log("[DEBUG] state?.success:", state?.success);
+      console.log("[DEBUG] state?.currentTrack:", state?.currentTrack);
+      console.log(
+        "[DEBUG] state?.currentTrack !== '':",
+        state?.currentTrack !== "",
+      );
+      if (this.core.isAudio() && !this.core.isVideo()) {
+        console.log("[DEBUG] Stopping audio because no active playback found");
+        this.stop();
+      }
     }
   }
 

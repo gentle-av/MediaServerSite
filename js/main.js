@@ -92,7 +92,6 @@ const MediaCenter = {
         this.events,
         NavigationManager,
       );
-      this.universalPlayer.setMediaType("video");
       this.events.on("video:refresh", () => {
         if (this.videoLibrary) this.videoLibrary.refresh();
       });
@@ -107,7 +106,6 @@ const MediaCenter = {
 
   _onAudioPageLoaded() {
     this._updateUIForPage("audio");
-    this.universalPlayer.setMediaType("audio");
     if (typeof AlbumModal !== "undefined") {
       if (this.albumModal) {
         this.albumModal.hide();
@@ -191,7 +189,6 @@ const MediaCenter = {
             setTimeout(() => {
               if (this.universalPlayer) {
                 this.universalPlayer.show();
-                this.universalPlayer.setMediaType("audio");
                 this.universalPlayer.syncWithPlayback();
               }
             }, 500);
@@ -240,7 +237,7 @@ const MediaCenter = {
     });
     setTimeout(async () => {
       await this.universalPlayer.checkExistingPlayback("audio");
-      if (this.universalPlayer && this.universalPlayer.currentFile) {
+      if (this.universalPlayer && this.universalPlayer.core.currentFile) {
         this.universalPlayer.show();
       }
     }, 500);

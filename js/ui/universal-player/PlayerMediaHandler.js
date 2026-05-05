@@ -8,7 +8,12 @@ export class PlayerMediaHandler {
   }
 
   async startPlayback(path, type) {
-    console.log("[DEBUG] startPlayback called with:", { path, type });
+    console.log("[DEBUG] PlayerMediaHandler.startPlayback called with:", {
+      path,
+      type,
+    });
+    console.log("[DEBUG] Current core.mediaType:", this.core.mediaType);
+    console.log("[DEBUG] Current core.currentFile:", this.core.currentFile);
     if (this.core.isStartingVideo()) return;
     if (this.core.isSameFile(path, type) && this.core.isPlaying) {
       console.log("[DEBUG] same file and playing, calling onShow");
@@ -154,6 +159,10 @@ export class PlayerMediaHandler {
   }
 
   async stop() {
+    console.log("[DEBUG] PlayerMediaHandler.stop called");
+    console.log("[DEBUG] core.isVideo():", this.core.isVideo());
+    console.log("[DEBUG] core.isAudio():", this.core.isAudio());
+    console.log("[DEBUG] Stack trace:", new Error().stack);
     if (this.core.isVideo()) {
       await this.api.closeVideo();
     } else if (this.core.isAudio() && this.api.playerApi) {

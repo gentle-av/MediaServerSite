@@ -86,6 +86,12 @@ export class PlayerPolling {
         this.core.currentFile = status.currentFile;
         this.uiUpdater.updateFileInfo(this.core.currentFile);
       }
+      const wasPlaying = this.core.isPlaying;
+      const isCurrentlyPlaying = status.playing && !status.paused;
+      if (wasPlaying !== isCurrentlyPlaying) {
+        this.core.setPlaying(isCurrentlyPlaying);
+        this.uiUpdater.updatePlayPauseButton(isCurrentlyPlaying);
+      }
       this.progress.update(status.currentTime || 0, status.duration || 0);
     }
   }
