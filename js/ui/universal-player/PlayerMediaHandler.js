@@ -196,7 +196,7 @@ export class PlayerMediaHandler {
 
   async _toggleAudioPlayPause() {
     const state = await this.api.getAudioPlaybackState();
-    if (state?.data?.totalTracks > 0) {
+    if (state?.success && state.totalTracks > 0) {
       if (this.core.isPlaying) {
         await this.api.audioPause();
       } else {

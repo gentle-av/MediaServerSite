@@ -27,7 +27,18 @@ export class PlayerAPI {
 
   async getAudioPlaybackState() {
     if (!this.playerApi) return null;
-    return this.playerApi.getPlaybackState();
+    const result = await this.playerApi.getPlaybackState();
+    if (result?.success && result.data) {
+      return {
+        success: true,
+        currentTrack: result.data.currentTrack,
+        currentIndex: result.data.currentIndex,
+        totalTracks: result.data.totalTracks,
+        isPlaying: result.data.isPlaying,
+        ...result.data,
+      };
+    }
+    return result;
   }
 
   async getAudioCurrentTime() {

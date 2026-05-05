@@ -270,7 +270,6 @@ export class UniversalPlayer {
     return false;
   }
 
-  // UniversalPlayer.js - обновите метод syncWithPlayback
   async syncWithPlayback() {
     console.log("[DEBUG] syncWithPlayback called");
     if (!this.api.playerApi) {
@@ -278,25 +277,17 @@ export class UniversalPlayer {
       return;
     }
     const state = await this.api.getAudioPlaybackState();
-    console.log(
-      "[DEBUG] syncWithPlayback state FULL:",
-      JSON.stringify(state, null, 2),
-    );
-    if (state && state.success && state.data && state.data.currentTrack) {
-      const currentTrack = state.data.currentTrack;
+    console.log("[DEBUG] syncWithPlayback state:", state);
+    if (state && state.success && state.currentTrack) {
+      const currentTrack = state.currentTrack;
       console.log("[DEBUG] Current track:", currentTrack);
       this.core.setCurrentFile(currentTrack);
       this.core.setMediaType("audio");
-      this.core.setPlaying(state.data.isPlaying || false);
+      this.core.setPlaying(state.isPlaying || false);
       this.uiUpdater.updateFileInfo(this.core.currentFile);
       this.uiUpdater.updateMediaIcon("audio");
       this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
-      console.log("[DEBUG] fetching metadata for:", currentTrack);
       const metadata = await this.api.getFileMetadata(currentTrack);
-      console.log(
-        "[DEBUG] syncWithPlayback metadata FULL:",
-        JSON.stringify(metadata, null, 2),
-      );
       let artist = "";
       let title = "";
       let coverUrl = null;
@@ -305,21 +296,13 @@ export class UniversalPlayer {
           artist = metadata.data.file.artist || "";
           title = metadata.data.file.title || "";
           coverUrl = metadata.data.file.cover || null;
-          console.log("[DEBUG] from file - title:", title, "artist:", artist);
         }
         if (!title && metadata.data.database) {
           title = metadata.data.database.title || "";
           artist = metadata.data.database.artist || "";
-          console.log(
-            "[DEBUG] from database - title:",
-            title,
-            "artist:",
-            artist,
-          );
         }
         if (!coverUrl && title) {
           coverUrl = await this.api.getAlbumCover(currentTrack, title, artist);
-          console.log("[DEBUG] coverUrl obtained:", coverUrl ? "YES" : "NO");
         }
       }
       if (!title) {
@@ -327,14 +310,12 @@ export class UniversalPlayer {
         fileName = fileName.replace(/\.(flac|mp3|m4a|wav|ogg|aac)$/i, "");
         const match = fileName.match(/^\d+\s*[-.]?\s*(.+)$/);
         title = match ? match[1] : fileName;
-        console.log("[DEBUG] title from filename:", title);
       }
-      console.log("[DEBUG] Final values - title:", title, "artist:", artist);
       this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
       this.show();
       this.polling.start();
     } else {
-      console.log("[DEBUG] No active audio playback found. State:", state);
+      console.log("[DEBUG] No active audio playback found");
     }
   }
 
