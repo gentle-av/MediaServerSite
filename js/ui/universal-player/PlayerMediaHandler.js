@@ -29,6 +29,7 @@ export class PlayerMediaHandler {
     } else {
       await this._startAudio(path);
     }
+    this.core.setMediaType(type);
   }
 
   async _startVideo(path) {
@@ -51,11 +52,26 @@ export class PlayerMediaHandler {
       this.uiUpdater.updatePlayPauseButton(true);
       this.core.setPlaying(true);
       this.core.finishStartingVideo();
+      this.progress.reset();
+
+      setTimeout(() => {
+        if (this._forceRefresh) {
+          this._forceRefresh();
+        }
+      }, 100);
     } catch (error) {
       console.error("Error starting video:", error);
       Utils.showNotification("Ошибка запуска видео", "error");
       this.core.finishStartingVideo();
     }
+    setTimeout(async () => {
+      this.polling.stop();
+      this.polling.start();
+    }, 100);
+  }
+
+  setForceRefresh(fn) {
+    this._forceRefresh = fn;
   }
 
   async _startAudio(path) {
@@ -215,19 +231,26 @@ export class PlayerMediaHandler {
       return;
     }
     const status = await this.api.getVideoStatus();
-    if (status?.success && status.data) {
-      let newTime = status.data.currentTime + seconds;
-      newTime = Math.max(0, Math.min(newTime, status.data.duration));
-      const response = await this.api.seekVideo(newTime);
-      if (response.success) {
-        this.progress.update(newTime, status.data.duration);
-      } else {
-        Utils.showNotification("Ошибка перемотки", "error");
-      }
+    console.log(`[Seek] Current status:`, status);
+    let currentTime = 0;
+    let duration = 0;
+    if (status?.data) {
+      currentTime = status.data.currentTime || 0;
+      duration = status.data.duration || 0;
     } else if (status?.currentTime !== undefined) {
-      let newTime = status.currentTime + seconds;
-      newTime = Math.max(0, Math.min(newTime, status.duration));
-      await this.api.seekVideo(newTime);
+      currentTime = status.currentTime || 0;
+      duration = status.duration || 0;
+    }
+    let newTime = currentTime + seconds;
+    newTime = Math.max(0, Math.min(newTime, duration));
+    console.log(`[Seek] Seeking from ${currentTime} to ${newTime}`);
+    const response = await this.api.seekVideo(newTime);
+    if (response.success) {
+      this.progress.update(newTime, duration);
+      console.log(`[Seek] Seek success`);
+    } else {
+      console.log(`[Seek] Seek failed:`, response);
+      Utils.showNotification("Ошибка перемотки", "error");
     }
   }
 

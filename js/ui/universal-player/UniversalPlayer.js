@@ -27,6 +27,7 @@ export class UniversalPlayer {
       this.progress,
       () => this.show(),
     );
+    this.mediaHandler.setForceRefresh(() => this.forceRefresh());
     this.polling = new PlayerPolling(
       this.api,
       this.core,
@@ -153,10 +154,13 @@ export class UniversalPlayer {
       this.core.setCurrentFile(videoStatus.currentFile);
       const isPlaying = videoStatus.playing && !videoStatus.paused;
       this.core.setPlaying(isPlaying);
-      this.progress.update(
-        videoStatus.currentTime || 0,
-        videoStatus.duration || 0,
-      );
+      let currentTime = videoStatus.currentTime || 0;
+      let duration = videoStatus.duration || 0;
+      if (videoStatus.data) {
+        currentTime = videoStatus.data.currentTime || 0;
+        duration = videoStatus.data.duration || 0;
+      }
+      this.progress.update(currentTime, duration);
       this.uiUpdater.updateFileInfo(this.core.currentFile);
       this.uiUpdater.updateMediaIcon("video");
       this.uiUpdater.updatePlayPauseButton(isPlaying);
@@ -188,7 +192,20 @@ export class UniversalPlayer {
 
   async startPlayback(path, type) {
     await this.mediaHandler.startPlayback(path, type);
+    this.core.setMediaType(type);
     this.polling.start();
+  }
+
+  async forceRefresh() {
+    if (this.polling) {
+      this.polling.stop();
+    }
+    this.core.reset();
+    this.progress.reset();
+    if (this.polling) {
+      this.polling.start();
+    }
+    await this._checkExistingPlayback();
   }
 
   async stop() {

@@ -7,10 +7,15 @@ export class PlayerPolling {
     this.onStateChange = onStateChange;
     this._progressInterval = null;
     this._isPollingStarted = false;
+    this._lastCurrentTime = 0;
   }
 
   start() {
-    if (this._progressInterval || this._isPollingStarted) return;
+    if (this._progressInterval) {
+      clearInterval(this._progressInterval);
+      this._progressInterval = null;
+      this._isPollingStarted = false;
+    }
     this._isPollingStarted = true;
     this._progressInterval = setInterval(async () => {
       if (this.core.isDestroyed()) return;
@@ -81,18 +86,22 @@ export class PlayerPolling {
 
   async _pollVideo() {
     const status = await this.api.getVideoStatus();
+    if (!status) {
+      return;
+    }
     if (status.success && status.currentFile) {
       if (status.currentFile !== this.core.currentFile) {
         this.core.currentFile = status.currentFile;
         this.uiUpdater.updateFileInfo(this.core.currentFile);
       }
-      const wasPlaying = this.core.isPlaying;
-      const isCurrentlyPlaying = status.playing && !status.paused;
-      if (wasPlaying !== isCurrentlyPlaying) {
-        this.core.setPlaying(isCurrentlyPlaying);
-        this.uiUpdater.updatePlayPauseButton(isCurrentlyPlaying);
+      const isPlaying = !status.paused;
+      if (this.core.isPlaying !== isPlaying) {
+        this.core.setPlaying(isPlaying);
+        this.uiUpdater.updatePlayPauseButton(isPlaying);
       }
-      this.progress.update(status.currentTime || 0, status.duration || 0);
+      const currentTime = status.currentTime || 0;
+      const duration = status.duration || 0;
+      this.progress.update(currentTime, duration);
     }
   }
 

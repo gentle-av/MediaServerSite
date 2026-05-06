@@ -10,7 +10,8 @@ export class PlayerProgress {
     this.duration = duration;
     const progressFill = this.dom.get("universalBottomProgressFill");
     if (progressFill && duration > 0) {
-      progressFill.style.width = `${(currentTime / duration) * 100}%`;
+      const percent = (currentTime / duration) * 100;
+      progressFill.style.width = `${percent}%`;
     }
     this._updateTimeDisplay(currentTime, duration);
   }
@@ -22,8 +23,11 @@ export class PlayerProgress {
       timeCurrent.textContent = this._formatTime(currentTime);
     }
     if (timeTotal) {
-      timeTotal.textContent =
-        duration > 0 ? this._formatTime(duration) : "0:00";
+      if (duration > 0) {
+        timeTotal.textContent = this._formatTime(duration);
+      } else {
+        timeTotal.textContent = "0:00";
+      }
     }
   }
 
@@ -48,12 +52,12 @@ export class PlayerProgress {
 
   _formatTime(seconds) {
     if (!seconds || seconds < 0) return "0:00";
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     }
-    return `${minutes}:${secs.toString().padStart(2, "0")}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   }
 }
