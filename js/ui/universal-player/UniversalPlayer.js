@@ -27,7 +27,7 @@ export class UniversalPlayer {
       this.progress,
       () => this.show(),
     );
-    this.mediaHandler.setForceRefresh(() => this.forceRefresh());
+    this.mediaHandler.setForceRefreshVideo(() => this.forceRefresh());
     this.polling = new PlayerPolling(
       this.api,
       this.core,
@@ -144,8 +144,14 @@ export class UniversalPlayer {
         title = match ? match[1] : fileName;
       }
       this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
+      console.log(
+        "[UniversalPlayer] Audio playback detected, starting polling",
+      );
       this.show();
-      this.polling.start();
+      if (this.polling) {
+        this.polling.stop();
+        this.polling.start();
+      }
       return true;
     }
     const videoStatus = await this.api.getVideoStatus();
@@ -191,9 +197,15 @@ export class UniversalPlayer {
   _onStateChange(state) {}
 
   async startPlayback(path, type) {
+    console.log("[UniversalPlayer] startPlayback called:", path, type);
     await this.mediaHandler.startPlayback(path, type);
     this.core.setMediaType(type);
-    this.polling.start();
+    console.log("[UniversalPlayer] mediaType set to:", this.core.mediaType);
+    if (this.polling) {
+      console.log("[UniversalPlayer] Restarting polling");
+      this.polling.stop();
+      this.polling.start();
+    }
   }
 
   async forceRefresh() {

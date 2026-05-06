@@ -55,8 +55,8 @@ export class PlayerMediaHandler {
       this.progress.reset();
 
       setTimeout(() => {
-        if (this._forceRefresh) {
-          this._forceRefresh();
+        if (this._forceRefreshVideo) {
+          this._forceRefreshVideo();
         }
       }, 100);
     } catch (error) {
@@ -64,10 +64,10 @@ export class PlayerMediaHandler {
       Utils.showNotification("Ошибка запуска видео", "error");
       this.core.finishStartingVideo();
     }
-    setTimeout(async () => {
-      this.polling.stop();
-      this.polling.start();
-    }, 100);
+  }
+
+  setForceRefreshVideo(fn) {
+    this._forceRefreshVideo = fn;
   }
 
   setForceRefresh(fn) {
@@ -106,10 +106,16 @@ export class PlayerMediaHandler {
     this.core.setPlaying(true);
     setTimeout(async () => {
       const timeInfo = await this.api.getAudioCurrentTime();
-      if (timeInfo && timeInfo.data && timeInfo.data.duration > 0) {
-        this.progress.update(this.progress.currentTime, timeInfo.data.duration);
+      if (timeInfo && timeInfo.success) {
+        this.progress.update(timeInfo.currentTime || 0, timeInfo.duration || 0);
       }
     }, 500);
+    setTimeout(async () => {
+      const timeInfo = await this.api.getAudioCurrentTime();
+      if (timeInfo && timeInfo.success) {
+        this.progress.update(timeInfo.currentTime || 0, timeInfo.duration || 0);
+      }
+    }, 1500);
   }
 
   async _loadAlbumCover(filePath) {
