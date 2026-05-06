@@ -1,0 +1,140 @@
+.universal-player-preview-tooltip {
+  position: fixed;
+  z-index: 100000;
+  background: var(--bg1);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--bg3);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+  pointer-events: none;
+  max-width: 300px;
+  min-width: 250px;
+}
+
+.universal-player-preview-tooltip.visible {
+  opacity: 1;
+  visibility: visible;
+  animation: previewFadeIn 0.2s ease;
+}
+
+.preview-tooltip-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-tooltip-image-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  background: var(--bg2);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-tooltip-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-tooltip-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--yellow);
+  font-size: 24px;
+}
+
+.preview-tooltip-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  background: var(--bg2);
+  color: var(--fg4);
+  font-size: 12px;
+}
+
+.preview-tooltip-placeholder i {
+  font-size: 48px;
+  color: var(--yellow);
+  opacity: 0.5;
+}
+
+.preview-tooltip-info {
+  padding: 4px 8px;
+}
+
+.preview-tooltip-title {
+  color: var(--fg0);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview-tooltip-artist {
+  color: var(--yellow);
+  font-size: 12px;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes previewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.universal-bottom-player-preview {
+  cursor: pointer;
+  position: relative;
+}
+
+.preview-hover-indicator {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: var(--bg2);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--yellow);
+  pointer-events: none;
+  z-index: 10;
+  border: 1px solid var(--bg3);
+}
+
+@media (max-width: 768px) {
+  .universal-player-preview-tooltip {
+    display: none;
+  }
+}

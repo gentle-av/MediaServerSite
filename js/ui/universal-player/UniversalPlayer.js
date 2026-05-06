@@ -9,6 +9,7 @@ import { PlayerMediaHandler } from "./PlayerMediaHandler.js";
 import { PlayerPolling } from "./PlayerPolling.js";
 import { PlayerEventSubscriber } from "./PlayerEventSubscriber.js";
 import { PlayerAPI } from "./PlayerApi.js";
+import { PreviewTooltip } from "./PreviewTooltip.js";
 
 export class UniversalPlayer {
   constructor(apiClient, events, musicApi = null, playerApi = null) {
@@ -46,6 +47,7 @@ export class UniversalPlayer {
     );
     this._isMinimized = false;
     this._settingsCollapsed = true;
+    this.previewTooltip = null;
     this._init();
   }
 
@@ -66,6 +68,7 @@ export class UniversalPlayer {
     this.volume.startPolling();
     this.output.startPolling();
     await this._checkExistingPlayback();
+    this.previewTooltip = new PreviewTooltip(this.dom, this.api);
   }
 
   _attachEvents() {
@@ -352,6 +355,10 @@ export class UniversalPlayer {
     this._eventHandlers?.detach(this.dom);
     this.eventSubscriber.unsubscribe();
     this.dom.hide();
+    if (this.previewTooltip) {
+      this.previewTooltip.destroy();
+      this.previewTooltip = null;
+    }
   }
 }
 
