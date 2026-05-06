@@ -5,6 +5,75 @@ export class PlaybackActions {
     this.events = events;
   }
 
+  getCurrentMediaType() {
+    const player = window.universalPlayerInstance;
+    return player?.mediaType || "audio";
+  }
+
+  async seekVideo(seconds) {
+    try {
+      const status = await this.api.getVideoStatus();
+      if (status?.success && status?.data) {
+        let newTime = status.data.currentTime + seconds;
+        newTime = Math.max(0, Math.min(newTime, status.data.duration));
+        await this.api.seekVideo(newTime);
+      } else if (status?.currentTime !== undefined) {
+        let newTime = status.currentTime + seconds;
+        newTime = Math.max(0, Math.min(newTime, status.duration));
+        await this.api.seekVideo(newTime);
+      } else {
+        await this.seekRelativeAudio(seconds);
+      }
+    } catch (error) {
+      await this.seekRelativeAudio(seconds);
+    }
+  }
+
+  async seekRelativeAudio(seconds) {
+    try {
+      const timeInfo = await this.api.getCurrentTime();
+      if (
+        timeInfo?.data?.duration &&
+        timeInfo?.data?.currentTime !== undefined
+      ) {
+        let newTime = timeInfo.data.currentTime + seconds;
+        newTime = Math.max(0, Math.min(newTime, timeInfo.data.duration));
+        await this.api.seek(newTime);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async seekRelative(seconds) {
+    const mediaType = this.getCurrentMediaType();
+    if (mediaType === "video") {
+      await this.seekVideo(seconds);
+    } else {
+      await this.seekRelativeAudio(seconds);
+    }
+  }
+
+  async next(mediaType = null) {
+    const currentMediaType = mediaType || this.getCurrentMediaType();
+    if (currentMediaType === "video") {
+      await this.seekVideo(10);
+    } else {
+      await this.api.next();
+      setTimeout(() => this._updateTrackName(), 50);
+    }
+  }
+
+  async previous(mediaType = null) {
+    const currentMediaType = mediaType || this.getCurrentMediaType();
+    if (currentMediaType === "video") {
+      await this.seekVideo(-10);
+    } else {
+      await this.api.previous();
+      setTimeout(() => this._updateTrackName(), 50);
+    }
+  }
+
   async play() {
     await this.api.play();
     this.state.isPlaying = true;
@@ -23,22 +92,20 @@ export class PlaybackActions {
     this._updatePlayerUI(false);
   }
 
-  async next() {
-    await this.api.next();
-    setTimeout(() => this._updateTrackName(), 50);
-  }
-
-  async previous() {
-    await this.api.previous();
-    setTimeout(() => this._updateTrackName(), 50);
-  }
-
   async seek(percent, progressBar) {
-    const rect = progressBar.getBoundingClientRect();
-    const timeInfo = await this.api.getCurrentTime();
-    if (timeInfo?.data?.duration) {
-      const seekTime = timeInfo.data.duration * percent;
-      await this.api.seek(seekTime);
+    const mediaType = this.getCurrentMediaType();
+    if (mediaType === "video") {
+      const status = await this.api.getVideoStatus();
+      if (status?.success && status?.data?.duration) {
+        const seekTime = status.data.duration * percent;
+        await this.api.seekVideo(seekTime);
+      }
+    } else {
+      const timeInfo = await this.api.getCurrentTime();
+      if (timeInfo?.data?.duration) {
+        const seekTime = timeInfo.data.duration * percent;
+        await this.api.seek(seekTime);
+      }
     }
   }
 

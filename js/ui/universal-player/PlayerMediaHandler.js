@@ -133,18 +133,11 @@ export class PlayerMediaHandler {
     this.uiUpdater.reset();
   }
 
-  async _toggleAudioPlayPause() {
-    const state = await this.api.getAudioPlaybackState();
-    if (state?.success && state.totalTracks > 0) {
-      if (this.core.isPlaying) {
-        await this.api.audioPause();
-      } else {
-        await this.api.audioPlay();
-      }
-      this.core.setPlaying(!this.core.isPlaying);
-      this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
+  async togglePlayPause() {
+    if (this.core.isVideo()) {
+      await this._toggleVideoPlayPause();
     } else {
-      Utils.showNotification("Плейлист пуст", "info");
+      await this._toggleAudioPlayPause();
     }
   }
 
@@ -201,14 +194,40 @@ export class PlayerMediaHandler {
   }
 
   async previous() {
-    if (this.core.isAudio() && this.api.playerApi) {
+    if (this.core.isVideo()) {
+      await this._seekRelative(-10);
+    } else if (this.core.isAudio() && this.api.playerApi) {
       await this.api.audioPrevious();
     }
   }
 
   async next() {
-    if (this.core.isAudio() && this.api.playerApi) {
+    if (this.core.isVideo()) {
+      await this._seekRelative(10);
+    } else if (this.core.isAudio() && this.api.playerApi) {
       await this.api.audioNext();
+    }
+  }
+
+  async _seekRelative(seconds) {
+    if (!this.core.hasActiveFile()) {
+      Utils.showNotification("Нет активного медиа", "info");
+      return;
+    }
+    const status = await this.api.getVideoStatus();
+    if (status?.success && status.data) {
+      let newTime = status.data.currentTime + seconds;
+      newTime = Math.max(0, Math.min(newTime, status.data.duration));
+      const response = await this.api.seekVideo(newTime);
+      if (response.success) {
+        this.progress.update(newTime, status.data.duration);
+      } else {
+        Utils.showNotification("Ошибка перемотки", "error");
+      }
+    } else if (status?.currentTime !== undefined) {
+      let newTime = status.currentTime + seconds;
+      newTime = Math.max(0, Math.min(newTime, status.duration));
+      await this.api.seekVideo(newTime);
     }
   }
 

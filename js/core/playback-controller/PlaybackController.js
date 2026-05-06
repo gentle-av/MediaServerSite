@@ -49,12 +49,16 @@ export class PlaybackController {
     return this.actions.togglePlayPause();
   }
 
-  async next() {
-    return this.actions.next();
+  async next(mediaType = "audio") {
+    return this.actions.next(mediaType);
   }
 
-  async previous() {
-    return this.actions.previous();
+  async previous(mediaType = "audio") {
+    return this.actions.previous(mediaType);
+  }
+
+  async seekRelative(seconds) {
+    return this.actions.seekRelative(seconds);
   }
 
   async stop() {
