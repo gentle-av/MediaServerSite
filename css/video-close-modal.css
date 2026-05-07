@@ -1,0 +1,243 @@
+/* video-close-modal.css - в стиле Gruvbox */
+
+.video-close-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    visibility 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.video-close-modal.active {
+  visibility: visible;
+  opacity: 1;
+}
+
+.video-close-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.video-close-modal-content {
+  position: relative;
+  background: var(--bg1);
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 450px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--bg3);
+  transform: scale(0.95);
+  transition: transform 0.2s ease;
+  overflow: hidden;
+}
+
+.video-close-modal.active .video-close-modal-content {
+  transform: scale(1);
+  animation: modalSlideIn 0.2s ease;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.video-close-modal-header {
+  padding: 20px 24px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--bg3);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.video-close-modal-header i {
+  font-size: 28px;
+  color: var(--red);
+}
+
+.video-close-modal-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--fg0);
+}
+
+.video-close-modal-body {
+  padding: 24px;
+}
+
+.video-close-modal-body p {
+  margin: 0 0 12px 0;
+  color: var(--fg2);
+  font-size: 0.9rem;
+}
+
+.video-close-modal-path {
+  background: var(--bg2);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  color: var(--yellow);
+  font-family: monospace;
+  word-break: break-all;
+  border: 1px solid var(--bg3);
+}
+
+.video-close-modal-buttons {
+  display: flex;
+  gap: 12px;
+  padding: 20px 24px;
+  background: var(--bg2);
+  border-top: 1px solid var(--bg3);
+}
+
+.video-close-modal-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.video-close-modal-btn i {
+  font-size: 14px;
+}
+
+/* Кнопка "Только закрыть" */
+.video-close-modal-btn.close-only {
+  background: var(--bg1);
+  color: var(--fg1);
+  border: 1px solid var(--bg3);
+}
+
+.video-close-modal-btn.close-only:hover {
+  background: var(--bg3);
+  border-color: var(--yellow);
+  color: var(--yellow);
+  transform: translateY(-1px);
+}
+
+/* Кнопка "Закрыть и удалить" */
+.video-close-modal-btn.close-delete {
+  background: var(--bg1);
+  color: var(--red);
+  border: 1px solid var(--bg3);
+}
+
+.video-close-modal-btn.close-delete:hover {
+  background: var(--red);
+  color: var(--bg0);
+  border-color: var(--red);
+  transform: translateY(-1px);
+}
+
+/* Кнопка "Отмена" */
+.video-close-modal-btn.cancel {
+  background: var(--bg1);
+  color: var(--fg3);
+  border: 1px solid var(--bg3);
+}
+
+.video-close-modal-btn.cancel:hover {
+  background: var(--bg3);
+  color: var(--fg1);
+  transform: translateY(-1px);
+}
+
+.video-close-modal-btn:active {
+  transform: translateY(0);
+}
+
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+  .video-close-modal-content {
+    width: 92%;
+    max-width: none;
+    margin: 16px;
+  }
+
+  .video-close-modal-header {
+    padding: 16px 20px;
+  }
+
+  .video-close-modal-header i {
+    font-size: 24px;
+  }
+
+  .video-close-modal-header h3 {
+    font-size: 1rem;
+  }
+
+  .video-close-modal-body {
+    padding: 20px;
+  }
+
+  .video-close-modal-body p {
+    font-size: 0.85rem;
+  }
+
+  .video-close-modal-path {
+    font-size: 0.8rem;
+    padding: 8px 10px;
+  }
+
+  .video-close-modal-buttons {
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 20px;
+  }
+
+  .video-close-modal-btn {
+    padding: 10px 14px;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .video-close-modal-header {
+    padding: 14px 16px;
+  }
+
+  .video-close-modal-header i {
+    font-size: 20px;
+  }
+
+  .video-close-modal-body {
+    padding: 16px;
+  }
+
+  .video-close-modal-buttons {
+    padding: 14px 16px;
+  }
+
+  .video-close-modal-btn {
+    padding: 8px 12px;
+  }
+}

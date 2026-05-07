@@ -69,6 +69,10 @@ export class UniversalPlayer {
     this.output.startPolling();
     await this._checkExistingPlayback();
     this.previewTooltip = new PreviewTooltip(this.dom, this.api);
+    this.events.on("player:clearState", () => {
+      console.log("[UniversalPlayer] player:clearState event received");
+      this.clearState();
+    });
   }
 
   _attachEvents() {
@@ -218,9 +222,36 @@ export class UniversalPlayer {
   }
 
   async stop() {
+    if (this.core.isVideo() && this.core.currentFile) {
+      this.events.emit("player:closeVideo", this.core.currentFile);
+      return;
+    }
     this.mediaHandler.stop();
     this.polling.stop();
     this.core.reset();
+  }
+
+  async forceStop() {
+    this.mediaHandler.stop();
+    this.polling.stop();
+    this.core.reset();
+  }
+
+  clearState() {
+    console.log("[UniversalPlayer] clearState() called");
+    console.log(
+      "[UniversalPlayer] Before reset - core.currentFile:",
+      this.core.currentFile,
+    );
+    this.core.reset();
+    this.progress.reset();
+    this.uiUpdater.reset();
+    this.polling.stop();
+    this.hide();
+    console.log(
+      "[UniversalPlayer] After reset - core.currentFile:",
+      this.core.currentFile,
+    );
   }
 
   show() {

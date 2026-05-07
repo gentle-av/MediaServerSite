@@ -3,12 +3,14 @@ import { VideoLibraryDOM } from "./VideoLibraryDOM.js";
 import { VideoLibraryRenderer } from "./VideoLibraryRenderer.js";
 import { VideoLibraryThumbnailLoader } from "./VideoLibraryThumbnailLoader.js";
 import { VideoLibraryEvents } from "./VideoLibraryEvents.js";
+import { VideoCloseModal } from "./VideoCloseModal.js";
 
 export class VideoLibrary {
-  constructor(apiClient, events, navigationManager) {
+  constructor(apiClient, events, navigationManager, universalPlayer = null) {
     this.api = apiClient;
     this.events = events;
     this.navigation = navigationManager;
+    this.universalPlayer = universalPlayer;
     this.state = new VideoLibraryState();
     this.dom = new VideoLibraryDOM();
     this.renderer = new VideoLibraryRenderer(this.dom, this.state);
@@ -16,11 +18,21 @@ export class VideoLibrary {
       this.api,
       this.state,
     );
+    this.videoCloseModal = null;
     this.eventsHandler = null;
     this._init();
   }
 
   _init() {
+    console.log(
+      "[VideoLibrary] _init() - creating VideoCloseModal with universalPlayer:",
+      !!this.universalPlayer,
+    );
+    this.videoCloseModal = new VideoCloseModal(
+      this.events,
+      this.api,
+      this.universalPlayer,
+    );
     this.eventsHandler = new VideoLibraryEvents(
       this.api,
       this.events,
@@ -30,6 +42,7 @@ export class VideoLibrary {
       this.thumbnailLoader,
       (path) => this.playVideo(path),
       (path, addToHistory) => this.loadDirectory(path, addToHistory),
+      () => this.videoCloseModal,
     );
     this.eventsHandler.bindEvents();
     this.loadDirectory(this.state.getCurrentPath(), false);
@@ -112,6 +125,10 @@ export class VideoLibrary {
   }
 
   destroy() {
+    if (this.videoCloseModal) {
+      this.videoCloseModal.destroy();
+      this.videoCloseModal = null;
+    }
     const container = this.dom.getContainer();
     if (container) {
       const cards = container.querySelectorAll(".item-card");

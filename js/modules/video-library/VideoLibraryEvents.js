@@ -8,6 +8,7 @@ export class VideoLibraryEvents {
     thumbnailLoader,
     onPlayVideo,
     onLoadDirectory,
+    getVideoCloseModal,
   ) {
     this.api = api;
     this.events = events;
@@ -17,6 +18,7 @@ export class VideoLibraryEvents {
     this.thumbnailLoader = thumbnailLoader;
     this.onPlayVideo = onPlayVideo;
     this.onLoadDirectory = onLoadDirectory;
+    this.getVideoCloseModal = getVideoCloseModal;
     this._currentContextMenu = null;
   }
 
@@ -24,6 +26,13 @@ export class VideoLibraryEvents {
     this.events.on("video:delete", (data) => this.onDeleteItem(data));
     this.events.on("navigation:videoPage", () => this.onRefresh());
     this.events.on("video:refresh", () => this.onRefresh());
+
+    this.events.on("player:closeVideo", async (videoPath) => {
+      const modal = this.getVideoCloseModal();
+      if (modal) {
+        await modal.show(videoPath);
+      }
+    });
   }
 
   attachItemEvents(container) {
