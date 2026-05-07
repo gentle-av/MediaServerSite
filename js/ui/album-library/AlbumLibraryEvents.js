@@ -12,7 +12,7 @@ export class AlbumLibraryEvents {
   }
 
   bind() {
-    this.events.on("albumDelete", () => this.onRefresh());
+    this.events.on("albumDelete", (album) => this._handleAlbumDelete(album));
     this.events.on("albumEdit", (album) => this._handleAlbumEdit(album));
     this.events.on("albumContextMenu", ({ x, y, album }) =>
       this._showContextMenu(x, y, album),
@@ -21,11 +21,113 @@ export class AlbumLibraryEvents {
     window.addEventListener("albumTagsUpdated", () => this._refreshAlbumData());
   }
 
+  _showDeleteConfirmDialog(album, onConfirm) {
+    if (window.MediaCenter && window.MediaCenter._showOverlay) {
+      window.MediaCenter._showOverlay();
+    }
+    const modal = document.createElement("div");
+    modal.className = "custom-delete-modal";
+    modal.innerHTML = `
+      <div class="custom-delete-dialog">
+        <div class="custom-delete-header">
+          <i class="fas fa-trash-alt"></i>
+          <h3>Удаление альбома</h3>
+        </div>
+        <div class="custom-delete-body">
+          <div class="custom-delete-message">
+            Вы уверены, что хотите удалить этот альбом?
+          </div>
+          <div class="custom-delete-filename" title="${this._escape(album.title)}">
+            <i class="fas fa-compact-disc"></i>
+            ${this._escape(album.title)}
+          </div>
+          <div class="custom-delete-artist" title="${this._escape(album.artist)}">
+            <i class="fas fa-user"></i>
+            ${this._escape(album.artist)}
+          </div>
+          <div class="custom-delete-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Все треки альбома будут перемещены в корзину</span>
+          </div>
+        </div>
+        <div class="custom-delete-actions">
+          <button class="custom-delete-btn custom-delete-btn-cancel">
+            <i class="fas fa-times"></i>
+            <span>Отмена</span>
+          </button>
+          <button class="custom-delete-btn custom-delete-btn-delete">
+            <i class="fas fa-trash-alt"></i>
+            <span>Удалить</span>
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    const closeModal = () => {
+      modal.classList.add("closing");
+      setTimeout(() => {
+        modal.remove();
+        if (window.MediaCenter && window.MediaCenter._hideOverlay) {
+          window.MediaCenter._hideOverlay();
+        }
+      }, 200);
+    };
+    modal
+      .querySelector(".custom-delete-btn-cancel")
+      .addEventListener("click", closeModal);
+    modal
+      .querySelector(".custom-delete-btn-delete")
+      .addEventListener("click", () => {
+        closeModal();
+        if (onConfirm) onConfirm();
+      });
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+  }
+
+  async _handleAlbumDelete(album) {
+    this._showDeleteConfirmDialog(album, async () => {
+      try {
+        const response = await fetch("/api/music/delete-album", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ album: album.title, artist: album.artist }),
+        });
+        const data = await response.json();
+        if (data.status === "success") {
+          const index = this.state.albums.findIndex(
+            (a) => a.title === album.title && a.artist === album.artist,
+          );
+          if (index !== -1) {
+            this.state.albums.splice(index, 1);
+            this.state.filteredAlbums = [...this.state.albums];
+            this.renderer.clear();
+            this.renderer.renderAlbums();
+          }
+          if (window.showNotification) {
+            window.showNotification(
+              `Альбом "${album.title}" удалён`,
+              "success",
+            );
+          }
+        } else {
+          if (window.showNotification) {
+            window.showNotification("Ошибка при удалении альбома", "error");
+          }
+        }
+      } catch (error) {
+        console.error("Delete error:", error);
+        if (window.showNotification) {
+          window.showNotification("Ошибка при удалении альбома", "error");
+        }
+      }
+    });
+  }
+
   async _handleAlbumEdit(album) {
     if (window.TagEditor && window.TagEditor.showAlbumTagEditor) {
       window.TagEditor.showAlbumTagEditor(album);
-    } else {
-      console.error("TagEditor not available");
     }
   }
 
@@ -96,8 +198,15 @@ export class AlbumLibraryEvents {
     setTimeout(() => document.addEventListener("click", closeMenu), 0);
   }
 
+  _escape(str) {
+    if (!str) return "";
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   unbind() {
-    this.events.off("albumDelete", this.onRefresh);
+    this.events.off("albumDelete", this._handleAlbumDelete);
     this.events.off("albumEdit", this._handleAlbumEdit);
     this.events.off("albumContextMenu");
     this.events.off("albumClick");
