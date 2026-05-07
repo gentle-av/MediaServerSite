@@ -70,7 +70,6 @@ export class UniversalPlayer {
     await this._checkExistingPlayback();
     this.previewTooltip = new PreviewTooltip(this.dom, this.api);
     this.events.on("player:clearState", () => {
-      console.log("[UniversalPlayer] player:clearState event received");
       this.clearState();
     });
   }
@@ -238,20 +237,11 @@ export class UniversalPlayer {
   }
 
   clearState() {
-    console.log("[UniversalPlayer] clearState() called");
-    console.log(
-      "[UniversalPlayer] Before reset - core.currentFile:",
-      this.core.currentFile,
-    );
     this.core.reset();
     this.progress.reset();
     this.uiUpdater.reset();
     this.polling.stop();
     this.hide();
-    console.log(
-      "[UniversalPlayer] After reset - core.currentFile:",
-      this.core.currentFile,
-    );
   }
 
   show() {

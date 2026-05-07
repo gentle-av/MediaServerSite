@@ -111,11 +111,6 @@ export class VideoCloseModal {
     try {
       await this.api.post("/api/video/close");
       this.clearPlayerState();
-      console.log("[VideoCloseModal] Deleting video:", videoPath);
-      const deleteResponse = await this.api.post("/api/trash", {
-        path: videoPath,
-      });
-      console.log("[VideoCloseModal] Delete response:", deleteResponse);
       if (deleteResponse.success) {
         if (typeof Utils !== "undefined" && Utils.showNotification) {
           Utils.showNotification(

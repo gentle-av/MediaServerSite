@@ -24,10 +24,6 @@ export class VideoLibrary {
   }
 
   _init() {
-    console.log(
-      "[VideoLibrary] _init() - creating VideoCloseModal with universalPlayer:",
-      !!this.universalPlayer,
-    );
     this.videoCloseModal = new VideoCloseModal(
       this.events,
       this.api,

@@ -71,10 +71,6 @@ const MediaCenter = {
       this.videoLibrary.destroy();
       this.videoLibrary = null;
     }
-    console.log(
-      "[MediaCenter] _onVideoPageLoaded - universalPlayer exists:",
-      !!this.universalPlayer,
-    );
     setTimeout(() => {
       this.videoLibrary = new VideoLibrary(
         this.api,
@@ -86,9 +82,7 @@ const MediaCenter = {
         if (this.videoLibrary) this.videoLibrary.refresh();
       });
       this.events.on("player:clearState", () => {
-        console.log("[MediaCenter] player:clearState event received");
         if (this.universalPlayer) {
-          console.log("[MediaCenter] Calling universalPlayer.clearState()");
           this.universalPlayer.clearState();
         } else {
           console.warn("[MediaCenter] universalPlayer is null");
