@@ -1,4 +1,3 @@
-// AlbumLibrary.js
 import { AlbumLibraryState } from "./AlbumLibraryState.js";
 import { AlbumLibraryLoader } from "./AlbumLibraryLoader.js";
 import { AlbumLibraryRenderer } from "./AlbumLibraryRenderer.js";

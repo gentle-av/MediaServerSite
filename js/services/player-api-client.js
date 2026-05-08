@@ -1,4 +1,6 @@
-class PlayerApiClient extends ApiClient {
+import { ApiClient } from "./api-client.js";
+
+export class PlayerApiClient extends ApiClient {
   constructor() {
     super();
     this._available = false;

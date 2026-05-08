@@ -1,4 +1,4 @@
-class TrackList {
+export class TrackList {
   constructor(events) {
     this.events = events;
     this.container = null;

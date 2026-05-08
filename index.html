@@ -114,7 +114,18 @@
           </div>
         </header>
         <div class="scrollable-content" id="scrollableContent">
-          <div class="page-container" id="pageContainer"></div>
+          <div
+            id="videoPageContainer"
+            style="display: flex; flex-direction: column; height: 100%"
+          >
+            <div id="videoBreadcrumbs" class="video-breadcrumbs"></div>
+            <div id="videoContent" class="video-content"></div>
+          </div>
+          <div
+            class="page-container"
+            id="pageContainer"
+            style="display: none"
+          ></div>
         </div>
       </main>
       <div id="albumModal" class="modal">
@@ -419,17 +430,17 @@
         </div>
       </div>
     </div>
-
-    <script src="js/core/config.js"></script>
-    <script src="js/core/utils.js"></script>
-    <script src="js/core/event-bus.js"></script>
-    <script src="js/services/api-client.js"></script>
-    <script src="js/services/player-api-client.js"></script>
-    <script src="js/services/music-api-client.js"></script>
-    <script src="js/modules/track.js"></script>
-    <script src="js/modules/refresh-manager.js"></script>
-    <script src="js/ui/track-list.js"></script>
-    <script type="module" src="/js/ui/album-card.js"></script>
+    <script type="module" src="js/core/event-bus.js"></script>
+    <script type="module" src="js/services/api-client.js"></script>
+    <script type="module" src="js/services/player-api-client.js"></script>
+    <script type="module" src="js/services/music-api-client.js"></script>
+    <script type="module" src="js/modules/track.js"></script>
+    <script type="module" src="js/modules/refresh-manager.js"></script>
+    <script type="module" src="js/modules/confirm-dialog.js"></script>
+    <script type="module" src="js/modules/delete-dialog.js"></script>
+    <script type="module" src="js/modules/tag-editor.js"></script>
+    <script type="module" src="js/modules/navigation-manager.js"></script>
+    <script type="module" src="js/ui/album-card.js"></script>
     <script type="module" src="js/ui/playlist-popup/index.js"></script>
     <script type="module" src="js/modules/album.js"></script>
     <script type="module" src="js/ui/universal-player.js"></script>
@@ -438,10 +449,7 @@
     <script type="module" src="js/modules/power-management/index.js"></script>
     <script type="module" src="js/ui/album-library/index.js"></script>
     <script type="module" src="js/ui/album-modal.js"></script>
-    <script src="js/modules/navigation-manager.js"></script>
-    <script src="js/modules/confirm-dialog.js"></script>
-    <script src="js/modules/delete-dialog.js"></script>
-    <script src="js/modules/tag-editor.js"></script>
+    <script type="module" src="js/ui/track-list.js"></script>
     <script type="module" src="js/main.js"></script>
   </body>
 </html>

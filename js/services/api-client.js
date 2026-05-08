@@ -1,4 +1,4 @@
-class ApiClient {
+export class ApiClient {
   constructor() {
     this.baseUrl = `http://${window.location.hostname}:${window.location.port}`;
     this._pendingRequests = new Map();

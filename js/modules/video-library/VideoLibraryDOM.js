@@ -1,4 +1,3 @@
-// js/modules/video-library/VideoLibraryDOM.js
 export class VideoLibraryDOM {
   constructor() {
     this.container = document.getElementById("videoContent");

@@ -1,4 +1,3 @@
-// js/ui/universal-player/PlayerCore.js
 export class PlayerCore {
   constructor() {
     this.mediaType = null;

@@ -1,4 +1,3 @@
-// js/modules/video-library/VideoLibraryRenderer.js
 export class VideoLibraryRenderer {
   constructor(dom, state) {
     this.dom = dom;
@@ -6,13 +5,18 @@ export class VideoLibraryRenderer {
   }
 
   render(items) {
+    const container = this.dom.getContainer();
+    if (!container) {
+      console.error("[VideoLibraryRenderer] Container is null");
+      return [];
+    }
     const visibleItems = items.filter((item) => !item.name.startsWith("."));
     if (visibleItems.length === 0) {
       this.dom.showEmpty();
       return [];
     }
     const html = visibleItems.map((item) => this._renderItem(item)).join("");
-    this.dom.getContainer().innerHTML = html;
+    container.innerHTML = html;
     return visibleItems;
   }
 

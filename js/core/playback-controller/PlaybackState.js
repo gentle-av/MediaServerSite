@@ -1,4 +1,3 @@
-// js/core/playback-controller/PlaybackState.js
 export class PlaybackState {
   constructor() {
     this._currentAlbum = null;

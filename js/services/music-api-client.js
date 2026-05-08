@@ -1,4 +1,4 @@
-class MusicApiClient {
+export class MusicApiClient {
   constructor() {
     this.baseUrl = "/api/music";
   }
