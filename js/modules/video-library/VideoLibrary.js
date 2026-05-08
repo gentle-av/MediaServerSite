@@ -42,6 +42,9 @@ export class VideoLibrary {
     );
     this.eventsHandler.bindEvents();
     this.loadDirectory(this.state.getCurrentPath(), false);
+    if (this.universalPlayer) {
+      this.universalPlayer.hide();
+    }
   }
 
   playVideo(path) {
