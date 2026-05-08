@@ -49,9 +49,13 @@ export class AlbumCard {
   }
 
   _initContextMenu() {
+    const isMobile = window.innerWidth <= 768;
     this.element.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      if (isMobile) {
+        return false;
+      }
       if (this.events && this.events.emit) {
         this.events.emit("albumContextMenu", {
           x: e.clientX,
@@ -156,6 +160,24 @@ export class AlbumCard {
       if (deltaX < -40) {
         this.element.classList.add("swipe-left");
         this.element.style.transform = "translateX(-90px)";
+        const deleteBtn = this.container?.querySelector(
+          ".album-swipe-delete-btn",
+        );
+        if (deleteBtn) {
+          deleteBtn.addEventListener(
+            "click",
+            () => {
+              if (this.events && this.events.emit) {
+                this.events.emit("albumDelete", this.album);
+              } else if (window.MediaCenter && window.MediaCenter.events) {
+                window.MediaCenter.events.emit("albumDelete", this.album);
+              }
+              this.element.classList.remove("swipe-left");
+              this.element.style.transform = "translateX(0)";
+            },
+            { once: true },
+          );
+        }
       } else {
         this.element.classList.remove("swipe-left");
         this.element.style.transform = "translateX(0)";
