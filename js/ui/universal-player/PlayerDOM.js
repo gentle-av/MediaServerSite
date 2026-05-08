@@ -2,13 +2,27 @@ export class PlayerDOM {
   constructor() {
     this.element = null;
     this.elements = {};
+    this._hasActivePlayback = false;
   }
 
   init() {
     this.element = document.getElementById("universalBottomPlayer");
     if (!this.element) return false;
     this._cacheElements();
+    this.element.style.display = "none";
+    this.element.classList.remove("active");
     return true;
+  }
+
+  setHasActivePlayback(hasActive) {
+    this._hasActivePlayback = hasActive;
+    if (
+      !this._hasActivePlayback &&
+      this.element &&
+      this.element.style.display === "flex"
+    ) {
+      this.hide();
+    }
   }
 
   _cacheElements() {

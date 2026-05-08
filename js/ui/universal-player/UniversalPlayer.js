@@ -147,34 +147,42 @@ export class UniversalPlayer {
 
   async checkExistingPlayback(type) {
     try {
+      let hasActivePlayback = false;
       if (type === "video") {
         const status = await this.api.getVideoStatus();
-        if (status && status.success && status.currentFile) {
+        if (status && status.success && status.currentFile && !status.paused) {
           this.core.setCurrentFile(status.currentFile);
           this.core.setMediaType("video");
-          this.core.setPlaying(!status.paused);
+          this.core.setPlaying(true);
           this.uiUpdater.updateFileInfo(status.currentFile);
-          this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
-          this.show();
-          if (this.polling) this.polling.start();
-          return;
+          this.uiUpdater.updatePlayPauseButton(true);
+          hasActivePlayback = true;
         }
       } else {
         const state = await this.api.getAudioPlaybackState();
-        if (state && state.success && state.currentTrack) {
+        if (state && state.success && state.currentTrack && state.isPlaying) {
           this.core.setCurrentFile(state.currentTrack);
           this.core.setMediaType("audio");
-          this.core.setPlaying(state.isPlaying || false);
+          this.core.setPlaying(true);
           this.uiUpdater.updateFileInfo(state.currentTrack);
-          this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
-          this.show();
-          if (this.polling) this.polling.start();
-          return;
+          this.uiUpdater.updatePlayPauseButton(true);
+          hasActivePlayback = true;
         }
       }
-      this.hide();
+      if (this.dom) {
+        this.dom.setHasActivePlayback(hasActivePlayback);
+      }
+      if (hasActivePlayback) {
+        this.show();
+        if (this.polling) this.polling.start();
+      } else {
+        this.hide();
+      }
     } catch (error) {
       console.error("[UniversalPlayer] checkExistingPlayback error:", error);
+      if (this.dom) {
+        this.dom.setHasActivePlayback(false);
+      }
       this.hide();
     }
   }

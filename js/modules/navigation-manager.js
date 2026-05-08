@@ -65,24 +65,6 @@ const NavigationManager = {
       const html = await response.text();
       container.innerHTML = html;
       this.events.emit(`page:${page}Loaded`);
-      const universalPlayer = document.getElementById("universalBottomPlayer");
-      if (universalPlayer && window.universalPlayerInstance) {
-        const hasActivePlayback =
-          window.universalPlayerInstance.currentFile !== null;
-        if (hasActivePlayback) {
-          universalPlayer.style.display = "flex";
-          universalPlayer.classList.add("active");
-        } else {
-          universalPlayer.style.display = "none";
-          universalPlayer.classList.remove("active");
-        }
-      }
-      if (
-        window.universalPlayerInstance &&
-        window.universalPlayerInstance.currentFile
-      ) {
-        window.universalPlayerInstance.show();
-      }
     } catch (error) {
       container.innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle"></i> Ошибка загрузки: ${error.message}</div>`;
     }
