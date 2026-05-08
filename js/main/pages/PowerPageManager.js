@@ -8,6 +8,8 @@ export class PowerPageManager {
   }
 
   onPageLoaded() {
+    console.log("[PowerPageManager] onPageLoaded");
+    this._showPageContainer();
     this._updateUI();
     if (!this.powerManagement) {
       this.powerManagement = initPowerManagement(
@@ -18,6 +20,47 @@ export class PowerPageManager {
       this.core.powerManagement = this.powerManagement;
     }
     this._isInitialized = true;
+  }
+
+  _showPageContainer() {
+    const videoContainer = document.getElementById("videoPageContainer");
+    const pageContainer = document.getElementById("pageContainer");
+    if (videoContainer) videoContainer.style.display = "none";
+    if (pageContainer) {
+      pageContainer.style.display = "block";
+      pageContainer.innerHTML = `
+        <div class="power-page">
+          <div class="power-management-container">
+            <div class="power-cards-grid">
+              <div class="power-card tv-card">
+                <div class="power-card-icon"><i class="fas fa-tv"></i></div>
+                <h3 class="power-card-title">Телевизор</h3>
+                <p class="power-card-status" id="tvStatus">
+                  <span class="status-dot"></span>
+                  <span class="status-text">Проверка...</span>
+                </p>
+                <button class="power-btn tv-power-btn" id="tvPowerBtn">
+                  <i class="fas fa-power-off"></i>
+                  <span>Вкл/Выкл</span>
+                </button>
+              </div>
+              <div class="power-card computer-card">
+                <div class="power-card-icon"><i class="fas fa-desktop"></i></div>
+                <h3 class="power-card-title">Компьютер</h3>
+                <p class="power-card-status" id="computerStatus">
+                  <span class="status-dot"></span>
+                  <span class="status-text">Активен</span>
+                </p>
+                <button class="power-btn sleep-btn" id="sleepBtn">
+                  <i class="fas fa-moon"></i>
+                  <span>Сон</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
   }
 
   _updateUI() {

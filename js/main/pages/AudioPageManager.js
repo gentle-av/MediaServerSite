@@ -14,14 +14,29 @@ export class AudioPageManager {
   }
 
   async onPageLoaded() {
+    console.log("[AudioPageManager] onPageLoaded");
+    this._showPageContainer();
     this._updateUI();
     await this.playbackManager.checkExistingPlaybacks("audio");
     this._initAlbumModal();
     await this._initAlbumLibrary();
     this._initPlaylistPopup();
+    this._setupSearchUI();
+    this._setupAlbumEvents();
     this._cacheTrackNames();
     setTimeout(() => this._checkExistingPlayback(), 500);
     this._isInitialized = true;
+  }
+
+  _showPageContainer() {
+    const videoContainer = document.getElementById("videoPageContainer");
+    const pageContainer = document.getElementById("pageContainer");
+    if (videoContainer) videoContainer.style.display = "none";
+    if (pageContainer) {
+      pageContainer.style.display = "block";
+      pageContainer.innerHTML =
+        '<div class="audio-library"><div class="albums-grid" id="albumsGrid"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка альбомов...</div></div></div>';
+    }
   }
 
   _updateUI() {
@@ -46,13 +61,18 @@ export class AudioPageManager {
       this.albumLibrary.destroy();
       this.albumLibrary = null;
     }
+    const container = document.getElementById("albumsGrid");
+    if (!container) {
+      console.error("[AudioPageManager] albumsGrid not found");
+      return;
+    }
     this.albumLibrary = new AlbumLibrary(this.core.musicApi, this.core.events);
     await this.albumLibrary.init();
     this.core.albumLibrary = this.albumLibrary;
   }
 
   _initPlaylistPopup() {
-    if (!this.playlistPopup && typeof PlaylistPopup !== "undefined") {
+    if (typeof PlaylistPopup !== "undefined" && !this.playlistPopup) {
       this.playlistPopup = new PlaylistPopup(
         this.playbackManager.playback,
         this.core.events,
@@ -65,6 +85,87 @@ export class AudioPageManager {
         this.playlistPopup.tracksCache.clear();
       if (this.playlistPopup.refresh) this.playlistPopup.refresh();
     }
+  }
+
+  _setupSearchUI() {
+    const refreshBtn = document.getElementById("headerRefreshBtn");
+    if (refreshBtn) {
+      refreshBtn.style.display = "none";
+      refreshBtn.onclick = null;
+    }
+    if (this.core._setupSearchUI) {
+      this.core._setupSearchUI(
+        (term) => {
+          if (this.albumLibrary && this.albumLibrary.isReady) {
+            this.albumLibrary.searchAlbums(term);
+          }
+        },
+        () => {
+          if (this.albumLibrary && this.albumLibrary.isReady) {
+            this.albumLibrary.searchAlbums("");
+          }
+        },
+      );
+    }
+  }
+
+  _setupAlbumEvents() {
+    this.core.events.on("album:play", (album) => {
+      if (album.tracks && album.tracks.length > 0) {
+        const trackPaths = album.tracks.map((track) => track.path);
+        if (this.core.musicApi && this.core.musicApi.playTracks) {
+          this.core.musicApi
+            .playTracks(trackPaths)
+            .then(() => {
+              setTimeout(() => {
+                if (this.playbackManager.universalPlayer) {
+                  this.playbackManager.universalPlayer.startPlaybackExternal();
+                }
+              }, 500);
+            })
+            .catch((err) => console.error("[DEBUG] playTracks error:", err));
+        } else {
+          this.playbackManager.universalPlayer.startPlayback(
+            album.tracks[0].path,
+            "audio",
+          );
+        }
+      }
+    });
+    this.core.events.on("album:addToPlaylist", async (album) => {
+      await this.playbackManager.addAlbumToPlaylist(album);
+    });
+    this.core.events.on("album:open", async (album) => {
+      if (this.albumModal) {
+        await this.albumModal.show(album);
+      }
+    });
+    this.core.events.on("album:playMusium", async (album) => {
+      const tracks = album.tracks || [];
+      if (tracks.length === 0 && this.core.musicApi) {
+        try {
+          const tracksData = await this.core.musicApi.getTracks(
+            album.title,
+            album.artist,
+            true,
+          );
+          tracks.push(...tracksData);
+        } catch (error) {}
+      }
+      const trackPaths = tracks.map((track) => track.path);
+      if (this.core.musicApi && this.core.musicApi.openMusium) {
+        await this.core.musicApi.openMusium(trackPaths);
+      }
+    });
+    this.core.events.on("album:replacePlaylist", async (album) => {
+      await this.playbackManager.clearPlaylist();
+      await this.playbackManager.addAlbumToPlaylist(album);
+      this.core.events.emit("playlistCleared");
+      this.core.events.emit("playlistChanged");
+    });
+    this.core.events.on("album:playTrack", ({ album, trackIndex }) => {
+      this.playbackManager.playTrack(album, trackIndex);
+    });
   }
 
   _cacheTrackNames() {

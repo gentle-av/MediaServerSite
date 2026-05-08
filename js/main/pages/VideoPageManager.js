@@ -10,6 +10,8 @@ export class VideoPageManager {
   }
 
   async onPageLoaded() {
+    console.log("[VideoPageManager] onPageLoaded");
+    this._showVideoContainer();
     this._updateUI();
     this._destroyExistingLibrary();
     setTimeout(() => {
@@ -17,6 +19,13 @@ export class VideoPageManager {
       this._setupVideoEvents();
       this._postInitTasks();
     }, 50);
+  }
+
+  _showVideoContainer() {
+    const videoContainer = document.getElementById("videoPageContainer");
+    const pageContainer = document.getElementById("pageContainer");
+    if (videoContainer) videoContainer.style.display = "flex";
+    if (pageContainer) pageContainer.style.display = "none";
   }
 
   _updateUI() {
