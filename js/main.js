@@ -1,3 +1,4 @@
+// main.js
 import { UniversalPlayer } from "./ui/universal-player.js";
 import { PlaybackController } from "./core/playback-controller/PlaybackController.js";
 import { VideoLibrary } from "./modules/video-library/VideoLibrary.js";
@@ -142,11 +143,8 @@ const MediaCenter = {
     }
     const refreshBtn = document.getElementById("headerRefreshBtn");
     if (refreshBtn) {
-      refreshBtn.onclick = () => {
-        if (this.albumLibrary) {
-          this.albumLibrary.refresh();
-        }
-      };
+      refreshBtn.style.display = "none";
+      refreshBtn.onclick = null;
     }
     const searchInput = document.getElementById("globalSearchInput");
     const searchClearBtn = document.getElementById("searchClearBtn");
@@ -279,9 +277,9 @@ const MediaCenter = {
       }
       if (headerPlaylistBtn) headerPlaylistBtn.style.display = "flex";
       if (headerRefreshMetadataBtn)
-        headerRefreshMetadataBtn.style.display = "none"; // СКРЫТЬ
+        headerRefreshMetadataBtn.style.display = "flex";
       if (globalSearchBox) globalSearchBox.style.display = "flex";
-      if (refreshBtn) refreshBtn.style.display = "flex";
+      if (refreshBtn) refreshBtn.style.display = "none";
     } else if (page === "power") {
       if (mainContent) {
         mainContent.classList.add("power-page");
