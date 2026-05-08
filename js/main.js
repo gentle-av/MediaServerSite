@@ -91,21 +91,26 @@ const MediaCenter = {
           console.warn("[MediaCenter] universalPlayer is null");
         }
       });
-      setTimeout(async () => {
+      (async () => {
         if (
           this.universalPlayer &&
           this.universalPlayer.checkExistingPlayback
         ) {
+          await this.universalPlayer.checkExistingPlayback("audio");
           await this.universalPlayer.checkExistingPlayback("video");
         }
         if (this.videoLibrary && this.videoLibrary._adjustBottomPadding) {
           setTimeout(() => this.videoLibrary._adjustBottomPadding(), 200);
         }
-      }, 500);
+      })();
     }, 50);
   },
 
   _onAudioPageLoaded() {
+    this._updateUIForPage("audio");
+    if (this.universalPlayer && this.universalPlayer.checkExistingPlayback) {
+      this.universalPlayer.checkExistingPlayback("audio");
+    }
     this._updateUIForPage("audio");
     if (typeof AlbumModal !== "undefined") {
       if (this.albumModal) {

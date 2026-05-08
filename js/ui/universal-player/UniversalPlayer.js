@@ -163,13 +163,22 @@ export class UniversalPlayer {
         }
       } else {
         const state = await this.api.getAudioPlaybackState();
-        if (state && state.success && state.currentTrack && state.isPlaying) {
+        if (state && state.success && state.currentTrack) {
           this.core.setCurrentFile(state.currentTrack);
           this.core.setMediaType("audio");
-          this.core.setPlaying(true);
+          this.core.setPlaying(state.isPlaying || false);
           this.uiUpdater.updateFileInfo(state.currentTrack);
-          this.uiUpdater.updatePlayPauseButton(true);
+          this.uiUpdater.updatePlayPauseButton(state.isPlaying || false);
           hasActivePlayback = true;
+          if (
+            state.currentIndex !== undefined &&
+            state.totalTracks !== undefined
+          ) {
+            this.uiUpdater.updateTrackCount(
+              state.currentIndex,
+              state.totalTracks,
+            );
+          }
         }
       }
       if (this.dom) {
@@ -178,15 +187,9 @@ export class UniversalPlayer {
       if (hasActivePlayback) {
         this.show();
         if (this.polling) this.polling.start();
-      } else {
-        this.hide();
       }
     } catch (error) {
       console.error("[UniversalPlayer] checkExistingPlayback error:", error);
-      if (this.dom) {
-        this.dom.setHasActivePlayback(false);
-      }
-      this.hide();
     }
   }
 

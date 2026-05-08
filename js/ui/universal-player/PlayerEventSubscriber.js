@@ -109,11 +109,10 @@ export class PlayerEventSubscriber {
     const isMediaPage = page === "video" || page === "audio";
     if (isMediaPage && this.core.hasActiveFile()) {
       this.onShow?.();
-    } else if (!isMediaPage && !this.core.isVideo()) {
+    } else if (!isMediaPage && !this.core.hasActiveFile()) {
       const dom = document.getElementById("universalBottomPlayer");
       dom?.classList.remove("active");
       dom?.style.setProperty("display", "none");
-    } else if (!isMediaPage && this.core.isVideo()) {
     }
   }
 
