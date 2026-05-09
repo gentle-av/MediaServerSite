@@ -1,3 +1,4 @@
+// js/ui/universal-player/PlayerPolling.js
 export class PlayerPolling {
   constructor(api, core, progress, uiUpdater, onStateChange) {
     this.api = api;
@@ -9,10 +10,11 @@ export class PlayerPolling {
     this._isPollingStarted = false;
     this._lastCurrentTime = 0;
     this._lastTrackEnded = false;
+    this._stuckCounter = 0;
+    this._lastSkipTime = 0;
   }
 
   start() {
-    console.log("[PlayerPolling] start called, isAudio:", this.core.isAudio());
     if (this._progressInterval) {
       clearInterval(this._progressInterval);
       this._progressInterval = null;
@@ -34,84 +36,139 @@ export class PlayerPolling {
   }
 
   async _pollAudio() {
-    console.log(
-      "[PlayerPolling] _pollAudio called, isAudio:",
-      this.core.isAudio(),
-      "hasActiveFile:",
-      this.core.hasActiveFile(),
-    );
     const timeInfo = await this.api.getAudioCurrentTime();
+    const state = await this.api.getAudioPlaybackState();
+    console.log("[Polling] _pollAudio debug:", {
+      hasTimeInfo: !!timeInfo,
+      hasState: !!state,
+      stateSuccess: state?.success,
+      currentTrack: state?.currentTrack,
+      currentIndex: state?.currentIndex,
+      totalTracks: state?.totalTracks,
+    });
+
+    if (!state || !state.success) return;
+
+    const totalTracks = state.totalTracks || 0;
+    const currentIndex = state.currentIndex || 0;
+    const isLastTrack = currentIndex >= totalTracks - 1;
+    const now = Date.now();
+
     if (timeInfo && timeInfo.success) {
-      this.progress.update(timeInfo.currentTime || 0, timeInfo.duration || 0);
       const duration = timeInfo.duration || 0;
       const currentTime = timeInfo.currentTime || 0;
+      this.progress.update(currentTime, duration);
+
+      console.log("[Polling] timeInfo:", {
+        duration,
+        currentTime,
+        isLastTrack,
+        _lastTrackEnded: this._lastTrackEnded,
+        _stuckCounter: this._stuckCounter,
+      });
+
+      if (
+        duration === 0 &&
+        currentTime === 0 &&
+        !isLastTrack &&
+        !this._lastTrackEnded
+      ) {
+        this._stuckCounter++;
+        console.log("[Polling] stuck counter:", this._stuckCounter);
+        if (this._stuckCounter >= 4 && now - this._lastSkipTime > 3000) {
+          console.log("[Polling] Track stuck, skipping to next");
+          this._lastTrackEnded = true;
+          this._lastSkipTime = now;
+          this._stuckCounter = 0;
+          await this.api.audioNext();
+          setTimeout(() => {
+            console.log("[Polling] Reset _lastTrackEnded");
+            this._lastTrackEnded = false;
+          }, 3000);
+        }
+      } else {
+        if (this._stuckCounter > 0) {
+          console.log(
+            "[Polling] Reset stuck counter, duration or time not zero",
+          );
+          this._stuckCounter = 0;
+        }
+      }
+
       if (
         duration > 0 &&
         currentTime > 0 &&
         duration - currentTime < 0.5 &&
-        !this._lastTrackEnded
+        !this._lastTrackEnded &&
+        !isLastTrack
       ) {
-        console.log("[PlayerPolling] Track ended, calling audioNext");
+        console.log("[Polling] Track ended, calling audioNext");
         this._lastTrackEnded = true;
+        this._lastSkipTime = now;
         await this.api.audioNext();
         setTimeout(() => {
+          console.log("[Polling] Reset _lastTrackEnded after end");
           this._lastTrackEnded = false;
-        }, 2000);
+        }, 3000);
       } else if (
         duration > 0 &&
         currentTime > 0 &&
         duration - currentTime > 1
       ) {
-        this._lastTrackEnded = false;
+        if (this._lastTrackEnded) {
+          console.log(
+            "[Polling] Reset _lastTrackEnded, track playing normally",
+          );
+          this._lastTrackEnded = false;
+        }
       }
     }
-    const state = await this.api.getAudioPlaybackState();
-    if (state && state.success) {
-      const trackChanged =
-        state.currentTrack && state.currentTrack !== this.core.currentFile;
-      if (trackChanged) {
-        console.log("[PlayerPolling] Track changed to:", state.currentTrack);
-        this.core.currentFile = state.currentTrack;
-        this.uiUpdater.updateFileInfo(this.core.currentFile);
-        const metadata = await this.api.getFileMetadata(this.core.currentFile);
-        let artist = "";
-        let title = "";
-        let coverUrl = null;
-        if (metadata?.data) {
-          if (metadata.data.file) {
-            artist = metadata.data.file.artist || "";
-            title = metadata.data.file.title || "";
-            coverUrl = metadata.data.file.cover || null;
-          }
-          if (!title && metadata.data.database) {
-            title = metadata.data.database.title || "";
-            artist = metadata.data.database.artist || "";
-          }
-          if (!coverUrl && title) {
-            coverUrl = await this.api.getAlbumCover(
-              this.core.currentFile,
-              title,
-              artist,
-            );
-          }
+
+    const trackChanged =
+      state.currentTrack && state.currentTrack !== this.core.currentFile;
+    if (trackChanged) {
+      console.log("[Polling] Track changed to:", state.currentTrack);
+      this.core.currentFile = state.currentTrack;
+      this.uiUpdater.updateFileInfo(this.core.currentFile);
+      const metadata = await this.api.getFileMetadata(this.core.currentFile);
+      let artist = "";
+      let title = "";
+      let coverUrl = null;
+      if (metadata?.data) {
+        if (metadata.data.file) {
+          artist = metadata.data.file.artist || "";
+          title = metadata.data.file.title || "";
+          coverUrl = metadata.data.file.cover || null;
         }
-        if (!title) {
-          let fileName = this.core.currentFile.split("/").pop();
-          fileName = fileName.replace(/\.(flac|mp3|m4a|wav|ogg|aac)$/i, "");
-          const match = fileName.match(/^\d+\s*[-.]?\s*(.+)$/);
-          title = match ? match[1] : fileName;
+        if (!title && metadata.data.database) {
+          title = metadata.data.database.title || "";
+          artist = metadata.data.database.artist || "";
         }
-        this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
-        if (this.onStateChange) this.onStateChange(state);
+        if (!coverUrl && title) {
+          coverUrl = await this.api.getAlbumCover(
+            this.core.currentFile,
+            title,
+            artist,
+          );
+        }
       }
-      const wasPlaying = this.core.isPlaying;
-      this.core.isPlaying = state.isPlaying || false;
-      if (wasPlaying !== this.core.isPlaying) {
-        this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
+      if (!title) {
+        let fileName = this.core.currentFile.split("/").pop();
+        fileName = fileName.replace(/\.(flac|mp3|m4a|wav|ogg|aac)$/i, "");
+        const match = fileName.match(/^\d+\s*[-.]?\s*(.+)$/);
+        title = match ? match[1] : fileName;
       }
-      if (state.currentIndex !== undefined && state.totalTracks !== undefined) {
-        this.uiUpdater.updateTrackCount(state.currentIndex, state.totalTracks);
-      }
+      this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
+      if (this.onStateChange) this.onStateChange(state);
+    }
+
+    const wasPlaying = this.core.isPlaying;
+    this.core.isPlaying = state.isPlaying || false;
+    if (wasPlaying !== this.core.isPlaying) {
+      this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
+    }
+    if (state.currentIndex !== undefined && state.totalTracks !== undefined) {
+      this.uiUpdater.updateTrackCount(state.currentIndex, state.totalTracks);
     }
   }
 
@@ -143,10 +200,10 @@ export class PlayerPolling {
   }
 
   stop() {
-    // if (this._progressInterval) {
-    //   clearInterval(this._progressInterval);
-    //   // this._progressInterval = null;
-    //   // this._isPollingStarted = false;
-    // }
+    if (this._progressInterval) {
+      clearInterval(this._progressInterval);
+      this._progressInterval = null;
+      this._isPollingStarted = false;
+    }
   }
 }

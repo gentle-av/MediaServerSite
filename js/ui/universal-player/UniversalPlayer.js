@@ -176,7 +176,7 @@ export class UniversalPlayer {
 
   async restorePlaylistFromServer() {
     try {
-      const playlistData = await this.api.api.get("/api/audio/playlist");
+      const playlistData = await this.api.api.get("/api/audio/getPlaylist");
       const state = await this.api.getAudioPlaybackState();
       if (playlistData?.data?.length > 0 && state?.success) {
         const tracks = playlistData.data;

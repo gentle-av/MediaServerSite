@@ -1,3 +1,4 @@
+// PlayerEventHandler.js
 export class PlayerEventHandler {
   constructor(
     mediaHandler,
@@ -13,10 +14,21 @@ export class PlayerEventHandler {
     this.progress = progress;
     this.channelManager = channelManager;
     this._videoCloseModal = videoCloseModal;
+    this._clearAudioPlaylist = this._clearAudioPlaylist.bind(this);
   }
 
-  set videoCloseModal(modal) {
-    this._videoCloseModal = modal;
+  _clearAudioPlaylist() {
+    try {
+      if (
+        this.mediaHandler.api.playerApi &&
+        this.mediaHandler.api.playerApi.clearPlaylist
+      ) {
+        this.mediaHandler.api.playerApi.clearPlaylist();
+        console.log("[PlayerEventHandler] Audio playlist cleared");
+      }
+    } catch (error) {
+      console.error("[PlayerEventHandler] Failed to clear playlist:", error);
+    }
   }
 
   getHandlers() {
@@ -25,6 +37,12 @@ export class PlayerEventHandler {
       onPrev: () => this.mediaHandler.previous(),
       onNext: () => this.mediaHandler.next(),
       onStop: () => {
+        console.log(
+          "[PlayerEventHandler] onStop called, isVideo:",
+          this.mediaHandler.core.isVideo(),
+          "hasActiveFile:",
+          this.mediaHandler.core.hasActiveFile(),
+        );
         if (
           this.mediaHandler.core.isVideo() &&
           this.mediaHandler.core.hasActiveFile()
@@ -35,7 +53,11 @@ export class PlayerEventHandler {
             this.mediaHandler.stop();
           }
         } else {
-          this.mediaHandler.stop();
+          this.mediaHandler.stop(true);
+          this._clearAudioPlaylist();
+          if (this.mediaHandler.onHide) {
+            this.mediaHandler.onHide();
+          }
         }
       },
       onFullscreen: () => this.mediaHandler.fullscreen(),

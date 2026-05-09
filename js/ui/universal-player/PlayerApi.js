@@ -123,6 +123,6 @@ export class PlayerAPI {
   }
 
   async getPlaylist() {
-    return this.api.get("/api/audio/playlist");
+    return this.api.get("/api/audio/getPlaylist");
   }
 }
