@@ -1,10 +1,22 @@
 export class PlayerEventHandler {
-  constructor(mediaHandler, volume, output, progress, channelManager) {
+  constructor(
+    mediaHandler,
+    volume,
+    output,
+    progress,
+    channelManager,
+    videoCloseModal,
+  ) {
     this.mediaHandler = mediaHandler;
     this.volume = volume;
     this.output = output;
     this.progress = progress;
     this.channelManager = channelManager;
+    this._videoCloseModal = videoCloseModal;
+  }
+
+  set videoCloseModal(modal) {
+    this._videoCloseModal = modal;
   }
 
   getHandlers() {
@@ -12,7 +24,20 @@ export class PlayerEventHandler {
       onTogglePlayPause: () => this.mediaHandler.togglePlayPause(),
       onPrev: () => this.mediaHandler.previous(),
       onNext: () => this.mediaHandler.next(),
-      onStop: () => this.mediaHandler.stop(),
+      onStop: () => {
+        if (
+          this.mediaHandler.core.isVideo() &&
+          this.mediaHandler.core.hasActiveFile()
+        ) {
+          if (this._videoCloseModal) {
+            this._videoCloseModal.showWithCurrentVideo();
+          } else {
+            this.mediaHandler.stop();
+          }
+        } else {
+          this.mediaHandler.stop();
+        }
+      },
       onFullscreen: () => this.mediaHandler.fullscreen(),
       onToggleMinimize: () => this.mediaHandler.toggleMinimize?.(),
       onToggleSettings: () => this.mediaHandler.toggleSettings?.(),

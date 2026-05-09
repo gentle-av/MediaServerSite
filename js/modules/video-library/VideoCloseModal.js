@@ -24,6 +24,21 @@ export class VideoCloseModal {
     });
   }
 
+  showWithCurrentVideo() {
+    if (
+      this.universalPlayer &&
+      this.universalPlayer.core &&
+      this.universalPlayer.core.currentFile &&
+      this.universalPlayer.core.isVideo()
+    ) {
+      this.show(this.universalPlayer.core.currentFile);
+    } else {
+      if (typeof Utils !== "undefined" && Utils.showNotification) {
+        Utils.showNotification("Нет активного видео", "info");
+      }
+    }
+  }
+
   createModal() {
     if (this.modal) {
       this.modal.remove();
@@ -148,7 +163,9 @@ export class VideoCloseModal {
       this.universalPlayer.core.reset();
       this.universalPlayer.progress.reset();
       this.universalPlayer.uiUpdater.reset();
-      this.universalPlayer.polling.stop();
+      if (this.universalPlayer.polling) {
+        this.universalPlayer.polling.stop();
+      }
       this.universalPlayer.hide();
     }
   }

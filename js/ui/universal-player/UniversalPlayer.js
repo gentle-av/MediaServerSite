@@ -107,16 +107,20 @@ export class UniversalPlayer {
     this.mediaHandler.setForceRefreshVideo(() => this.lifecycle.refreshVideo());
     if (this.videoCloseModal) {
       this.mediaHandler.setVideoCloseModal(this.videoCloseModal);
+      if (this.channelManager) {
+        this.channelManager.videoCloseModal = this.videoCloseModal;
+      }
     }
     this.dom.ensureOutputButtons();
-    const eventHandler = new PlayerEventHandler(
+    this.eventHandler = new PlayerEventHandler(
       this.mediaHandler,
       this.volume,
       this.output,
       this.progress,
       this.channelManager,
+      this.videoCloseModal,
     );
-    const playerEvents = new PlayerEvents(eventHandler.getHandlers());
+    const playerEvents = new PlayerEvents(this.eventHandler.getHandlers());
     playerEvents.attach(this.dom);
     this.eventSubscriber = new PlayerEventSubscriber(
       this.events,
@@ -141,6 +145,12 @@ export class UniversalPlayer {
     this.videoCloseModal = modal;
     if (this.mediaHandler) {
       this.mediaHandler.setVideoCloseModal(modal);
+    }
+    if (this.channelManager) {
+      this.channelManager.videoCloseModal = modal;
+    }
+    if (this.eventHandler) {
+      this.eventHandler.videoCloseModal = modal;
     }
   }
 
