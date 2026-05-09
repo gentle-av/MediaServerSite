@@ -6,7 +6,6 @@ export class AlbumModalEvents {
 
   bind(events) {
     events.on("album:open", async (album) => {
-      console.log("[AlbumModalEvents] album:open received", album?.title);
       await this.onShow(album);
     });
     this._bindModalClose();

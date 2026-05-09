@@ -8,9 +8,11 @@ export class PlayerPolling {
     this._progressInterval = null;
     this._isPollingStarted = false;
     this._lastCurrentTime = 0;
+    this._lastTrackEnded = false;
   }
 
   start() {
+    console.log("[PlayerPolling] start called, isAudio:", this.core.isAudio());
     if (this._progressInterval) {
       clearInterval(this._progressInterval);
       this._progressInterval = null;
@@ -24,7 +26,6 @@ export class PlayerPolling {
           await this._pollAudio();
         } else if (this.core.isVideo()) {
           await this._pollVideo();
-        } else {
         }
       } catch (error) {
         console.error("[Polling] error:", error);
@@ -33,13 +34,35 @@ export class PlayerPolling {
   }
 
   async _pollAudio() {
+    console.log(
+      "[PlayerPolling] _pollAudio called, isAudio:",
+      this.core.isAudio(),
+      "hasActiveFile:",
+      this.core.hasActiveFile(),
+    );
     const timeInfo = await this.api.getAudioCurrentTime();
     if (timeInfo && timeInfo.success) {
       this.progress.update(timeInfo.currentTime || 0, timeInfo.duration || 0);
       const duration = timeInfo.duration || 0;
       const currentTime = timeInfo.currentTime || 0;
-      if (duration > 0 && currentTime > 0 && duration - currentTime < 0.5) {
+      if (
+        duration > 0 &&
+        currentTime > 0 &&
+        duration - currentTime < 0.5 &&
+        !this._lastTrackEnded
+      ) {
+        console.log("[PlayerPolling] Track ended, calling audioNext");
+        this._lastTrackEnded = true;
         await this.api.audioNext();
+        setTimeout(() => {
+          this._lastTrackEnded = false;
+        }, 2000);
+      } else if (
+        duration > 0 &&
+        currentTime > 0 &&
+        duration - currentTime > 1
+      ) {
+        this._lastTrackEnded = false;
       }
     }
     const state = await this.api.getAudioPlaybackState();
@@ -47,6 +70,7 @@ export class PlayerPolling {
       const trackChanged =
         state.currentTrack && state.currentTrack !== this.core.currentFile;
       if (trackChanged) {
+        console.log("[PlayerPolling] Track changed to:", state.currentTrack);
         this.core.currentFile = state.currentTrack;
         this.uiUpdater.updateFileInfo(this.core.currentFile);
         const metadata = await this.api.getFileMetadata(this.core.currentFile);
@@ -93,9 +117,7 @@ export class PlayerPolling {
 
   async _pollVideo() {
     const status = await this.api.getVideoStatus();
-    if (!status) {
-      return;
-    }
+    if (!status) return;
     if (status.success && status.currentFile) {
       if (status.currentFile !== this.core.currentFile) {
         this.core.currentFile = status.currentFile;
@@ -121,10 +143,10 @@ export class PlayerPolling {
   }
 
   stop() {
-    if (this._progressInterval) {
-      clearInterval(this._progressInterval);
-      this._progressInterval = null;
-      this._isPollingStarted = false;
-    }
+    // if (this._progressInterval) {
+    //   clearInterval(this._progressInterval);
+    //   // this._progressInterval = null;
+    //   // this._isPollingStarted = false;
+    // }
   }
 }

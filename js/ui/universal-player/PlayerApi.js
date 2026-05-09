@@ -121,4 +121,8 @@ export class PlayerAPI {
     }
     return null;
   }
+
+  async getPlaylist() {
+    return this.api.get("/api/audio/playlist");
+  }
 }

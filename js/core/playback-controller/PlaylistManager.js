@@ -5,6 +5,14 @@ export class PlaylistManager {
     this.events = events;
   }
 
+  setTrackList(tracks) {
+    this.trackList = tracks;
+  }
+
+  setCurrentIndex(index) {
+    this.currentIndex = index;
+  }
+
   async playAlbum(album) {
     if (this.state.isSwitching) return;
     this.state.isSwitching = true;

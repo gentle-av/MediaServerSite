@@ -163,9 +163,6 @@ export class VideoCloseModal {
       this.universalPlayer.core.reset();
       this.universalPlayer.progress.reset();
       this.universalPlayer.uiUpdater.reset();
-      if (this.universalPlayer.polling) {
-        this.universalPlayer.polling.stop();
-      }
       this.universalPlayer.hide();
     }
   }

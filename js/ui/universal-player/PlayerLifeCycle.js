@@ -106,7 +106,6 @@ export class PlayerLifecycle {
     this.core.reset();
     this.uiUpdater.reset();
     this.progress.reset();
-    if (this.polling) this.polling.stop();
   }
 
   async deleteCurrentVideo() {

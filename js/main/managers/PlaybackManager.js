@@ -39,9 +39,53 @@ export class PlaybackManager {
     if (!this.universalPlayer?.checkExistingPlayback) return;
     if (!type || type === "audio") {
       await this.universalPlayer.checkExistingPlayback("audio");
+      await this.restorePlaylist();
     }
     if (!type || type === "video") {
       await this.universalPlayer.checkExistingPlayback("video");
+    }
+  }
+
+  async restorePlaylist() {
+    try {
+      const playlistData = await this.core.playerApi.getPlaylist();
+      const state = await this.core.playerApi.getPlaybackState();
+      if (playlistData?.data?.length > 0) {
+        const tracks = playlistData.data;
+        const currentIndex = state?.data?.currentIndex ?? 0;
+        if (this.playback?.playlistManager) {
+          this.playback.playlistManager.setTrackList(tracks);
+          this.playback.playlistManager.setCurrentIndex(currentIndex);
+        }
+        if (this.universalPlayer?.uiUpdater && tracks[currentIndex]) {
+          const currentTrack = tracks[currentIndex];
+          const path =
+            typeof currentTrack === "string" ? currentTrack : currentTrack.path;
+          this.universalPlayer.core.setCurrentFile(path);
+          this.universalPlayer.core.setMediaType("audio");
+          this.universalPlayer.uiUpdater.updateFileInfo(path);
+          this.universalPlayer.uiUpdater.updateTrackCount(
+            currentIndex,
+            tracks.length,
+          );
+          const metadata = await this.universalPlayer.getFileMetadata(path);
+          if (metadata?.data) {
+            let title =
+              metadata.data.file?.title || metadata.data.database?.title;
+            let artist =
+              metadata.data.file?.artist || metadata.data.database?.artist;
+            if (title) {
+              this.universalPlayer.uiUpdater.updateTrackFullInfo(
+                title,
+                artist,
+                null,
+              );
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[PlaybackManager] restorePlaylist error:", error);
     }
   }
 

@@ -159,27 +159,38 @@ export class UniversalPlayer {
       const videoStatus = await this.api.getVideoStatus();
       if (videoStatus && videoStatus.success && videoStatus.currentFile) {
         await this.lifecycle.checkExistingPlayback("video");
-        setTimeout(() => {
-          this.show();
-          if (this.dom) {
-            this.dom.show();
-          }
-        }, 100);
+        setTimeout(() => this.show(), 100);
         return;
       }
       const audioState = await this.api.getAudioPlaybackState();
       if (audioState && audioState.success && audioState.currentTrack) {
         await this.lifecycle.checkExistingPlayback("audio");
-        setTimeout(() => {
-          this.show();
-          if (this.dom) {
-            this.dom.show();
-          }
-        }, 100);
+        await this.restorePlaylistFromServer();
+        setTimeout(() => this.show(), 100);
         return;
       }
     } catch (error) {
       console.error("[UniversalPlayer] checkAndRestorePlayback error:", error);
+    }
+  }
+
+  async restorePlaylistFromServer() {
+    try {
+      const playlistData = await this.api.api.get("/api/audio/playlist");
+      const state = await this.api.getAudioPlaybackState();
+      if (playlistData?.data?.length > 0 && state?.success) {
+        const tracks = playlistData.data;
+        const currentIndex = state.currentIndex || 0;
+        this.core.currentFile = state.currentTrack;
+        if (this.uiUpdater && tracks[currentIndex]) {
+          this.uiUpdater.updateTrackCount(currentIndex, tracks.length);
+        }
+      }
+    } catch (error) {
+      console.error(
+        "[UniversalPlayer] restorePlaylistFromServer error:",
+        error,
+      );
     }
   }
 
