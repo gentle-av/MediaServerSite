@@ -262,8 +262,6 @@ export class VideoLibraryEvents {
           `${isDir ? "Папка" : "Файл"} "${name}" ${isDir ? "удалена" : "удален"}`,
           "success",
         );
-      } else {
-        console.log(`Deleted: ${name}`);
       }
       this.state.clearCache();
       await this.onLoadDirectory(this.state.getCurrentPath(), false);

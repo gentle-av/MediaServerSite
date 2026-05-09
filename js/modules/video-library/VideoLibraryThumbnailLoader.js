@@ -6,11 +6,6 @@ export class VideoLibraryThumbnailLoader {
     this.folderVideoCache = new Map();
     this.debug = false;
   }
-
-  _log(...args) {
-    if (this.debug) console.log("[ThumbnailLoader]", ...args);
-  }
-
   _getStableRepresentative(videos, folderPath) {
     if (!videos || videos.length === 0) return null;
     const sorted = [...videos].sort((a, b) => {
@@ -22,7 +17,6 @@ export class VideoLibraryThumbnailLoader {
       if (!nameA.includes("season") && nameB.includes("season")) return 1;
       return nameA.localeCompare(nameB);
     });
-    this._log(`Folder ${folderPath}: selected "${sorted[0].name}"`);
     return sorted[0];
   }
 
@@ -31,10 +25,8 @@ export class VideoLibraryThumbnailLoader {
     const cacheKey = isFolder ? `folder_${folderPath}` : videoPath;
     const cached = this.state.getThumbnail(cacheKey);
     if (cached) {
-      this._log(`Cache HIT for ${cacheKey}`);
       return cached;
     }
-    this._log(`Cache MISS for ${cacheKey}`);
     try {
       const response = await fetch("/api/thumbnail", {
         method: "POST",
@@ -51,9 +43,6 @@ export class VideoLibraryThumbnailLoader {
         return data.thumbnail;
       }
       if (data.use_icon) {
-        this._log(
-          `Using icon for ${videoPath}: ${data.error || "Not a video"}`,
-        );
       }
     } catch (error) {
       console.error(`Failed to load thumbnail for ${videoPath}:`, error);
@@ -65,7 +54,6 @@ export class VideoLibraryThumbnailLoader {
     const placeholders = container.querySelectorAll(
       ".thumbnail-placeholder[data-video-path]",
     );
-    this._log(`Loading ${placeholders.length} video thumbnails`);
     const promises = Array.from(placeholders).map(async (placeholder) => {
       const videoPath = placeholder.dataset.videoPath;
       const thumbnail = await this.loadThumbnail(videoPath);
@@ -78,11 +66,9 @@ export class VideoLibraryThumbnailLoader {
     const placeholders = container.querySelectorAll(
       ".thumbnail-placeholder.folder-placeholder[data-folder-path]",
     );
-    this._log(`Loading ${placeholders.length} folder previews`);
     for (const placeholder of placeholders) {
       const folderPath = placeholder.dataset.folderPath;
       if (!folderPath) continue;
-      this._log(`Processing folder: ${folderPath}`);
       if (this.pendingFolderThumbnails.has(folderPath)) {
         const thumbnail = await this.pendingFolderThumbnails.get(folderPath);
         if (thumbnail) this._applyFolderThumbnail(placeholder, thumbnail);
@@ -100,7 +86,6 @@ export class VideoLibraryThumbnailLoader {
   }
 
   async _loadFolderThumbnail(folderPath) {
-    this._log(`_loadFolderThumbnail for: ${folderPath}`);
     const cacheKey = `folder_videos_${folderPath}`;
     if (this.folderVideoCache.has(cacheKey)) {
       const videoPath = this.folderVideoCache.get(cacheKey);
