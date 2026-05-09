@@ -14,10 +14,6 @@ export class PlayerEventHandler {
     this.channelManager = channelManager;
     this._videoCloseModal = videoCloseModal;
     this._clearAudioPlaylist = this._clearAudioPlaylist.bind(this);
-    console.log(
-      "[PlayerEventHandler] Constructor, videoCloseModal:",
-      !!videoCloseModal,
-    );
   }
 
   _clearAudioPlaylist() {
@@ -27,7 +23,6 @@ export class PlayerEventHandler {
         this.mediaHandler.api.playerApi.clearPlaylist
       ) {
         this.mediaHandler.api.playerApi.clearPlaylist();
-        console.log("[PlayerEventHandler] Audio playlist cleared");
       }
     } catch (error) {
       console.error("[PlayerEventHandler] Failed to clear playlist:", error);
@@ -40,25 +35,13 @@ export class PlayerEventHandler {
       onPrev: () => this.mediaHandler.previous(),
       onNext: () => this.mediaHandler.next(),
       onStop: () => {
-        console.log(
-          "[PlayerEventHandler] onStop called, isVideo:",
-          this.mediaHandler.core.isVideo(),
-          "hasActiveFile:",
-          this.mediaHandler.core.hasActiveFile(),
-          "videoCloseModal:",
-          !!this._videoCloseModal,
-        );
         if (
           this.mediaHandler.core.isVideo() &&
           this.mediaHandler.core.hasActiveFile()
         ) {
           if (this._videoCloseModal) {
-            console.log("[PlayerEventHandler] Calling showWithCurrentVideo");
             this._videoCloseModal.showWithCurrentVideo();
           } else {
-            console.log(
-              "[PlayerEventHandler] videoCloseModal is null, calling stop",
-            );
             this.mediaHandler.stop();
           }
         } else {

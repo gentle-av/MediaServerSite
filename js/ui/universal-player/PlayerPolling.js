@@ -37,35 +37,15 @@ export class PlayerPolling {
   async _pollAudio() {
     const timeInfo = await this.api.getAudioCurrentTime();
     const state = await this.api.getAudioPlaybackState();
-    console.log("[Polling] _pollAudio debug:", {
-      hasTimeInfo: !!timeInfo,
-      hasState: !!state,
-      stateSuccess: state?.success,
-      currentTrack: state?.currentTrack,
-      currentIndex: state?.currentIndex,
-      totalTracks: state?.totalTracks,
-    });
-
     if (!state || !state.success) return;
-
     const totalTracks = state.totalTracks || 0;
     const currentIndex = state.currentIndex || 0;
     const isLastTrack = currentIndex >= totalTracks - 1;
     const now = Date.now();
-
     if (timeInfo && timeInfo.success) {
       const duration = timeInfo.duration || 0;
       const currentTime = timeInfo.currentTime || 0;
       this.progress.update(currentTime, duration);
-
-      console.log("[Polling] timeInfo:", {
-        duration,
-        currentTime,
-        isLastTrack,
-        _lastTrackEnded: this._lastTrackEnded,
-        _stuckCounter: this._stuckCounter,
-      });
-
       if (
         duration === 0 &&
         currentTime === 0 &&
@@ -73,23 +53,17 @@ export class PlayerPolling {
         !this._lastTrackEnded
       ) {
         this._stuckCounter++;
-        console.log("[Polling] stuck counter:", this._stuckCounter);
         if (this._stuckCounter >= 4 && now - this._lastSkipTime > 3000) {
-          console.log("[Polling] Track stuck, skipping to next");
           this._lastTrackEnded = true;
           this._lastSkipTime = now;
           this._stuckCounter = 0;
           await this.api.audioNext();
           setTimeout(() => {
-            console.log("[Polling] Reset _lastTrackEnded");
             this._lastTrackEnded = false;
           }, 3000);
         }
       } else {
         if (this._stuckCounter > 0) {
-          console.log(
-            "[Polling] Reset stuck counter, duration or time not zero",
-          );
           this._stuckCounter = 0;
         }
       }
@@ -101,12 +75,10 @@ export class PlayerPolling {
         !this._lastTrackEnded &&
         !isLastTrack
       ) {
-        console.log("[Polling] Track ended, calling audioNext");
         this._lastTrackEnded = true;
         this._lastSkipTime = now;
         await this.api.audioNext();
         setTimeout(() => {
-          console.log("[Polling] Reset _lastTrackEnded after end");
           this._lastTrackEnded = false;
         }, 3000);
       } else if (
@@ -115,9 +87,6 @@ export class PlayerPolling {
         duration - currentTime > 1
       ) {
         if (this._lastTrackEnded) {
-          console.log(
-            "[Polling] Reset _lastTrackEnded, track playing normally",
-          );
           this._lastTrackEnded = false;
         }
       }
@@ -126,7 +95,6 @@ export class PlayerPolling {
     const trackChanged =
       state.currentTrack && state.currentTrack !== this.core.currentFile;
     if (trackChanged) {
-      console.log("[Polling] Track changed to:", state.currentTrack);
       this.core.currentFile = state.currentTrack;
       this.uiUpdater.updateFileInfo(this.core.currentFile);
       const metadata = await this.api.getFileMetadata(this.core.currentFile);
