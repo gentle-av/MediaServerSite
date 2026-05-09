@@ -4,6 +4,26 @@ export class VideoLibraryThumbnailLoader {
     this.state = state;
     this.pendingFolderThumbnails = new Map();
     this.folderVideoCache = new Map();
+    this.debug = false;
+  }
+
+  _log(...args) {
+    if (this.debug) console.log("[ThumbnailLoader]", ...args);
+  }
+
+  _getStableRepresentative(videos, folderPath) {
+    if (!videos || videos.length === 0) return null;
+    const sorted = [...videos].sort((a, b) => {
+      const nameA = a.name.toLowerCase();
+      const nameB = b.name.toLowerCase();
+      if (nameA.includes("episode") && !nameB.includes("episode")) return -1;
+      if (!nameA.includes("episode") && nameB.includes("episode")) return 1;
+      if (nameA.includes("season") && !nameB.includes("season")) return -1;
+      if (!nameA.includes("season") && nameB.includes("season")) return 1;
+      return nameA.localeCompare(nameB);
+    });
+    this._log(`Folder ${folderPath}: selected "${sorted[0].name}"`);
+    return sorted[0];
   }
 
   async loadThumbnail(videoPath, options = {}) {
@@ -11,19 +31,15 @@ export class VideoLibraryThumbnailLoader {
     const cacheKey = isFolder ? `folder_${folderPath}` : videoPath;
     const cached = this.state.getThumbnail(cacheKey);
     if (cached) {
+      this._log(`Cache HIT for ${cacheKey}`);
       return cached;
     }
+    this._log(`Cache MISS for ${cacheKey}`);
     try {
       const response = await fetch("/api/thumbnail", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          path: videoPath,
-          width: 320,
-          quality: 85,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: videoPath, width: 320, quality: 85 }),
       });
       if (!response.ok) {
         console.warn(`HTTP ${response.status} for ${videoPath}`);
@@ -35,8 +51,8 @@ export class VideoLibraryThumbnailLoader {
         return data.thumbnail;
       }
       if (data.use_icon) {
-        console.log(
-          `Using icon for ${videoPath}: ${data.error || "Not a video or corrupted"}`,
+        this._log(
+          `Using icon for ${videoPath}: ${data.error || "Not a video"}`,
         );
       }
     } catch (error) {
@@ -49,12 +65,11 @@ export class VideoLibraryThumbnailLoader {
     const placeholders = container.querySelectorAll(
       ".thumbnail-placeholder[data-video-path]",
     );
+    this._log(`Loading ${placeholders.length} video thumbnails`);
     const promises = Array.from(placeholders).map(async (placeholder) => {
       const videoPath = placeholder.dataset.videoPath;
       const thumbnail = await this.loadThumbnail(videoPath);
-      if (thumbnail) {
-        this._applyThumbnail(placeholder, thumbnail);
-      }
+      if (thumbnail) this._applyThumbnail(placeholder, thumbnail);
     });
     await Promise.all(promises);
   }
@@ -63,22 +78,21 @@ export class VideoLibraryThumbnailLoader {
     const placeholders = container.querySelectorAll(
       ".thumbnail-placeholder.folder-placeholder[data-folder-path]",
     );
+    this._log(`Loading ${placeholders.length} folder previews`);
     for (const placeholder of placeholders) {
       const folderPath = placeholder.dataset.folderPath;
+      if (!folderPath) continue;
+      this._log(`Processing folder: ${folderPath}`);
       if (this.pendingFolderThumbnails.has(folderPath)) {
         const thumbnail = await this.pendingFolderThumbnails.get(folderPath);
-        if (thumbnail) {
-          this._applyFolderThumbnail(placeholder, thumbnail);
-        }
+        if (thumbnail) this._applyFolderThumbnail(placeholder, thumbnail);
         continue;
       }
       const loadPromise = this._loadFolderThumbnail(folderPath);
       this.pendingFolderThumbnails.set(folderPath, loadPromise);
       try {
         const thumbnail = await loadPromise;
-        if (thumbnail) {
-          this._applyFolderThumbnail(placeholder, thumbnail);
-        }
+        if (thumbnail) this._applyFolderThumbnail(placeholder, thumbnail);
       } finally {
         this.pendingFolderThumbnails.delete(folderPath);
       }
@@ -86,8 +100,10 @@ export class VideoLibraryThumbnailLoader {
   }
 
   async _loadFolderThumbnail(folderPath) {
-    if (this.folderVideoCache.has(folderPath)) {
-      const videoPath = this.folderVideoCache.get(folderPath);
+    this._log(`_loadFolderThumbnail for: ${folderPath}`);
+    const cacheKey = `folder_videos_${folderPath}`;
+    if (this.folderVideoCache.has(cacheKey)) {
+      const videoPath = this.folderVideoCache.get(cacheKey);
       if (videoPath) {
         return await this.loadThumbnail(videoPath, {
           isFolder: true,
@@ -97,14 +113,23 @@ export class VideoLibraryThumbnailLoader {
       return null;
     }
     try {
-      const data = await this.api.post("/api/list", { path: folderPath });
+      const response = await fetch("/api/list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: folderPath }),
+      });
+      const data = await response.json();
       if (data.success && data.items) {
-        const firstVideo = data.items.find(
+        const videoFiles = data.items.filter(
           (item) => !item.isDirectory && item.isVideo,
         );
-        if (firstVideo) {
-          this.folderVideoCache.set(folderPath, firstVideo.path);
-          const thumbnail = await this.loadThumbnail(firstVideo.path, {
+        if (videoFiles.length > 0) {
+          const representative = this._getStableRepresentative(
+            videoFiles,
+            folderPath,
+          );
+          this.folderVideoCache.set(cacheKey, representative.path);
+          const thumbnail = await this.loadThumbnail(representative.path, {
             isFolder: true,
             folderPath,
           });
@@ -114,7 +139,7 @@ export class VideoLibraryThumbnailLoader {
     } catch (error) {
       console.error(`Failed to load folder preview for ${folderPath}:`, error);
     }
-    this.folderVideoCache.set(folderPath, null);
+    this.folderVideoCache.set(cacheKey, null);
     return null;
   }
 
