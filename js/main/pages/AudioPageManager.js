@@ -18,7 +18,7 @@ export class AudioPageManager {
     this._showPageContainer();
     this._updateUI();
     await this.playbackManager.checkExistingPlaybacks("audio");
-    this._initAlbumModal();
+    await this._initAlbumModal();
     await this._initAlbumLibrary();
     this._initPlaylistPopup();
     this._setupSearchUI();
@@ -34,8 +34,10 @@ export class AudioPageManager {
     if (videoContainer) videoContainer.style.display = "none";
     if (pageContainer) {
       pageContainer.style.display = "block";
-      pageContainer.innerHTML =
-        '<div class="audio-library"><div class="albums-grid" id="albumsGrid"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка альбомов...</div></div></div>';
+      if (!pageContainer.querySelector("#albumsGrid")) {
+        pageContainer.innerHTML =
+          '<div class="audio-library"><div class="albums-grid" id="albumsGrid"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка альбомов...</div></div></div>';
+      }
     }
   }
 
@@ -45,15 +47,21 @@ export class AudioPageManager {
     }
   }
 
-  _initAlbumModal() {
+  async _initAlbumModal() {
     if (this.albumModal) {
       this.albumModal.hide();
       this.albumModal = null;
+    }
+    const modalElement = document.getElementById("albumModal");
+    if (!modalElement) {
+      console.error("[AudioPageManager] albumModal element not found");
+      return;
     }
     this.albumModal = new AlbumModal(this.core.events, this.core.musicApi);
     const trackList = new TrackList(this.core.events);
     this.albumModal.setTrackList(trackList);
     this.core.albumModal = this.albumModal;
+    console.log("[AudioPageManager] AlbumModal initialized");
   }
 
   async _initAlbumLibrary() {
@@ -119,7 +127,6 @@ export class AudioPageManager {
       "album:addToPlaylist",
       this._handleAddToPlaylist.bind(this),
     );
-    this._registerEvent("album:open", this._handleOpenAlbum.bind(this));
     this._registerEvent("album:playMusium", this._handlePlayMusium.bind(this));
     this._registerEvent(
       "album:replacePlaylist",
@@ -159,13 +166,6 @@ export class AudioPageManager {
   async _handleAddToPlaylist(album) {
     console.log("[AudioPageManager] album:addToPlaylist", album?.title);
     await this.playbackManager.addAlbumToPlaylist(album);
-  }
-
-  async _handleOpenAlbum(album) {
-    console.log("[AudioPageManager] album:open", album?.title);
-    if (this.albumModal?.show) {
-      await this.albumModal.show(album);
-    }
   }
 
   async _handlePlayMusium(album) {

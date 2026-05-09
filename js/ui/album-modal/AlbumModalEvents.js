@@ -6,6 +6,7 @@ export class AlbumModalEvents {
 
   bind(events) {
     events.on("album:open", async (album) => {
+      console.log("[AlbumModalEvents] album:open received", album?.title);
       await this.onShow(album);
     });
     this._bindModalClose();
@@ -24,6 +25,7 @@ export class AlbumModalEvents {
 
   hide() {
     if (this.modal) {
+      this.modal.style.display = "none";
       this.modal.classList.remove("active");
       if (window.MediaCenter && window.MediaCenter._hideOverlay) {
         window.MediaCenter._hideOverlay();

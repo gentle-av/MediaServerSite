@@ -9,7 +9,6 @@ export class AlbumEventHandlers {
   setup() {
     this._register("album:play", this._handlePlayAlbum.bind(this));
     this._register("album:addToPlaylist", this._handleAddToPlaylist.bind(this));
-    this._register("album:open", this._handleOpenAlbum.bind(this));
     this._register("album:playMusium", this._handlePlayMusium.bind(this));
     this._register(
       "album:replacePlaylist",
@@ -47,13 +46,6 @@ export class AlbumEventHandlers {
 
   async _handleAddToPlaylist(album) {
     await this.playbackManager.addAlbumToPlaylist(album);
-  }
-
-  async _handleOpenAlbum(album) {
-    const modal = this.audioPageManager.getAlbumModal();
-    if (modal?.show) {
-      await modal.show(album);
-    }
   }
 
   async _handlePlayMusium(album) {
