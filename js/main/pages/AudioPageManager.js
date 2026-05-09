@@ -11,6 +11,7 @@ export class AudioPageManager {
     this.albumModal = null;
     this.playlistPopup = null;
     this._isInitialized = false;
+    this._boundHandlers = new Map();
   }
 
   async onPageLoaded() {
@@ -109,62 +110,96 @@ export class AudioPageManager {
   }
 
   _setupAlbumEvents() {
-    this.core.events.on("album:play", (album) => {
-      if (album.tracks && album.tracks.length > 0) {
-        const trackPaths = album.tracks.map((track) => track.path);
-        if (this.core.musicApi && this.core.musicApi.playTracks) {
-          this.core.musicApi
-            .playTracks(trackPaths)
-            .then(() => {
-              setTimeout(() => {
-                if (this.playbackManager.universalPlayer) {
-                  this.playbackManager.universalPlayer.startPlaybackExternal();
-                }
-              }, 500);
-            })
-            .catch((err) => console.error("[DEBUG] playTracks error:", err));
-        } else {
-          this.playbackManager.universalPlayer.startPlayback(
-            album.tracks[0].path,
-            "audio",
-          );
-        }
+    for (const [event, handler] of this._boundHandlers) {
+      this.core.events.off(event, handler);
+    }
+    this._boundHandlers.clear();
+    this._registerEvent("album:play", this._handlePlayAlbum.bind(this));
+    this._registerEvent(
+      "album:addToPlaylist",
+      this._handleAddToPlaylist.bind(this),
+    );
+    this._registerEvent("album:open", this._handleOpenAlbum.bind(this));
+    this._registerEvent("album:playMusium", this._handlePlayMusium.bind(this));
+    this._registerEvent(
+      "album:replacePlaylist",
+      this._handleReplacePlaylist.bind(this),
+    );
+    this._registerEvent("album:playTrack", this._handlePlayTrack.bind(this));
+  }
+
+  _registerEvent(event, handler) {
+    this.core.events.on(event, handler);
+    this._boundHandlers.set(event, handler);
+  }
+
+  _handlePlayAlbum(album) {
+    console.log("[AudioPageManager] album:play", album?.title);
+    if (!album?.tracks?.length) return;
+    const trackPaths = album.tracks.map((track) => track.path);
+    if (this.core.musicApi?.playTracks) {
+      this.core.musicApi
+        .playTracks(trackPaths)
+        .then(() => {
+          setTimeout(() => {
+            if (this.playbackManager.universalPlayer?.startPlaybackExternal) {
+              this.playbackManager.universalPlayer.startPlaybackExternal();
+            }
+          }, 500);
+        })
+        .catch((err) => console.error("[DEBUG] playTracks error:", err));
+    } else if (this.playbackManager.universalPlayer?.startPlayback) {
+      this.playbackManager.universalPlayer.startPlayback(
+        album.tracks[0].path,
+        "audio",
+      );
+    }
+  }
+
+  async _handleAddToPlaylist(album) {
+    console.log("[AudioPageManager] album:addToPlaylist", album?.title);
+    await this.playbackManager.addAlbumToPlaylist(album);
+  }
+
+  async _handleOpenAlbum(album) {
+    console.log("[AudioPageManager] album:open", album?.title);
+    if (this.albumModal?.show) {
+      await this.albumModal.show(album);
+    }
+  }
+
+  async _handlePlayMusium(album) {
+    console.log("[AudioPageManager] album:playMusium", album?.title);
+    const tracks = [...(album.tracks || [])];
+    if (tracks.length === 0 && this.core.musicApi?.getTracks) {
+      try {
+        const tracksData = await this.core.musicApi.getTracks(
+          album.title,
+          album.artist,
+          true,
+        );
+        tracks.push(...tracksData);
+      } catch (error) {
+        console.error("[AudioPageManager] getTracks error:", error);
       }
-    });
-    this.core.events.on("album:addToPlaylist", async (album) => {
-      await this.playbackManager.addAlbumToPlaylist(album);
-    });
-    this.core.events.on("album:open", async (album) => {
-      if (this.albumModal) {
-        await this.albumModal.show(album);
-      }
-    });
-    this.core.events.on("album:playMusium", async (album) => {
-      const tracks = album.tracks || [];
-      if (tracks.length === 0 && this.core.musicApi) {
-        try {
-          const tracksData = await this.core.musicApi.getTracks(
-            album.title,
-            album.artist,
-            true,
-          );
-          tracks.push(...tracksData);
-        } catch (error) {}
-      }
-      const trackPaths = tracks.map((track) => track.path);
-      if (this.core.musicApi && this.core.musicApi.openMusium) {
-        await this.core.musicApi.openMusium(trackPaths);
-      }
-    });
-    this.core.events.on("album:replacePlaylist", async (album) => {
-      await this.playbackManager.clearPlaylist();
-      await this.playbackManager.addAlbumToPlaylist(album);
-      this.core.events.emit("playlistCleared");
-      this.core.events.emit("playlistChanged");
-    });
-    this.core.events.on("album:playTrack", ({ album, trackIndex }) => {
-      this.playbackManager.playTrack(album, trackIndex);
-    });
+    }
+    const trackPaths = tracks.map((track) => track.path);
+    if (this.core.musicApi?.openMusium) {
+      await this.core.musicApi.openMusium(trackPaths);
+    }
+  }
+
+  async _handleReplacePlaylist(album) {
+    console.log("[AudioPageManager] album:replacePlaylist", album?.title);
+    await this.playbackManager.clearPlaylist();
+    await this.playbackManager.addAlbumToPlaylist(album);
+    this.core.events.emit("playlistCleared");
+    this.core.events.emit("playlistChanged");
+  }
+
+  _handlePlayTrack({ album, trackIndex }) {
+    console.log("[AudioPageManager] album:playTrack", album?.title, trackIndex);
+    this.playbackManager.playTrack(album, trackIndex);
   }
 
   _cacheTrackNames() {
@@ -205,6 +240,10 @@ export class AudioPageManager {
   }
 
   destroy() {
+    for (const [event, handler] of this._boundHandlers) {
+      this.core.events.off(event, handler);
+    }
+    this._boundHandlers.clear();
     if (this.albumLibrary) {
       this.albumLibrary.destroy();
       this.albumLibrary = null;

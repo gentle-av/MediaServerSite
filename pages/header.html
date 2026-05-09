@@ -1,0 +1,48 @@
+<header class="app-header" id="appHeader">
+  <div class="header-title-section">
+    <h1 class="page-title" id="pageTitle">
+      <i class="fas fa-video"></i> Видео
+    </h1>
+  </div>
+  <div class="header-controls-section">
+    <div class="mobile-nav-buttons" id="mobileNavButtons">
+      <button class="header-btn nav-video-btn active" id="navVideoBtn">
+        <i class="fas fa-video"></i><span>Видео</span>
+      </button>
+      <button class="header-btn nav-audio-btn" id="navAudioBtn">
+        <i class="fas fa-music"></i><span>Аудио</span>
+      </button>
+      <button class="header-btn nav-power-btn" id="navPowerBtn">
+        <i class="fas fa-plug"></i><span>Питание</span>
+      </button>
+    </div>
+    <div class="search-wrapper" id="globalSearchBox" style="display: none">
+      <i class="fas fa-search"></i>
+      <input type="text" id="globalSearchInput" placeholder="Поиск..." />
+      <button class="search-clear-btn" id="searchClearBtn">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <button
+      class="header-btn playlist-toggle-header audio-only"
+      id="headerPlaylistBtn"
+      style="display: none"
+    >
+      <i class="fas fa-list"></i><span>Плейлист</span>
+    </button>
+    <button
+      class="header-btn refresh-metadata-btn audio-only"
+      id="headerRefreshMetadataBtn"
+      style="display: none"
+    >
+      <i class="fas fa-sync-alt"></i><span>Обновить</span>
+    </button>
+    <button
+      class="header-btn refresh-header refresh-btn"
+      id="headerRefreshBtn"
+      style="display: none"
+    >
+      <i class="fas fa-sync-alt"></i><span>Обновить</span>
+    </button>
+  </div>
+</header>

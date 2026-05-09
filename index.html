@@ -30,16 +30,13 @@
         </div>
         <nav class="sidebar-nav">
           <button class="sidebar-btn active" data-page="video" id="navVideo">
-            <i class="fas fa-video"></i>
-            <span>Видео</span>
+            <i class="fas fa-video"></i><span>Видео</span>
           </button>
           <button class="sidebar-btn" data-page="audio" id="navAudio">
-            <i class="fas fa-music"></i>
-            <span>Аудио</span>
+            <i class="fas fa-music"></i><span>Аудио</span>
           </button>
           <button class="sidebar-btn" data-page="power" id="navPower">
-            <i class="fas fa-plug"></i>
-            <span>Питание</span>
+            <i class="fas fa-plug"></i><span>Питание</span>
           </button>
         </nav>
       </aside>
@@ -57,16 +54,13 @@
           <div class="header-controls-section">
             <div class="mobile-nav-buttons" id="mobileNavButtons">
               <button class="header-btn nav-video-btn active" id="navVideoBtn">
-                <i class="fas fa-video"></i>
-                <span>Видео</span>
+                <i class="fas fa-video"></i><span>Видео</span>
               </button>
               <button class="header-btn nav-audio-btn" id="navAudioBtn">
-                <i class="fas fa-music"></i>
-                <span>Аудио</span>
+                <i class="fas fa-music"></i><span>Аудио</span>
               </button>
               <button class="header-btn nav-power-btn" id="navPowerBtn">
-                <i class="fas fa-plug"></i>
-                <span>Питание</span>
+                <i class="fas fa-plug"></i><span>Питание</span>
               </button>
             </div>
             <div
@@ -87,29 +81,23 @@
             <button
               class="header-btn playlist-toggle-header audio-only"
               id="headerPlaylistBtn"
-              title="Плейлист"
               style="display: none"
             >
-              <i class="fas fa-list"></i>
-              <span>Плейлист</span>
+              <i class="fas fa-list"></i><span>Плейлист</span>
             </button>
             <button
               class="header-btn refresh-metadata-btn audio-only"
               id="headerRefreshMetadataBtn"
-              title="Обновить метаданные"
               style="display: none"
             >
-              <i class="fas fa-sync-alt"></i>
-              <span>Обновить</span>
+              <i class="fas fa-sync-alt"></i><span>Обновить</span>
             </button>
             <button
               class="header-btn refresh-header refresh-btn"
               id="headerRefreshBtn"
-              title="Обновить"
               style="display: none"
             >
-              <i class="fas fa-sync-alt"></i>
-              <span>Обновить</span>
+              <i class="fas fa-sync-alt"></i><span>Обновить</span>
             </button>
           </div>
         </header>
@@ -133,22 +121,101 @@
       </div>
       <div id="notification" class="notification" style="display: none"></div>
     </div>
+    <div id="albumModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div id="modalAlbumTitle"></div>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="modalTracksList" class="modal-tracks-list"></div>
+        </div>
+      </div>
+    </div>
+    <div id="confirmDialog" class="confirm-dialog" style="display: none">
+      <div class="confirm-dialog-content">
+        <div class="confirm-dialog-header">
+          <h3 id="confirmTitle">Подтверждение</h3>
+        </div>
+        <div class="confirm-dialog-body">
+          <p id="confirmMessage">Вы уверены?</p>
+        </div>
+        <div class="confirm-dialog-footer">
+          <button id="confirmCancelBtn" class="confirm-btn cancel">
+            Отмена
+          </button>
+          <button id="confirmOkBtn" class="confirm-btn ok">OK</button>
+        </div>
+      </div>
+    </div>
+    <div id="deleteDialog" class="delete-dialog" style="display: none">
+      <div class="delete-dialog-content">
+        <div class="delete-dialog-header">
+          <h3><i class="fas fa-trash-alt"></i> Удаление</h3>
+        </div>
+        <div class="delete-dialog-body">
+          <p id="deleteMessage">Вы уверены, что хотите удалить этот файл?</p>
+        </div>
+        <div class="delete-dialog-footer">
+          <button id="deleteCancelBtn" class="delete-btn cancel">Отмена</button>
+          <button id="deleteConfirmBtn" class="delete-btn confirm">
+            Удалить
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="tagEditorModal" class="tag-editor-modal" style="display: none">
+      <div class="tag-editor-content">
+        <div class="tag-editor-header">
+          <h3><i class="fas fa-tags"></i> Редактор тегов</h3>
+          <button class="tag-editor-close">&times;</button>
+        </div>
+        <div class="tag-editor-body">
+          <form id="tagEditorForm">
+            <div class="form-group">
+              <label>Название</label
+              ><input type="text" id="tagTitle" class="tag-input" />
+            </div>
+            <div class="form-group">
+              <label>Артист</label
+              ><input type="text" id="tagArtist" class="tag-input" />
+            </div>
+            <div class="form-group">
+              <label>Альбом</label
+              ><input type="text" id="tagAlbum" class="tag-input" />
+            </div>
+            <div class="form-group">
+              <label>Жанр</label
+              ><input type="text" id="tagGenre" class="tag-input" />
+            </div>
+            <div class="form-group">
+              <label>Год</label
+              ><input type="text" id="tagYear" class="tag-input" />
+            </div>
+            <div class="form-group">
+              <label>Номер трека</label
+              ><input type="number" id="tagTrackNumber" class="tag-input" />
+            </div>
+          </form>
+        </div>
+        <div class="tag-editor-footer">
+          <button id="tagSaveBtn" class="tag-save-btn">Сохранить</button>
+          <button id="tagCancelBtn" class="tag-cancel-btn">Отмена</button>
+        </div>
+      </div>
+    </div>
     <div
       id="universalBottomPlayer"
       class="universal-bottom-player"
       style="display: none"
     >
-      <!-- Кнопка сворачивания -->
       <div
         class="universal-bottom-player-minimize-bar"
         id="universalMinimizeBar"
       >
         <i class="fas fa-chevron-up"></i>
       </div>
-
-      <!-- Основной контент -->
       <div class="universal-bottom-player-content">
-        <!-- Информация о треке -->
         <div class="universal-bottom-player-info">
           <div
             class="universal-bottom-player-preview"
@@ -178,8 +245,6 @@
             ></div>
           </div>
         </div>
-
-        <!-- Прогресс бар -->
         <div class="universal-bottom-player-progress">
           <div class="universal-bottom-player-progress-bar-container">
             <span
@@ -203,8 +268,6 @@
             >
           </div>
         </div>
-
-        <!-- Кнопки управления -->
         <div class="universal-bottom-player-controls">
           <button
             id="universalBottomPrevBtn"
@@ -250,8 +313,6 @@
           </button>
         </div>
       </div>
-
-      <!-- Блок настроек (громкость, аудиовыход) -->
       <div
         id="universalBottomSettings"
         class="universal-bottom-player-settings collapsed"
@@ -285,25 +346,6 @@
               >50%</span
             >
           </div>
-        </div>
-        <div class="universal-bottom-player-output-section">
-          <span class="universal-bottom-player-output-label">
-            <i class="fas fa-exchange-alt"></i> Аудиовыход:
-          </span>
-          <button
-            id="universalBottomSpeakersBtn"
-            class="universal-bottom-player-output-btn speakers-btn"
-            title="Колонки"
-          >
-            <i class="fas fa-volume-up"></i><span>Колонки</span>
-          </button>
-          <button
-            id="universalBottomHeadphonesBtn"
-            class="universal-bottom-player-output-btn headphones-btn"
-            title="Наушники"
-          >
-            <i class="fas fa-headphones"></i><span>Наушники</span>
-          </button>
         </div>
       </div>
     </div>
