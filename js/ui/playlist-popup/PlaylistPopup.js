@@ -45,6 +45,7 @@ export class PlaylistPopup {
         }
         this.events.emit("playback:audioStart", path);
         this.events.emit("playlistTrackPlayed", { index, path });
+        this.ui.hide();
       }
     };
     this.renderer = new PlaylistRenderer(
