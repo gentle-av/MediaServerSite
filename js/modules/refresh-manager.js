@@ -105,32 +105,32 @@ class RefreshButtonManager {
     this.popup = document.createElement("div");
     this.popup.className = "refresh-time-popup";
     this.popup.innerHTML = `
-      <div class="refresh-time-popup-content" style="width: 450px;">
-        <div class="refresh-time-popup-header">
-          <i class="fas fa-sync-alt fa-spin"></i>
-          <span>Сканирование музыкальной библиотеки</span>
-          <button class="refresh-time-popup-close">&times;</button>
+    <div class="refresh-time-popup-content" style="width: 450px;">
+      <div class="refresh-time-popup-header">
+        <i class="fas fa-sync-alt"></i>
+        <span>Сканирование музыкальной библиотеки</span>
+        <button class="refresh-time-popup-close">&times;</button>
+      </div>
+      <div class="refresh-time-popup-body">
+        <div class="progress-stats" style="margin-bottom: 16px;">
+          <div class="progress-files-count" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem;">
+            <span><i class="fas fa-file-audio"></i> Файлы: <span id="progressProcessed">0</span> / <span id="progressTotal">?</span></span>
+            <span><i class="fas fa-percent"></i> <span id="progressPercent">0</span>%</span>
+          </div>
+          <div class="progress-bar-container" style="background: var(--bg3); border-radius: 8px; height: 24px; overflow: hidden;">
+            <div id="progressBarFill" class="progress-bar-fill" style="background: linear-gradient(90deg, var(--yellow), var(--orange)); width: 0%; height: 100%; transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: var(--bg1); font-size: 0.75rem; font-weight: bold;"></div>
+          </div>
         </div>
-        <div class="refresh-time-popup-body">
-          <div class="progress-stats" style="margin-bottom: 16px;">
-            <div class="progress-files-count" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem;">
-              <span><i class="fas fa-file-audio"></i> Файлы: <span id="progressProcessed">0</span> / <span id="progressTotal">?</span></span>
-              <span><i class="fas fa-percent"></i> <span id="progressPercent">0</span>%</span>
-            </div>
-            <div class="progress-bar-container" style="background: var(--bg3); border-radius: 8px; height: 24px; overflow: hidden;">
-              <div id="progressBarFill" class="progress-bar-fill" style="background: linear-gradient(90deg, var(--yellow), var(--orange)); width: 0%; height: 100%; transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: var(--bg1); font-size: 0.75rem; font-weight: bold;"></div>
-            </div>
-          </div>
-          <div class="progress-details" style="font-size: 0.8rem; color: var(--fg3);">
-            <div><i class="fas fa-compact-disc"></i> Добавлено альбомов: <span id="progressNewAlbums">0</span></div>
-            <div><i class="fas fa-exclamation-triangle"></i> Ошибок: <span id="progressErrors">0</span></div>
-          </div>
-          <div class="refresh-time-status" style="margin-top: 12px; font-size: 0.85rem; color: var(--yellow);">
-            <i class="fas fa-spinner fa-spin"></i> <span id="progressMessage">Подготовка к сканированию...</span>
-          </div>
+        <div class="progress-details" style="font-size: 0.8rem; color: var(--fg3);">
+          <div><i class="fas fa-compact-disc"></i> Добавлено альбомов: <span id="progressNewAlbums">0</span></div>
+          <div><i class="fas fa-exclamation-triangle"></i> Ошибок: <span id="progressErrors">0</span></div>
+        </div>
+        <div class="refresh-time-status" style="margin-top: 12px; font-size: 0.85rem; color: var(--yellow);">
+          <span id="progressMessage">Подготовка к сканированию...</span>
         </div>
       </div>
-    `;
+    </div>
+  `;
     document.body.appendChild(this.popup);
     const closeBtn = this.popup.querySelector(".refresh-time-popup-close");
     if (closeBtn) {
