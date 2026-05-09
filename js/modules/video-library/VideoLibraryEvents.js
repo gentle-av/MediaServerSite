@@ -26,7 +26,6 @@ export class VideoLibraryEvents {
     this.events.on("video:delete", (data) => this.onDeleteItem(data));
     this.events.on("navigation:videoPage", () => this.onRefresh());
     this.events.on("video:refresh", () => this.onRefresh());
-
     this.events.on("player:closeVideo", async (videoPath) => {
       const modal = this.getVideoCloseModal();
       if (modal) {
@@ -36,6 +35,7 @@ export class VideoLibraryEvents {
   }
 
   attachItemEvents(container) {
+    if (!container) return;
     container.querySelectorAll(".item-card").forEach((card) => {
       if (card._eventsAttached) return;
       card._eventsAttached = true;
@@ -73,14 +73,20 @@ export class VideoLibraryEvents {
       deleteBtn._handlerAdded = true;
       const deleteHandler = async (e) => {
         e.stopPropagation();
-        const confirmed = await CustomDeleteDialogInstance.showConfirm(
-          name,
-          isDir,
-        );
-        if (confirmed) {
-          await this.onDeleteItem({ path, name, isDir });
-          if (CustomDeleteDialogInstance.close) {
-            CustomDeleteDialogInstance.close();
+        if (
+          window.deleteDialog &&
+          typeof window.deleteDialog.showConfirm === "function"
+        ) {
+          const confirmed = await window.deleteDialog.showConfirm(name, isDir);
+          if (confirmed) {
+            await this.onDeleteItem({ path, name, isDir: isDir });
+          }
+        } else {
+          const confirmed = confirm(
+            `Удалить ${isDir ? "папку" : "файл"} "${name}"?`,
+          );
+          if (confirmed) {
+            await this.onDeleteItem({ path, name, isDir: isDir });
           }
         }
       };
@@ -107,28 +113,39 @@ export class VideoLibraryEvents {
     let touchStartX = 0;
     let touchMoveX = 0;
     let isSwiping = false;
+    let swipeThresholdReached = false;
     const content = card.querySelector(".item-card-content");
+    const swipeActions = card.querySelector(".swipe-actions");
     const onTouchStart = (e) => {
       if (e.target.closest(".swipe-delete-btn")) return;
       touchStartX = e.changedTouches[0].clientX;
       isSwiping = false;
-      content.style.transition = "none";
+      swipeThresholdReached = false;
+      if (content) {
+        content.style.transition = "none";
+      }
     };
     const onTouchMove = (e) => {
       const deltaX = e.changedTouches[0].clientX - touchStartX;
       if (Math.abs(deltaX) > 10 && !isSwiping) {
         isSwiping = true;
       }
-      if (isSwiping && deltaX < 0) {
+      if (isSwiping && deltaX < 0 && content) {
         if (e.cancelable) {
           e.preventDefault();
         }
         touchMoveX = e.changedTouches[0].clientX;
         const translateX = Math.max(-80, deltaX);
         content.style.transform = `translateX(${translateX}px)`;
+        if (swipeActions && deltaX < -30) {
+          swipeActions.style.opacity = "1";
+          swipeActions.style.visibility = "visible";
+          swipeThresholdReached = true;
+        }
       }
     };
     const onTouchEnd = () => {
+      if (!content) return;
       if (!isSwiping) {
         content.style.transition = "";
         return;
@@ -138,19 +155,37 @@ export class VideoLibraryEvents {
       if (deltaX < -40) {
         card.classList.add("swipe-left");
         content.style.transform = "translateX(-80px)";
+        if (swipeActions) {
+          swipeActions.style.opacity = "1";
+          swipeActions.style.visibility = "visible";
+        }
       } else {
         card.classList.remove("swipe-left");
         content.style.transform = "translateX(0)";
+        if (swipeActions) {
+          swipeActions.style.opacity = "0";
+          swipeActions.style.visibility = "hidden";
+        }
       }
       setTimeout(() => {
-        content.style.transition = "";
+        if (content) {
+          content.style.transition = "";
+        }
       }, 300);
+
       isSwiping = false;
+      swipeThresholdReached = false;
     };
     const onClickOutside = (e) => {
       if (card.classList.contains("swipe-left") && !card.contains(e.target)) {
         card.classList.remove("swipe-left");
-        content.style.transform = "translateX(0)";
+        if (content) {
+          content.style.transform = "translateX(0)";
+        }
+        if (swipeActions) {
+          swipeActions.style.opacity = "0";
+          swipeActions.style.visibility = "hidden";
+        }
       }
     };
     card.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -178,14 +213,23 @@ export class VideoLibraryEvents {
     deleteBtn.addEventListener("click", async (e) => {
       e.stopPropagation();
       this._hideContextMenu();
-      const confirmed = await CustomDeleteDialogInstance.showConfirm(
-        name,
-        isDirectory,
-      );
-      if (confirmed) {
-        await this.onDeleteItem({ path, name, isDir: isDirectory });
-        if (CustomDeleteDialogInstance.close) {
-          CustomDeleteDialogInstance.close();
+      if (
+        window.deleteDialog &&
+        typeof window.deleteDialog.showConfirm === "function"
+      ) {
+        const confirmed = await window.deleteDialog.showConfirm(
+          name,
+          isDirectory,
+        );
+        if (confirmed) {
+          await this.onDeleteItem({ path, name, isDir: isDirectory });
+        }
+      } else {
+        const confirmed = confirm(
+          `Удалить ${isDirectory ? "папку" : "файл"} "${name}"?`,
+        );
+        if (confirmed) {
+          await this.onDeleteItem({ path, name, isDir: isDirectory });
         }
       }
     });
@@ -212,15 +256,24 @@ export class VideoLibraryEvents {
   async onDeleteItem({ path, name, isDir }) {
     const endpoint = isDir ? "/api/delete-directory" : "/api/trash";
     const response = await this.api.post(endpoint, { path });
-    if (response.success) {
-      Utils.showNotification(
-        `${isDir ? "Папка" : "Файл"} "${name}" ${isDir ? "удалена" : "удален"}`,
-        "success",
-      );
+    if (response && response.success) {
+      if (typeof Utils !== "undefined" && Utils.showNotification) {
+        Utils.showNotification(
+          `${isDir ? "Папка" : "Файл"} "${name}" ${isDir ? "удалена" : "удален"}`,
+          "success",
+        );
+      } else {
+        console.log(`Deleted: ${name}`);
+      }
       this.state.clearCache();
       await this.onLoadDirectory(this.state.getCurrentPath(), false);
     } else {
-      Utils.showNotification(response.error || "Ошибка удаления", "error");
+      const errorMsg = response?.error || "Ошибка удаления";
+      if (typeof Utils !== "undefined" && Utils.showNotification) {
+        Utils.showNotification(errorMsg, "error");
+      } else {
+        console.error(errorMsg);
+      }
     }
   }
 
@@ -228,8 +281,12 @@ export class VideoLibraryEvents {
     if (this.state.getCurrentPath()) {
       this.state.clearCache();
       this.onLoadDirectory(this.state.getCurrentPath(), false);
-      this.renderer.ensureIconsVisible();
-      this.dom.adjustBottomPadding();
+      if (this.renderer) {
+        this.renderer.ensureIconsVisible();
+      }
+      if (this.dom) {
+        this.dom.adjustBottomPadding();
+      }
     }
   }
 

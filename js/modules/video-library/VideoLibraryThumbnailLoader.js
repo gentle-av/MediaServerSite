@@ -13,13 +13,31 @@ export class VideoLibraryThumbnailLoader {
     if (cached) {
       return cached;
     }
-    const url = `/api/thumbnail?path=${encodeURIComponent(videoPath)}`;
     try {
-      const response = await fetch(url);
+      const response = await fetch("/api/thumbnail", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          path: videoPath,
+          width: 320,
+          quality: 85,
+        }),
+      });
+      if (!response.ok) {
+        console.warn(`HTTP ${response.status} for ${videoPath}`);
+        return null;
+      }
       const data = await response.json();
       if (data.success && data.thumbnail) {
         this.state.setThumbnail(cacheKey, data.thumbnail);
         return data.thumbnail;
+      }
+      if (data.use_icon) {
+        console.log(
+          `Using icon for ${videoPath}: ${data.error || "Not a video or corrupted"}`,
+        );
       }
     } catch (error) {
       console.error(`Failed to load thumbnail for ${videoPath}:`, error);
@@ -78,22 +96,23 @@ export class VideoLibraryThumbnailLoader {
       }
       return null;
     }
-    const data = await this.api.post(
-      "/api/list?path=" + encodeURIComponent(folderPath),
-      {},
-    );
-    if (data.success && data.items) {
-      const firstVideo = data.items.find(
-        (item) => !item.isDirectory && item.isVideo,
-      );
-      if (firstVideo) {
-        this.folderVideoCache.set(folderPath, firstVideo.path);
-        const thumbnail = await this.loadThumbnail(firstVideo.path, {
-          isFolder: true,
-          folderPath,
-        });
-        return thumbnail;
+    try {
+      const data = await this.api.post("/api/list", { path: folderPath });
+      if (data.success && data.items) {
+        const firstVideo = data.items.find(
+          (item) => !item.isDirectory && item.isVideo,
+        );
+        if (firstVideo) {
+          this.folderVideoCache.set(folderPath, firstVideo.path);
+          const thumbnail = await this.loadThumbnail(firstVideo.path, {
+            isFolder: true,
+            folderPath,
+          });
+          return thumbnail;
+        }
       }
+    } catch (error) {
+      console.error(`Failed to load folder preview for ${folderPath}:`, error);
     }
     this.folderVideoCache.set(folderPath, null);
     return null;
