@@ -15,6 +15,10 @@ export class AlbumEventHandlers {
       this._handleReplacePlaylist.bind(this),
     );
     this._register("album:playTrack", this._handlePlayTrack.bind(this));
+    this._register(
+      "track:editMetadata",
+      this._handleTrackEditMetadata.bind(this),
+    );
   }
 
   _register(event, handler) {
@@ -75,6 +79,17 @@ export class AlbumEventHandlers {
 
   _handlePlayTrack({ album, trackIndex }) {
     this.playbackManager.playTrack(album, trackIndex);
+  }
+
+  _handleTrackEditMetadata({ album, track, trackIndex }) {
+    if (window.TagEditor && window.TagEditor.showTrackTagEditor) {
+      window.TagEditor.showTrackTagEditor(track, album);
+    } else {
+      console.error("TagEditor not available");
+      if (window.showNotification) {
+        window.showNotification("Редактор тегов недоступен", "error");
+      }
+    }
   }
 
   destroy() {
