@@ -1,5 +1,3 @@
-// js/main/managers/PlaybackManager.js
-import { PlaybackController } from "../../core/playback-controller/PlaybackController.js";
 import { PlayerAPI } from "../../ui/universal-player/PlayerApi.js";
 import { UniversalPlayer } from "../../ui/universal-player.js";
 
@@ -12,11 +10,6 @@ export class PlaybackManager {
   }
 
   async init() {
-    this.playback = new PlaybackController(
-      this.core.playerApi,
-      this.core.events,
-    );
-    await this.playback.init();
     const playerAPI = new PlayerAPI(
       this.core.api,
       this.core.musicApi,

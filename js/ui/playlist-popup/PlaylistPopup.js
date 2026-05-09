@@ -3,8 +3,8 @@ import { PlaylistPopupUI } from "./PlaylistPopupUI.js";
 import { PlaylistRenderer } from "./PlaylistRenderer.js";
 
 export class PlaylistPopup {
-  constructor(playbackController, events, albumLibrary) {
-    this.playback = playbackController;
+  constructor(universalPlayer, events, albumLibrary) {
+    this.universalPlayer = universalPlayer;
     this.events = events;
     this.musicApi = window.musicApi || null;
     this.metadataHelper = new TrackMetadataHelper(albumLibrary, this.musicApi);
@@ -19,40 +19,32 @@ export class PlaylistPopup {
 
   async _init() {
     const onTrackClick = async (index) => {
-      const playlistData = await this.playback.api.getPlaylist();
-      const tracks = playlistData?.data || [];
-      const trackPath = tracks[index];
-      const path = typeof trackPath === "string" ? trackPath : trackPath?.path;
-      if (path) {
-        await this.playback.api.playIndex(index);
-        if (window.universalPlayerInstance) {
-          const metadata = await this.metadataHelper.fetchMetadata(path);
-          window.universalPlayerInstance.core.setCurrentFile(path);
-          window.universalPlayerInstance.core.setMediaType("audio");
-          window.universalPlayerInstance.core.setPlaying(true);
-          window.universalPlayerInstance.uiUpdater.updateFileInfo(path);
-          window.universalPlayerInstance.uiUpdater.updateTrackFullInfo(
-            metadata.title,
-            metadata.artist,
-            null,
-          );
-          window.universalPlayerInstance.uiUpdater.updatePlayPauseButton(true);
-          window.universalPlayerInstance.show();
-          if (window.universalPlayerInstance.polling) {
-            window.universalPlayerInstance.polling.stop();
-            window.universalPlayerInstance.polling.start();
-          }
+      if (!this.universalPlayer) return;
+      try {
+        await this.universalPlayer.audioPlayIndex(index);
+        const state = await this.universalPlayer.getAudioPlaybackState();
+        if (state?.success && state.currentTrack) {
+          this.universalPlayer.core.setCurrentFile(state.currentTrack);
+          this.universalPlayer.core.setMediaType("audio");
+          this.universalPlayer.core.setPlaying(true);
+          this.universalPlayer.uiUpdater.updateFileInfo(state.currentTrack);
+          this.universalPlayer.uiUpdater.updatePlayPauseButton(true);
+          this.universalPlayer.show();
+          this.events.emit("playback:audioStart", state.currentTrack);
         }
-        this.events.emit("playback:audioStart", path);
-        this.events.emit("playlistTrackPlayed", { index, path });
         this.ui.hide();
+      } catch (error) {
+        console.error("[PlaylistPopup] Error playing track:", error);
       }
     };
     this.renderer = new PlaylistRenderer(
       "playlistContainer",
       onTrackClick,
       async (index) => {
-        await this.playback.api.post("/api/removeFromPlaylist", { index });
+        if (!this.universalPlayer) return;
+        await this.universalPlayer.playerApi.post("/api/removeFromPlaylist", {
+          index,
+        });
         this.metadataHelper.clearCache();
         await this.refresh();
         this.events.emit("playlistChanged");
@@ -70,7 +62,8 @@ export class PlaylistPopup {
     const clearBtn = document.getElementById("playlistClearBtn");
     if (clearBtn) {
       clearBtn.addEventListener("click", async () => {
-        await this.playback.api.clearPlaylist();
+        if (!this.universalPlayer) return;
+        await this.universalPlayer.playerApi.post("/api/clearPlaylist");
         this.metadataHelper.clearCache();
         await this.refresh();
         this.events.emit("playlistCleared");
@@ -85,22 +78,32 @@ export class PlaylistPopup {
   }
 
   async refresh() {
-    const playlistData = await this.playback.api.getPlaylist();
-    const state = await this.playback.api.getPlaybackState();
-    const currentPath = state?.data?.currentTrack;
-    const currentIndex = state?.data?.currentIndex ?? -1;
-    let tracks = playlistData?.data || [];
-    if (!Array.isArray(tracks)) tracks = [];
-    const tracksWithMetadata = await Promise.all(
-      tracks.map(async (track, idx) => {
-        const path = typeof track === "string" ? track : track.path;
-        const metadata = await this.metadataHelper.fetchMetadata(path);
-        return { path, ...metadata, index: idx };
-      }),
-    );
-    this.renderer.render(tracksWithMetadata, currentPath, currentIndex);
-    this._updateCount(tracksWithMetadata.length);
-    setTimeout(() => this.renderer.scrollToCurrentTrack(), 100);
+    if (!this.universalPlayer) {
+      console.warn("[PlaylistPopup] universalPlayer not available");
+      return;
+    }
+    try {
+      const playlistData = await this.universalPlayer.playerApi.get(
+        "/api/audio/getPlaylist",
+      );
+      const state = await this.universalPlayer.getAudioPlaybackState();
+      const currentPath = state?.currentTrack;
+      const currentIndex = state?.currentIndex ?? -1;
+      let tracks = playlistData?.data || [];
+      if (!Array.isArray(tracks)) tracks = [];
+      const tracksWithMetadata = await Promise.all(
+        tracks.map(async (track, idx) => {
+          const path = typeof track === "string" ? track : track.path;
+          const metadata = await this.metadataHelper.fetchMetadata(path);
+          return { path, ...metadata, index: idx };
+        }),
+      );
+      this.renderer.render(tracksWithMetadata, currentPath, currentIndex);
+      this._updateCount(tracksWithMetadata.length);
+      setTimeout(() => this.renderer.scrollToCurrentTrack(), 100);
+    } catch (error) {
+      console.error("[PlaylistPopup] refresh error:", error);
+    }
   }
 
   _updateCount(count) {

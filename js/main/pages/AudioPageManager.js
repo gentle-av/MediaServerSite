@@ -79,17 +79,20 @@ export class AudioPageManager {
 
   _initPlaylistPopup() {
     if (typeof PlaylistPopup !== "undefined" && !this.playlistPopup) {
+      const universalPlayer = this.playbackManager?.universalPlayer;
+      if (!universalPlayer) {
+        console.warn(
+          "[AudioPageManager] universalPlayer not ready yet, will retry",
+        );
+        setTimeout(() => this._initPlaylistPopup(), 500);
+        return;
+      }
       this.playlistPopup = new PlaylistPopup(
-        this.playbackManager.playback,
+        universalPlayer,
         this.core.events,
         this.albumLibrary,
       );
       this.core.playlistPopup = this.playlistPopup;
-    } else if (this.playlistPopup) {
-      this.playlistPopup.albumLibrary = this.albumLibrary;
-      if (this.playlistPopup.tracksCache)
-        this.playlistPopup.tracksCache.clear();
-      if (this.playlistPopup.refresh) this.playlistPopup.refresh();
     }
   }
 
