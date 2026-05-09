@@ -98,8 +98,48 @@ export class UniversalPlayer {
     this.volume.startPolling();
     this.output.startPolling();
     this.bindEvents();
+    this._ensureOutputButtons();
     this.hide();
     this.checkExistingPlayback();
+  }
+
+  _ensureOutputButtons() {
+    const settings = this.dom.get("universalBottomSettings");
+    if (!settings) return;
+    let speakersBtn = this.dom.get("universalBottomSpeakersBtn");
+    let headphonesBtn = this.dom.get("universalBottomHeadphonesBtn");
+    if (speakersBtn && headphonesBtn) return;
+    let outputSection = settings.querySelector(
+      ".universal-bottom-player-output-section",
+    );
+    if (!outputSection) {
+      outputSection = document.createElement("div");
+      outputSection.className = "universal-bottom-player-output-section";
+      const label = document.createElement("span");
+      label.className = "universal-bottom-player-output-label";
+      label.innerHTML = '<i class="fas fa-exchange-alt"></i> Аудиовыход:';
+      outputSection.appendChild(label);
+      settings.appendChild(outputSection);
+    }
+    if (!speakersBtn) {
+      speakersBtn = document.createElement("button");
+      speakersBtn.id = "universalBottomSpeakersBtn";
+      speakersBtn.className = "universal-bottom-player-output-btn speakers-btn";
+      speakersBtn.innerHTML =
+        '<i class="fas fa-volume-up"></i><span>Колонки</span>';
+      outputSection.appendChild(speakersBtn);
+      this.dom.elements.universalBottomSpeakersBtn = speakersBtn;
+    }
+    if (!headphonesBtn) {
+      headphonesBtn = document.createElement("button");
+      headphonesBtn.id = "universalBottomHeadphonesBtn";
+      headphonesBtn.className =
+        "universal-bottom-player-output-btn headphones-btn";
+      headphonesBtn.innerHTML =
+        '<i class="fas fa-headphones"></i><span>Наушники</span>';
+      outputSection.appendChild(headphonesBtn);
+      this.dom.elements.universalBottomHeadphonesBtn = headphonesBtn;
+    }
   }
 
   bindEvents() {

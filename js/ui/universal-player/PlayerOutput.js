@@ -44,8 +44,6 @@ export class PlayerOutput {
       } else {
         speakersBtn.classList.remove("active");
       }
-    } else {
-      console.warn("Speakers button not found");
     }
     if (headphonesBtn) {
       if (this._currentOutput === "headphones") {
@@ -53,8 +51,6 @@ export class PlayerOutput {
       } else {
         headphonesBtn.classList.remove("active");
       }
-    } else {
-      console.warn("Headphones button not found");
     }
   }
 
@@ -68,10 +64,7 @@ export class PlayerOutput {
           response.data.output;
         if (current) {
           this._currentOutput = current;
-          this._updateUI();
-        } else {
-          console.warn("No current output in response:", response.data);
-          this._updateUI();
+          setTimeout(() => this._updateUI(), 100);
         }
       }
     } catch (error) {
