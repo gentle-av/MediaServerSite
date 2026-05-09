@@ -9,14 +9,18 @@ import { PlayerVolume } from "./PlayerVolume.js";
 import { PlayerOutput } from "./PlayerOutput.js";
 import { PlayerEventSubscriber } from "./PlayerEventSubscriber.js";
 import { PreviewTooltip } from "./PreviewTooltip.js";
+import { PlayerChannelManager } from "./PlayerChannelManager.js";
+import { PlayerEventHandler } from "./PlayerEventHandler.js";
+import { PlayerLifecycle } from "./PlayerLifeCycle.js";
 
 export class UniversalPlayer {
-  constructor(api, events, musicApi, playerApi, apiClient) {
+  constructor(api, events, musicApi, playerApi, apiClient, tvApi = null) {
     this.api = api;
     this.events = events;
     this.musicApi = musicApi;
     this.playerApi = playerApi;
     this.apiClient = apiClient;
+    this.tvApi = tvApi;
     this.dom = null;
     this.core = null;
     this.progress = null;
@@ -25,6 +29,8 @@ export class UniversalPlayer {
     this.mediaHandler = null;
     this.volume = null;
     this.output = null;
+    this.channelManager = null;
+    this.lifecycle = null;
     this.eventSubscriber = null;
     this.previewTooltip = null;
     this.videoCloseModal = null;
@@ -32,14 +38,9 @@ export class UniversalPlayer {
     this.initialize();
   }
 
-  setVideoCloseModal(modal) {
-    this.videoCloseModal = modal;
-    if (this.mediaHandler) {
-      this.mediaHandler.setVideoCloseModal(modal);
-    }
-  }
+  // UniversalPlayer.js - измените порядок в методе initialize()
 
-  initialize() {
+  async initialize() {
     this.dom = new PlayerDOM();
     const domReady = this.dom.init();
     if (!domReady) {
@@ -50,16 +51,30 @@ export class UniversalPlayer {
     this.progress = new PlayerProgress(this.dom);
     this.uiUpdater = new PlayerUIUpdater(this.dom, this.progress);
     this.polling = new PlayerPolling(
-      this,
+      this.api,
       this.core,
       this.progress,
       this.uiUpdater,
-      (state) => {
-        this.events.emit("playbackStateChange", state);
-      },
+      (state) => this.events.emit("playbackStateChange", state),
     );
     this.volume = new PlayerVolume(this.apiClient, this.dom, this.core);
     this.output = new PlayerOutput(this.apiClient, this.dom, this.core);
+    this.channelManager = new PlayerChannelManager(
+      this.apiClient,
+      this.events,
+      this.dom,
+    );
+    await this.channelManager.init(this.tvApi);
+    this.lifecycle = new PlayerLifecycle(
+      this.core,
+      this.uiUpdater,
+      this.progress,
+      this.polling,
+      this.api,
+      this.apiClient,
+      this.events,
+      this.mediaHandler,
+    );
     const onStopHandler = async () => {
       if (
         this.core.isVideo() &&
@@ -68,7 +83,7 @@ export class UniversalPlayer {
       ) {
         const result = await this.videoCloseModal.show(this.core.currentFile);
         if (result && result.action === "delete") {
-          await this._deleteCurrentVideo();
+          await this.lifecycle.deleteCurrentVideo();
           this.hide();
         } else if (result && result.action === "close") {
           await this.mediaHandler.stop(true);
@@ -80,39 +95,30 @@ export class UniversalPlayer {
       }
     };
     this.mediaHandler = new PlayerMediaHandler(
-      this,
+      this.api,
       this.core,
       this.uiUpdater,
       this.progress,
       () => this.show(),
       onStopHandler,
     );
-    this.mediaHandler.setForceRefreshVideo(() => this.refreshVideo());
+    this.mediaHandler.setForceRefreshVideo(() => this.lifecycle.refreshVideo());
     if (this.videoCloseModal) {
       this.mediaHandler.setVideoCloseModal(this.videoCloseModal);
     }
-    const playerEvents = new PlayerEvents({
-      onTogglePlayPause: () => this.mediaHandler.togglePlayPause(),
-      onPrev: () => this.mediaHandler.previous(),
-      onNext: () => this.mediaHandler.next(),
-      onStop: () => onStopHandler(),
-      onFullscreen: () => this.mediaHandler.fullscreen(),
-      onToggleMinimize: () => this.toggleMinimize(),
-      onToggleSettings: () => this.toggleSettings(),
-      onVolumeDown: () => this.volume.changeVolume(-10),
-      onVolumeUp: () => this.volume.changeVolume(10),
-      onToggleMute: () => this.volume.toggleMute(),
-      onSpeakers: () => this.output.switchToSpeakers(),
-      onHeadphones: () => this.output.switchToHeadphones(),
-      onProgressClick: (e) => {
-        const seekTime = this.progress.getSeekTimeFromClick(e);
-        if (seekTime !== null) this.mediaHandler.seek(seekTime);
-      },
-    });
+    this.dom.ensureOutputButtons();
+    const eventHandler = new PlayerEventHandler(
+      this.mediaHandler,
+      this.volume,
+      this.output,
+      this.progress,
+      this.channelManager,
+    );
+    const playerEvents = new PlayerEvents(eventHandler.getHandlers());
     playerEvents.attach(this.dom);
     this.eventSubscriber = new PlayerEventSubscriber(
       this.events,
-      this,
+      this.api,
       this.mediaHandler,
       this.core,
       this.uiUpdater,
@@ -125,97 +131,15 @@ export class UniversalPlayer {
     this.output.loadInitial();
     this.volume.startPolling();
     this.output.startPolling();
-    this.bindEvents();
-    this._ensureOutputButtons();
     this.hide();
-    this.checkExistingPlayback();
+    this.lifecycle.checkExistingPlayback();
   }
 
-  async _deleteCurrentVideo() {
-    const filePath = this.core.currentFile;
-    const fileName = this._getFileName(filePath);
-    try {
-      await this.api.closeVideo();
-      const response = await this.apiClient.post("/api/trash", {
-        path: filePath,
-      });
-      if (response && response.success) {
-        Utils.showNotification(`Видео "${fileName}" удалено`, "success");
-        this.core.reset();
-        this.uiUpdater.reset();
-        this.progress.reset();
-        this.hide();
-        this.events.emit("video:refresh");
-      } else {
-        const errorMsg = response?.error || "Ошибка удаления";
-        Utils.showNotification(errorMsg, "error");
-      }
-    } catch (error) {
-      console.error("Error deleting video:", error);
-      Utils.showNotification(
-        "Ошибка удаления видео: " + error.message,
-        "error",
-      );
+  setVideoCloseModal(modal) {
+    this.videoCloseModal = modal;
+    if (this.mediaHandler) {
+      this.mediaHandler.setVideoCloseModal(modal);
     }
-  }
-
-  _getFileName(filePath) {
-    if (!filePath) return "файл";
-    const parts = filePath.split("/");
-    return parts[parts.length - 1];
-  }
-
-  _ensureOutputButtons() {
-    const settings = this.dom.get("universalBottomSettings");
-    if (!settings) return;
-    let speakersBtn = this.dom.get("universalBottomSpeakersBtn");
-    let headphonesBtn = this.dom.get("universalBottomHeadphonesBtn");
-    if (speakersBtn && headphonesBtn) return;
-    let outputSection = settings.querySelector(
-      ".universal-bottom-player-output-section",
-    );
-    if (!outputSection) {
-      outputSection = document.createElement("div");
-      outputSection.className = "universal-bottom-player-output-section";
-      const label = document.createElement("span");
-      label.className = "universal-bottom-player-output-label";
-      label.innerHTML = '<i class="fas fa-exchange-alt"></i> Аудиовыход:';
-      outputSection.appendChild(label);
-      settings.appendChild(outputSection);
-    }
-    if (!speakersBtn) {
-      speakersBtn = document.createElement("button");
-      speakersBtn.id = "universalBottomSpeakersBtn";
-      speakersBtn.className = "universal-bottom-player-output-btn speakers-btn";
-      speakersBtn.innerHTML =
-        '<i class="fas fa-volume-up"></i><span>Колонки</span>';
-      outputSection.appendChild(speakersBtn);
-      this.dom.elements.universalBottomSpeakersBtn = speakersBtn;
-    }
-    if (!headphonesBtn) {
-      headphonesBtn = document.createElement("button");
-      headphonesBtn.id = "universalBottomHeadphonesBtn";
-      headphonesBtn.className =
-        "universal-bottom-player-output-btn headphones-btn";
-      headphonesBtn.innerHTML =
-        '<i class="fas fa-headphones"></i><span>Наушники</span>';
-      outputSection.appendChild(headphonesBtn);
-      this.dom.elements.universalBottomHeadphonesBtn = headphonesBtn;
-    }
-  }
-
-  bindEvents() {
-    this.events.on("video:play", (path) => {
-      this.mediaHandler.startPlayback(path, "video");
-    });
-    this.events.on("track:play", (data) => {
-      if (data.track && data.track.path) {
-        this.mediaHandler.startPlayback(data.track.path, "audio");
-      }
-    });
-    this.events.on("player:clearState", () => {
-      this.hide();
-    });
   }
 
   show() {
@@ -243,79 +167,9 @@ export class UniversalPlayer {
     this.uiUpdater.toggleSettings(!isCollapsed);
   }
 
-  refreshVideo() {
-    if (this.polling) {
-      this.polling.stop();
-      this.polling.start();
-    }
-  }
-
-  async checkExistingPlayback(type) {
-    try {
-      let hasActivePlayback = false;
-      if (type === "video") {
-        const status = await this.api.getVideoStatus();
-        if (status && status.success && status.currentFile && !status.paused) {
-          this.core.setCurrentFile(status.currentFile);
-          this.core.setMediaType("video");
-          this.core.setPlaying(true);
-          this.uiUpdater.updateFileInfo(status.currentFile);
-          this.uiUpdater.updatePlayPauseButton(true);
-          hasActivePlayback = true;
-        }
-      } else {
-        const state = await this.api.getAudioPlaybackState();
-        if (state && state.success && state.currentTrack) {
-          this.core.setCurrentFile(state.currentTrack);
-          this.core.setMediaType("audio");
-          this.core.setPlaying(state.isPlaying || false);
-          this.uiUpdater.updateFileInfo(state.currentTrack);
-          this.uiUpdater.updatePlayPauseButton(state.isPlaying || false);
-          hasActivePlayback = true;
-          if (
-            state.currentIndex !== undefined &&
-            state.totalTracks !== undefined
-          ) {
-            this.uiUpdater.updateTrackCount(
-              state.currentIndex,
-              state.totalTracks,
-            );
-          }
-        }
-      }
-      if (this.dom) {
-        this.dom.setHasActivePlayback(hasActivePlayback);
-      }
-      if (hasActivePlayback) {
-        this.show();
-        if (this.polling) this.polling.start();
-      }
-    } catch (error) {
-      console.error("[UniversalPlayer] checkExistingPlayback error:", error);
-    }
-  }
-
   clearState() {
-    this.core.reset();
-    this.uiUpdater.reset();
-    this.progress.reset();
-    if (this.polling) this.polling.stop();
+    this.lifecycle?.clearState();
     this.hide();
-  }
-
-  startPlaybackExternal() {
-    if (this.polling) {
-      this.polling.stop();
-      this.polling.start();
-    }
-    this.show();
-  }
-
-  syncWithPlayback() {
-    if (this.polling) {
-      this.polling.stop();
-      this.polling.start();
-    }
   }
 
   destroy() {

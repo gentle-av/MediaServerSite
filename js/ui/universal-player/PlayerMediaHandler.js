@@ -7,6 +7,30 @@ export class PlayerMediaHandler {
     this.onShow = onShow;
   }
 
+  toggleSettings() {
+    const settings = document.getElementById("universalBottomSettings");
+    if (settings) {
+      settings.classList.toggle("collapsed");
+      const toggle = document.getElementById("universalBottomSettingsToggle");
+      if (toggle) {
+        toggle.classList.toggle("collapsed");
+      }
+    }
+  }
+
+  toggleMinimize() {
+    const player = document.getElementById("universalBottomPlayer");
+    if (player) {
+      player.classList.toggle("minimized");
+      const minimizeBar = document.getElementById("universalMinimizeBar");
+      if (minimizeBar) {
+        minimizeBar.innerHTML = player.classList.contains("minimized")
+          ? '<i class="fas fa-chevron-up"></i>'
+          : '<i class="fas fa-chevron-down"></i>';
+      }
+    }
+  }
+
   async startPlayback(path, type) {
     if (this.core.isStartingVideo()) return;
     if (this.core.isSameFile(path, type) && this.core.isPlaying) {
@@ -35,6 +59,7 @@ export class PlayerMediaHandler {
   async _startVideo(path) {
     this.core.startStartingVideo();
     this.uiUpdater.updateTrackInfo("Видео", "");
+    this.uiUpdater.updateFullscreenButtonVisibility("video");
     this.onShow?.();
     try {
       const thumbnail = await this.api.getVideoThumbnail(path);
@@ -76,6 +101,7 @@ export class PlayerMediaHandler {
   async _startAudio(path) {
     await this.api.closeVideo();
     const metadata = await this.api.getFileMetadata(path);
+    this.uiUpdater.updateFullscreenButtonVisibility("audio");
     let artist = "";
     let title = "";
     let coverUrl = null;
@@ -144,14 +170,17 @@ export class PlayerMediaHandler {
     } catch (error) {}
   }
 
-  async stop() {
+  async stop(keepState = false) {
     if (this.core.isVideo()) {
       await this.api.closeVideo();
     } else if (this.core.isAudio() && this.api.playerApi) {
       await this.api.audioStop();
     }
-    this.core.reset();
-    this.uiUpdater.reset();
+    if (!keepState) {
+      this.core.reset();
+      this.uiUpdater.reset();
+      this.uiUpdater.updateFullscreenButtonVisibility(null);
+    }
   }
 
   async togglePlayPause() {

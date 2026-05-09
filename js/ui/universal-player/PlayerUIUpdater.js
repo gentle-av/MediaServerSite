@@ -4,6 +4,17 @@ export class PlayerUIUpdater {
     this.progress = progress;
   }
 
+  updateFullscreenButtonVisibility(mediaType) {
+    const fullscreenBtn = this.dom.get("universalBottomFullscreenBtn");
+    if (fullscreenBtn) {
+      if (mediaType === "audio") {
+        fullscreenBtn.style.display = "none";
+      } else {
+        fullscreenBtn.style.display = "flex";
+      }
+    }
+  }
+
   updateTrackInfo(title, artist) {
     const trackName = this.dom.get("universalBottomTrackName");
     const trackArtist = this.dom.get("universalBottomTrackArtist");
