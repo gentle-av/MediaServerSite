@@ -53,7 +53,6 @@ export class PlayerMediaHandler {
       this.core.setPlaying(true);
       this.core.finishStartingVideo();
       this.progress.reset();
-
       setTimeout(() => {
         if (this._forceRefreshVideo) {
           this._forceRefreshVideo();
@@ -266,6 +265,18 @@ export class PlayerMediaHandler {
       } else {
         document.exitFullscreen();
       }
+    }
+  }
+
+  forceRefreshPlayback(path) {
+    this.core.setCurrentFile(path);
+    this.core.setMediaType("audio");
+    this.core.setPlaying(true);
+    this.uiUpdater.updateFileInfo(path);
+    this.uiUpdater.updatePlayPauseButton(true);
+    this.onShow?.();
+    if (this._forceRefresh) {
+      this._forceRefresh();
     }
   }
 }
