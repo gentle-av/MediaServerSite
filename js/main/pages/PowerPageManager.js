@@ -101,9 +101,9 @@ export class PowerPageManager {
     const volumeMute = document.getElementById("systemVolumeMute");
     const volumeRange = document.getElementById("systemVolumeRange");
     if (volumeDown)
-      volumeDown.addEventListener("click", () => this._changeVolume(-10));
+      volumeDown.addEventListener("click", () => this._changeVolume(-5));
     if (volumeUp)
-      volumeUp.addEventListener("click", () => this._changeVolume(10));
+      volumeUp.addEventListener("click", () => this._changeVolume(5));
     if (volumeMute)
       volumeMute.addEventListener("click", () => this._toggleMute());
     if (volumeRange)
