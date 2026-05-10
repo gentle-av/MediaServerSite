@@ -36,11 +36,6 @@ export class VideoLibraryRenderer {
           <div class="item-name" title="${this._escape(item.name)}">${this._escape(item.name)}</div>
           ${!item.isDirectory ? `<div class="item-size">${item.size || ""}</div>` : ""}
         </div>
-        <div class="swipe-actions">
-          <button class="swipe-delete-btn" data-path="${item.path}" data-name="${this._escape(item.name)}" data-is-dir="${item.isDirectory}">
-            <i class="fas fa-trash-alt"></i>
-          </button>
-        </div>
       </div>
     `;
   }

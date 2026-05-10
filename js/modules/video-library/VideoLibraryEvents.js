@@ -63,7 +63,6 @@ export class VideoLibraryEvents {
       card._clickHandler = clickHandler;
       this._attachDeleteButton(card, path, name, isDir);
       this._attachContextMenu(card, path, name, isDir);
-      this._attachSwipeEvents(card, path, name, isDir);
     });
   }
 
@@ -105,99 +104,6 @@ export class VideoLibraryEvents {
       card.addEventListener("contextmenu", contextHandler);
       card._contextHandler = contextHandler;
     }
-  }
-
-  _attachSwipeEvents(card, path, name, isDir) {
-    if (card._swipeAttached) return;
-    card._swipeAttached = true;
-    let touchStartX = 0;
-    let touchMoveX = 0;
-    let isSwiping = false;
-    let swipeThresholdReached = false;
-    const content = card.querySelector(".item-card-content");
-    const swipeActions = card.querySelector(".swipe-actions");
-    const onTouchStart = (e) => {
-      if (e.target.closest(".swipe-delete-btn")) return;
-      touchStartX = e.changedTouches[0].clientX;
-      isSwiping = false;
-      swipeThresholdReached = false;
-      if (content) {
-        content.style.transition = "none";
-      }
-    };
-    const onTouchMove = (e) => {
-      const deltaX = e.changedTouches[0].clientX - touchStartX;
-      if (Math.abs(deltaX) > 10 && !isSwiping) {
-        isSwiping = true;
-      }
-      if (isSwiping && deltaX < 0 && content) {
-        if (e.cancelable) {
-          e.preventDefault();
-        }
-        touchMoveX = e.changedTouches[0].clientX;
-        const translateX = Math.max(-80, deltaX);
-        content.style.transform = `translateX(${translateX}px)`;
-        if (swipeActions && deltaX < -30) {
-          swipeActions.style.opacity = "1";
-          swipeActions.style.visibility = "visible";
-          swipeThresholdReached = true;
-        }
-      }
-    };
-    const onTouchEnd = () => {
-      if (!content) return;
-      if (!isSwiping) {
-        content.style.transition = "";
-        return;
-      }
-      const deltaX = touchMoveX - touchStartX;
-      content.style.transition = "transform 0.3s ease";
-      if (deltaX < -40) {
-        card.classList.add("swipe-left");
-        content.style.transform = "translateX(-80px)";
-        if (swipeActions) {
-          swipeActions.style.opacity = "1";
-          swipeActions.style.visibility = "visible";
-        }
-      } else {
-        card.classList.remove("swipe-left");
-        content.style.transform = "translateX(0)";
-        if (swipeActions) {
-          swipeActions.style.opacity = "0";
-          swipeActions.style.visibility = "hidden";
-        }
-      }
-      setTimeout(() => {
-        if (content) {
-          content.style.transition = "";
-        }
-      }, 300);
-
-      isSwiping = false;
-      swipeThresholdReached = false;
-    };
-    const onClickOutside = (e) => {
-      if (card.classList.contains("swipe-left") && !card.contains(e.target)) {
-        card.classList.remove("swipe-left");
-        if (content) {
-          content.style.transform = "translateX(0)";
-        }
-        if (swipeActions) {
-          swipeActions.style.opacity = "0";
-          swipeActions.style.visibility = "hidden";
-        }
-      }
-    };
-    card.addEventListener("touchstart", onTouchStart, { passive: true });
-    card.addEventListener("touchmove", onTouchMove, { passive: false });
-    card.addEventListener("touchend", onTouchEnd);
-    document.addEventListener("click", onClickOutside);
-    card._cleanupSwipe = () => {
-      card.removeEventListener("touchstart", onTouchStart);
-      card.removeEventListener("touchmove", onTouchMove);
-      card.removeEventListener("touchend", onTouchEnd);
-      document.removeEventListener("click", onClickOutside);
-    };
   }
 
   _showContextMenu(x, y, path, name, isDirectory) {
@@ -284,12 +190,6 @@ export class VideoLibraryEvents {
       if (this.dom) {
         this.dom.adjustBottomPadding();
       }
-    }
-  }
-
-  cleanup(card) {
-    if (card._cleanupSwipe) {
-      card._cleanupSwipe();
     }
   }
 }

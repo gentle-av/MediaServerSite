@@ -169,10 +169,6 @@
   color: var(--fg3);
 }
 
-.swipe-actions {
-  display: none;
-}
-
 @media (max-width: 768px) {
   .video-breadcrumbs {
     padding: 10px 16px;
@@ -230,10 +226,6 @@
 
   .item-size {
     font-size: 0.7rem;
-  }
-
-  .swipe-actions {
-    display: none;
   }
 }
 

@@ -126,10 +126,6 @@ export class VideoLibrary {
     }
     const container = this.dom.getContainer();
     if (container) {
-      const cards = container.querySelectorAll(".item-card");
-      cards.forEach((card) => {
-        if (card._cleanupSwipe) card._cleanupSwipe();
-      });
       container.innerHTML = "";
     }
     this.state.reset();
