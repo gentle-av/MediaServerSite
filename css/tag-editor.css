@@ -98,6 +98,60 @@
   box-shadow: 0 0 0 2px rgba(250, 189, 47, 0.2);
 }
 
+.tag-editor-field-cover {
+  margin-bottom: 20px;
+}
+
+.cover-preview {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cover-preview-image {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cover-preview-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-preview-image i {
+  font-size: 24px;
+  color: var(--fg3);
+}
+
+.change-cover-btn {
+  padding: 8px 16px;
+  background: var(--bg2);
+  border: 1px solid var(--bg3);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--fg0);
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.change-cover-btn:hover {
+  background: var(--bg3);
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+
+.cover-file-input {
+  display: none;
+}
+
 .tag-editor-actions {
   display: flex;
   gap: 12px;
@@ -113,9 +167,9 @@
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.2s;
   background: var(--bg2);
-  color: var(--fg1);
+  color: var(--fg0);
 }
 
 .tag-editor-actions button:hover {
@@ -129,22 +183,13 @@
   transform: translateY(0px);
 }
 
-.tag-editor-save {
-  background: var(--bg2);
-  color: var(--fg1);
-}
-
-.tag-editor-save:hover {
-  background: var(--bg3);
-  border-color: var(--yellow);
-  color: var(--yellow);
-}
-
+.tag-editor-save,
 .tag-editor-save-all {
   background: var(--bg2);
-  color: var(--fg1);
+  color: var(--fg0);
 }
 
+.tag-editor-save:hover,
 .tag-editor-save-all:hover {
   background: var(--bg3);
   border-color: var(--yellow);
@@ -153,7 +198,7 @@
 
 .tag-editor-cancel {
   background: var(--bg2);
-  color: var(--fg1);
+  color: var(--fg0);
 }
 
 .tag-editor-cancel:hover {
