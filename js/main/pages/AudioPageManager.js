@@ -56,7 +56,12 @@ export class AudioPageManager {
       console.error("[AudioPageManager] albumModal element not found");
       return;
     }
-    this.albumModal = new AlbumModal(this.core.events, this.core.musicApi);
+    const universalPlayer = this.playbackManager?.universalPlayer;
+    this.albumModal = new AlbumModal(
+      this.core.events,
+      this.core.musicApi,
+      universalPlayer,
+    );
     const trackList = new TrackList(this.core.events);
     this.albumModal.setTrackList(trackList);
     this.core.albumModal = this.albumModal;
@@ -144,22 +149,17 @@ export class AudioPageManager {
   _handlePlayAlbum(album) {
     if (!album?.tracks?.length) return;
     const trackPaths = album.tracks.map((track) => track.path);
-    if (this.core.musicApi?.playTracks) {
+    const universalPlayer = this.playbackManager?.universalPlayer;
+    if (universalPlayer && universalPlayer.apiClient) {
+      universalPlayer.apiClient.post("/api/audio/setPlaylist", {
+        tracks: trackPaths,
+      });
+      universalPlayer.apiClient.post("/api/audio/play");
+      this.core.events.emit("playback:audioStart", trackPaths[0]);
+    } else if (this.core.musicApi?.playTracks) {
       this.core.musicApi
         .playTracks(trackPaths)
-        .then(() => {
-          setTimeout(() => {
-            if (this.playbackManager.universalPlayer?.startPlaybackExternal) {
-              this.playbackManager.universalPlayer.startPlaybackExternal();
-            }
-          }, 500);
-        })
         .catch((err) => console.error("[DEBUG] playTracks error:", err));
-    } else if (this.playbackManager.universalPlayer?.startPlayback) {
-      this.playbackManager.universalPlayer.startPlayback(
-        album.tracks[0].path,
-        "audio",
-      );
     }
   }
 

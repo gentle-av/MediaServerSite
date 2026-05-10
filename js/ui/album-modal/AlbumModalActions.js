@@ -52,21 +52,12 @@ export class AlbumModalActions {
         }
       }
       const trackPaths = tracks.map((track) => track.path);
-      if (
-        trackPaths.length > 0 &&
-        this.universalPlayer &&
-        this.universalPlayer.playerApi
-      ) {
-        await this.universalPlayer.playerApi.setPlaylist(trackPaths);
-        await this.universalPlayer.playerApi.play();
-        this.events.emit("playback:audioStart", trackPaths[0]);
-      } else if (
-        trackPaths.length > 0 &&
-        this.universalPlayer &&
-        this.universalPlayer.playTracks
-      ) {
-        await this.universalPlayer.playTracks(trackPaths);
-      }
+      if (trackPaths.length === 0 || !this.universalPlayer) return;
+      await this.universalPlayer.apiClient.post("/api/audio/setPlaylist", {
+        tracks: trackPaths,
+      });
+      await this.universalPlayer.apiClient.post("/api/audio/play");
+      this.events.emit("playback:audioStart", trackPaths[0]);
       this.onHide();
     });
   }

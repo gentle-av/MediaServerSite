@@ -83,7 +83,7 @@ export class PlaylistPopup {
       return;
     }
     try {
-      const playlistData = await this.universalPlayer.playerApi.get(
+      const playlistData = await this.universalPlayer.apiClient.get(
         "/api/audio/getPlaylist",
       );
       const state = await this.universalPlayer.getAudioPlaybackState();
