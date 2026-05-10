@@ -33,6 +33,7 @@ export class UniversalPlayer {
     this.previewTooltip = null;
     this.videoCloseModal = null;
     this.isVisible = false;
+    this._restored = false;
     this.initialize();
   }
 
@@ -140,47 +141,100 @@ export class UniversalPlayer {
   }
 
   async checkAndRestorePlayback() {
+    console.log(
+      "[UniversalPlayer] checkAndRestorePlayback START, _restored:",
+      this._restored,
+    );
+    if (this._restored) {
+      console.log("[UniversalPlayer] Already restored, skipping");
+      return;
+    }
+    this._restored = true;
     try {
+      console.log("[UniversalPlayer] Checking video status...");
       const videoStatus = await this.api.getVideoStatus();
+      console.log("[UniversalPlayer] Video status:", videoStatus);
       if (videoStatus && videoStatus.success && videoStatus.currentFile) {
+        console.log("[UniversalPlayer] Found VIDEO playback");
         await this.lifecycle.checkExistingPlayback("video");
-        setTimeout(() => this.show(), 100);
+        this.show();
         return;
       }
-      const audioState = await this.api.getAudioPlaybackState();
-      if (audioState && audioState.success && audioState.currentTrack) {
-        await this.lifecycle.checkExistingPlayback("audio");
-        await this.restorePlaylistFromServer();
-        setTimeout(() => this.show(), 100);
+      console.log("[UniversalPlayer] Checking playlist...");
+      const playlistData = await this.api.api.get("/api/audio/getPlaylist");
+      console.log("[UniversalPlayer] Playlist data:", playlistData);
+      if (playlistData?.data?.length > 0) {
+        console.log(
+          "[UniversalPlayer] Found playlist with",
+          playlistData.data.length,
+          "tracks",
+        );
+        await this._restoreFromPlaylist(playlistData.data);
+        this.show();
         return;
       }
+      console.log("[UniversalPlayer] No active playback found");
     } catch (error) {
       console.error("[UniversalPlayer] checkAndRestorePlayback error:", error);
     }
   }
 
-  async restorePlaylistFromServer() {
-    try {
-      const playlistData = await this.api.api.get("/api/audio/getPlaylist");
-      const state = await this.api.getAudioPlaybackState();
-      if (playlistData?.data?.length > 0 && state?.success) {
-        const tracks = playlistData.data;
-        const currentIndex = state.currentIndex || 0;
-        this.core.currentFile = state.currentTrack;
-        if (this.uiUpdater && tracks[currentIndex]) {
-          this.uiUpdater.updateTrackCount(currentIndex, tracks.length);
-        }
+  async _restoreFromPlaylist(tracks) {
+    console.log(
+      "[UniversalPlayer] _restoreFromPlaylist, tracks count:",
+      tracks.length,
+    );
+    const firstTrack = tracks[0];
+    const trackPath =
+      typeof firstTrack === "string" ? firstTrack : firstTrack.path;
+    if (!trackPath) return;
+    console.log("[UniversalPlayer] Restoring from first track:", trackPath);
+    this.core.setCurrentFile(trackPath);
+    this.core.setMediaType("audio");
+    this.core.setPlaying(true);
+    this.uiUpdater.updateFileInfo(trackPath);
+    this.uiUpdater.updateTrackCount(0, tracks.length);
+    this.uiUpdater.updatePlayPauseButton(true);
+    const metadata = await this.api.getFileMetadata(trackPath);
+    let artist = "",
+      title = "",
+      coverUrl = null;
+    if (metadata?.data) {
+      if (metadata.data.file) {
+        artist = metadata.data.file.artist || "";
+        title = metadata.data.file.title || "";
+        coverUrl = metadata.data.file.cover || null;
       }
-    } catch (error) {
-      console.error(
-        "[UniversalPlayer] restorePlaylistFromServer error:",
-        error,
-      );
+      if (!title && metadata.data.database) {
+        title = metadata.data.database.title || "";
+        artist = metadata.data.database.artist || "";
+      }
     }
+    if (!title) {
+      let fileName = trackPath.split("/").pop();
+      fileName = fileName.replace(/\.(flac|mp3|m4a|wav|ogg|aac)$/i, "");
+      const match = fileName.match(/^\d+\s*[-.]?\s*(.+)$/);
+      title = match ? match[1] : fileName;
+    }
+    this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
+    if (this.polling) {
+      console.log("[UniversalPlayer] Starting polling for audio");
+      this.polling.stop();
+      this.polling.start();
+    } else {
+      console.log("[UniversalPlayer] Polling not available!");
+    }
+    setTimeout(async () => {
+      const timeInfo = await this.api.getAudioCurrentTime();
+      console.log("[UniversalPlayer] Initial time check:", timeInfo);
+      if (timeInfo && timeInfo.success) {
+        this.progress.update(timeInfo.currentTime || 0, timeInfo.duration || 0);
+      }
+    }, 500);
   }
 
   show() {
-    if (this.dom) {
+    if (this.dom && this.core.hasActiveFile()) {
       this.dom.show();
       this.isVisible = true;
     }

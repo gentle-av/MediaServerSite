@@ -20,6 +20,7 @@ export class PlayerLifecycle {
   }
 
   async checkExistingPlayback(type) {
+    console.log("[PlayerLifecycle] checkExistingPlayback START, type:", type);
     try {
       let hasActivePlayback = false;
       if (type === "video") {
@@ -42,57 +43,19 @@ export class PlayerLifecycle {
           hasActivePlayback = true;
         }
       } else {
-        const state = await this.api.getAudioPlaybackState();
-        if (state && state.success && state.currentTrack) {
-          this.core.setCurrentFile(state.currentTrack);
-          this.core.setMediaType("audio");
-          this.core.setPlaying(state.isPlaying || false);
-          this.uiUpdater.updateFileInfo(state.currentTrack);
-          this.uiUpdater.updatePlayPauseButton(state.isPlaying || false);
-          this.uiUpdater.updateFullscreenButtonVisibility("audio");
-          if (
-            state.currentIndex !== undefined &&
-            state.totalTracks !== undefined
-          ) {
-            this.uiUpdater.updateTrackCount(
-              state.currentIndex,
-              state.totalTracks,
-            );
-          }
-          const metadata = await this.api.getFileMetadata(state.currentTrack);
-          let artist = "";
-          let title = "";
-          let coverUrl = null;
-          if (metadata?.data) {
-            if (metadata.data.file) {
-              artist = metadata.data.file.artist || "";
-              title = metadata.data.file.title || "";
-              coverUrl = metadata.data.file.cover || null;
-            }
-            if (!title && metadata.data.database) {
-              title = metadata.data.database.title || "";
-              artist = metadata.data.database.artist || "";
-            }
-            if (!coverUrl && title) {
-              coverUrl = await this.api.getAlbumCover(
-                state.currentTrack,
-                title,
-                artist,
-              );
-            }
-          }
-          if (!title) {
-            let fileName = state.currentTrack.split("/").pop();
-            fileName = fileName.replace(/\.(flac|mp3|m4a|wav|ogg|aac)$/i, "");
-            const match = fileName.match(/^\d+\s*[-.]?\s*(.+)$/);
-            title = match ? match[1] : fileName;
-          }
-          this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
-          hasActivePlayback = true;
-        }
+        console.log(
+          "[PlayerLifecycle] Audio restoration handled by UniversalPlayer",
+        );
+        return false;
       }
       if (hasActivePlayback) {
-        if (this.polling) this.polling.start();
+        if (this.polling) {
+          this.polling.stop();
+          this.polling.start();
+        }
+        if (this.onRestore) {
+          this.onRestore();
+        }
       }
       return hasActivePlayback;
     } catch (error) {

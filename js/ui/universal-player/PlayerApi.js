@@ -26,54 +26,66 @@ export class PlayerAPI {
   }
 
   async getAudioPlaybackState() {
-    if (!this.playerApi) return null;
-    const result = await this.playerApi.getPlaybackState();
-    if (result?.success && result.data) {
-      return {
-        success: true,
-        currentTrack: result.data.currentTrack,
-        currentIndex: result.data.currentIndex,
-        totalTracks: result.data.totalTracks,
-        isPlaying: result.data.isPlaying,
-        ...result.data,
-      };
+    try {
+      const response = await this.api.get("/api/audio/playbackState");
+      if (response && response.success) {
+        const data = response.data;
+        return {
+          success: true,
+          currentTrack: data.currentTrack,
+          currentIndex: data.currentIndex,
+          totalTracks: data.totalTracks,
+          isPlaying: data.isPlaying,
+          currentTime: data.currentTime,
+          duration: data.duration,
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error("[PlayerAPI] getAudioPlaybackState error:", error);
+      return null;
     }
-    return result;
   }
 
   async getAudioCurrentTime() {
-    if (!this.playerApi) return null;
-    return this.playerApi.getCurrentTime();
+    try {
+      const response = await this.api.get("/api/audio/currentTime");
+      if (response && response.success) {
+        return {
+          success: true,
+          currentTime: response.data.currentTime,
+          duration: response.data.duration,
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error("[PlayerAPI] getAudioCurrentTime error:", error);
+      return null;
+    }
   }
 
   async audioPlay() {
-    if (!this.playerApi) return;
-    return this.playerApi.play();
+    return this.api.post("/api/audio/play");
   }
 
   async audioPause() {
-    if (!this.playerApi) return;
-    return this.playerApi.pause();
+    return this.api.post("/api/audio/pause");
   }
 
   async audioStop() {
-    if (!this.playerApi) return;
-    return this.playerApi.stop();
+    return this.api.post("/api/audio/stop");
   }
 
   async audioNext() {
-    if (!this.playerApi) return;
-    return this.playerApi.next();
+    return this.api.post("/api/audio/next");
   }
 
   async audioPrevious() {
-    if (!this.playerApi) return;
-    return this.playerApi.previous();
+    return this.api.post("/api/audio/previous");
   }
 
   async audioSeek(time) {
-    if (!this.playerApi) return;
-    return this.playerApi.seek(time);
+    return this.api.post("/api/audio/seek", { position: time });
   }
 
   async getFileMetadata(path) {

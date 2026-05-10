@@ -14,6 +14,7 @@ export class PlayerPolling {
   }
 
   start() {
+    console.log("[PlayerPolling] start called, isAudio:", this.core.isAudio());
     if (this._progressInterval) {
       clearInterval(this._progressInterval);
       this._progressInterval = null;
@@ -23,7 +24,7 @@ export class PlayerPolling {
       if (this.core.isDestroyed()) return;
       if (this.core.shouldIgnorePolling()) return;
       try {
-        if (this.core.isAudio() && this.api.playerApi) {
+        if (this.core.isAudio()) {
           await this._pollAudio();
         } else if (this.core.isVideo()) {
           await this._pollVideo();
@@ -32,12 +33,15 @@ export class PlayerPolling {
         console.error("[Polling] error:", error);
       }
     }, 500);
+    console.log("[PlayerPolling] interval started");
   }
 
   async _pollAudio() {
     const timeInfo = await this.api.getAudioCurrentTime();
     const state = await this.api.getAudioPlaybackState();
-    if (!state || !state.success) return;
+    if (!state || !state.success) {
+      return;
+    }
     const totalTracks = state.totalTracks || 0;
     const currentIndex = state.currentIndex || 0;
     const isLastTrack = currentIndex >= totalTracks - 1;
@@ -67,7 +71,6 @@ export class PlayerPolling {
           this._stuckCounter = 0;
         }
       }
-
       if (
         duration > 0 &&
         currentTime > 0 &&
@@ -91,7 +94,6 @@ export class PlayerPolling {
         }
       }
     }
-
     const trackChanged =
       state.currentTrack && state.currentTrack !== this.core.currentFile;
     if (trackChanged) {
@@ -128,7 +130,6 @@ export class PlayerPolling {
       this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
       if (this.onStateChange) this.onStateChange(state);
     }
-
     const wasPlaying = this.core.isPlaying;
     this.core.isPlaying = state.isPlaying || false;
     if (wasPlaying !== this.core.isPlaying) {
@@ -172,5 +173,61 @@ export class PlayerPolling {
       this._progressInterval = null;
       this._isPollingStarted = false;
     }
+  }
+
+  async _attachPlayButton(container, album) {
+    const playBtn = container.querySelector(".modal-play-btn");
+    if (!playBtn) return;
+    playBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      let tracks = album.tracks || [];
+      if (tracks.length === 0 && this.musicApi) {
+        try {
+          const tracksData = await this.musicApi.getTracks(
+            album.title,
+            album.artist,
+            true,
+          );
+          tracks = tracksData;
+          album.tracks = tracksData;
+        } catch (error) {
+          console.error("Failed to load tracks:", error);
+          return;
+        }
+      }
+      const trackPaths = tracks.map((track) => track.path);
+      if (trackPaths.length === 0 || !this.universalPlayer) return;
+      await this.universalPlayer.apiClient.post("/api/audio/setPlaylist", {
+        tracks: trackPaths,
+      });
+      await this.universalPlayer.apiClient.post("/api/audio/play");
+      if (this.universalPlayer.uiUpdater && tracks[0]) {
+        const firstTrack = tracks[0];
+        const title =
+          firstTrack.title ||
+          firstTrack.name ||
+          this._extractNameFromPath(firstTrack.path);
+        const artist = firstTrack.artist || album.artist;
+        const coverUrl =
+          album.coverUrl ||
+          (await this.musicApi?.fetchAlbumCover(album.title, album.artist));
+        this.universalPlayer.uiUpdater.updateTrackFullInfo(
+          title,
+          artist,
+          coverUrl,
+        );
+        this.universalPlayer.uiUpdater.updateTrackCount(0, tracks.length);
+        this.universalPlayer.core.setCurrentFile(firstTrack.path);
+        this.universalPlayer.core.setMediaType("audio");
+        this.universalPlayer.core.setPlaying(true);
+        this.universalPlayer.uiUpdater.updatePlayPauseButton(true);
+      }
+      if (this.universalPlayer.polling) {
+        this.universalPlayer.polling.stop();
+        this.universalPlayer.polling.start();
+      }
+      this.events.emit("playback:audioStart", trackPaths[0]);
+      this.onHide();
+    });
   }
 }

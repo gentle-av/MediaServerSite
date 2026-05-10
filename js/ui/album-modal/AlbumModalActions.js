@@ -46,6 +46,7 @@ export class AlbumModalActions {
             true,
           );
           tracks = tracksData;
+          album.tracks = tracksData;
         } catch (error) {
           console.error("Failed to load tracks:", error);
           return;
@@ -57,6 +58,31 @@ export class AlbumModalActions {
         tracks: trackPaths,
       });
       await this.universalPlayer.apiClient.post("/api/audio/play");
+      if (this.universalPlayer && tracks[0]) {
+        const firstTrack = tracks[0];
+        const title =
+          firstTrack.title ||
+          firstTrack.name ||
+          this._extractNameFromPath(firstTrack.path);
+        const artist = firstTrack.artist || album.artist;
+        const coverUrl =
+          album.coverUrl ||
+          (await this.musicApi?.fetchAlbumCover(album.title, album.artist));
+        this.universalPlayer.core.setCurrentFile(firstTrack.path);
+        this.universalPlayer.core.setMediaType("audio");
+        this.universalPlayer.core.setPlaying(true);
+        this.universalPlayer.uiUpdater.updateTrackFullInfo(
+          title,
+          artist,
+          coverUrl,
+        );
+        this.universalPlayer.uiUpdater.updateTrackCount(0, tracks.length);
+        this.universalPlayer.uiUpdater.updatePlayPauseButton(true);
+        if (this.universalPlayer.polling) {
+          this.universalPlayer.polling.stop();
+          this.universalPlayer.polling.start();
+        }
+      }
       this.events.emit("playback:audioStart", trackPaths[0]);
       this.onHide();
     });

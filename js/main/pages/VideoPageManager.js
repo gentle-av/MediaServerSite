@@ -58,10 +58,6 @@ export class VideoPageManager {
   }
 
   async _postInitTasks() {
-    await this.playbackManager.checkExistingPlaybacks();
-    if (this.videoLibrary && this.videoLibrary._adjustBottomPadding) {
-      setTimeout(() => this.videoLibrary._adjustBottomPadding(), 200);
-    }
     this._isInitialized = true;
   }
 

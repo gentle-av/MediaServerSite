@@ -190,11 +190,18 @@ export class PlayerMediaHandler {
     this.onHide = callback;
   }
 
-  async togglePlayPause() {
-    if (this.core.isVideo()) {
-      await this._toggleVideoPlayPause();
+  async _toggleAudioPlayPause() {
+    const state = await this.api.getAudioPlaybackState();
+    if (state?.success && state.totalTracks > 0) {
+      if (this.core.isPlaying) {
+        await this.api.audioPause();
+      } else {
+        await this.api.audioPlay();
+      }
+      this.core.setPlaying(!this.core.isPlaying);
+      this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
     } else {
-      await this._toggleAudioPlayPause();
+      Utils.showNotification("Плейлист пуст", "info");
     }
   }
 

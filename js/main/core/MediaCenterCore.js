@@ -10,6 +10,7 @@ export class MediaCenterCore {
     this.events = null;
     this.api = null;
     this.musicApi = null;
+    this.playerApi = null;
     this.universalPlayer = null;
     this.videoLibrary = null;
     this.albumLibrary = null;
@@ -40,6 +41,7 @@ export class MediaCenterCore {
     this.events = new EventBus();
     this.api = new ApiClient();
     this.musicApi = new MusicApiClient();
+    this.playerApi = null;
     this._fixMusicApi();
   }
 

@@ -3,83 +3,49 @@ import { PlayerAPI } from "../../ui/universal-player/PlayerApi.js";
 
 export class PlaybackManager {
   constructor(core) {
+    console.log("[PlaybackManager] CONSTRUCTOR");
     this.core = core;
-    this.playback = null;
     this.universalPlayer = null;
     this._isInitialized = false;
+    this._restored = false;
   }
 
   async init() {
-    const playerAPI = new PlayerAPI(
-      this.core.api,
-      this.core.musicApi,
-      this.core.playerApi,
-    );
+    console.log("[PlaybackManager] init START");
+    const playerAPI = new PlayerAPI(this.core.api, this.core.musicApi, null);
+    console.log("[PlaybackManager] playerAPI created");
     this.universalPlayer = new UniversalPlayer(
       playerAPI,
       this.core.events,
       this.core.musicApi,
-      this.core.playerApi,
+      null,
       this.core.api,
     );
     window.universalPlayerInstance = this.universalPlayer;
     this.core.universalPlayer = this.universalPlayer;
     this._isInitialized = true;
+    console.log("[PlaybackManager] init DONE");
     return this;
   }
 
-  async checkExistingPlaybacks(type = null) {
-    if (!this.universalPlayer?.checkExistingPlayback) return;
-    if (!type || type === "audio") {
-      await this.universalPlayer.checkExistingPlayback("audio");
-      await this.restorePlaylist();
+  async checkExistingPlaybacks() {
+    console.log(
+      "[PlaybackManager] checkExistingPlaybacks START, _restored:",
+      this._restored,
+    );
+    if (this._restored) {
+      console.log("[PlaybackManager] Already restored");
+      return;
     }
-    if (!type || type === "video") {
-      await this.universalPlayer.checkExistingPlayback("video");
+    if (!this.universalPlayer) {
+      console.log("[PlaybackManager] universalPlayer not ready");
+      return;
     }
-  }
-
-  async restorePlaylist() {
-    try {
-      const playlistData = await this.core.playerApi.getPlaylist();
-      const state = await this.core.playerApi.getPlaybackState();
-      if (playlistData?.data?.length > 0) {
-        const tracks = playlistData.data;
-        const currentIndex = state?.data?.currentIndex ?? 0;
-        if (this.playback?.playlistManager) {
-          this.playback.playlistManager.setTrackList(tracks);
-          this.playback.playlistManager.setCurrentIndex(currentIndex);
-        }
-        if (this.universalPlayer?.uiUpdater && tracks[currentIndex]) {
-          const currentTrack = tracks[currentIndex];
-          const path =
-            typeof currentTrack === "string" ? currentTrack : currentTrack.path;
-          this.universalPlayer.core.setCurrentFile(path);
-          this.universalPlayer.core.setMediaType("audio");
-          this.universalPlayer.uiUpdater.updateFileInfo(path);
-          this.universalPlayer.uiUpdater.updateTrackCount(
-            currentIndex,
-            tracks.length,
-          );
-          const metadata = await this.universalPlayer.getFileMetadata(path);
-          if (metadata?.data) {
-            let title =
-              metadata.data.file?.title || metadata.data.database?.title;
-            let artist =
-              metadata.data.file?.artist || metadata.data.database?.artist;
-            if (title) {
-              this.universalPlayer.uiUpdater.updateTrackFullInfo(
-                title,
-                artist,
-                null,
-              );
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error("[PlaybackManager] restorePlaylist error:", error);
-    }
+    this._restored = true;
+    console.log(
+      "[PlaybackManager] Calling universalPlayer.checkAndRestorePlayback",
+    );
+    await this.universalPlayer.checkAndRestorePlayback();
   }
 
   setupVideoEvents() {
@@ -88,12 +54,6 @@ export class PlaybackManager {
         this.universalPlayer.clearState();
       }
     });
-  }
-
-  syncWithPlayback() {
-    if (this.universalPlayer?.syncWithPlayback) {
-      this.universalPlayer.syncWithPlayback();
-    }
   }
 
   async addAlbumToPlaylist(album) {

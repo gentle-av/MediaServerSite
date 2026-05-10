@@ -18,14 +18,12 @@ export class AudioPageManager {
   async onPageLoaded() {
     await this._showPageContainer();
     this._updateUI();
-    await this.playbackManager.checkExistingPlaybacks("audio");
     await this._initAlbumModal();
     await this._initAlbumLibrary();
     this._initPlaylistPopup();
     this._setupSearchUI();
     this._setupAlbumEvents();
     this._cacheTrackNames();
-    setTimeout(() => this._checkExistingPlayback(), 500);
     this._isInitialized = true;
   }
 
@@ -211,17 +209,6 @@ export class AudioPageManager {
     }
     if (this.playbackManager.universalPlayer) {
       this.playbackManager.universalPlayer.syncWithPlayback();
-    }
-  }
-
-  async _checkExistingPlayback() {
-    if (this.playbackManager.universalPlayer?.checkExistingPlayback) {
-      await this.playbackManager.universalPlayer.checkExistingPlayback("audio");
-    }
-    if (this.playbackManager.universalPlayer?.core?.currentFile) {
-      if (this.playbackManager.universalPlayer.show) {
-        this.playbackManager.universalPlayer.show();
-      }
     }
   }
 
