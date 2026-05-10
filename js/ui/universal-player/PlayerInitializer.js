@@ -6,84 +6,105 @@ export class PlayerInitializer {
     this.playerApi = playerApi;
     this.apiClient = apiClient;
     this.tvApi = tvApi;
-    this.dom = null;
-    this.core = null;
-    this.progress = null;
-    this.uiUpdater = null;
-    this.polling = null;
-    this.volume = null;
-    this.output = null;
-    this.channelManager = null;
-    this.mediaHandler = null;
-    this.eventSubscriber = null;
-    this.previewTooltip = null;
     this.videoCloseModal = null;
-    this.isVisible = false;
+    this.components = {};
   }
 
   async initialize() {
-    this.dom = new PlayerDOM();
-    const domReady = this.dom.init();
+    const dom = new PlayerDOM();
+    const domReady = dom.init();
     if (!domReady) {
-      setTimeout(() => this.initialize(), 100);
-      return;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return this.initialize();
     }
-    this.core = new PlayerCore();
-    this.progress = new PlayerProgress(this.dom);
-    this.uiUpdater = new PlayerUIUpdater(this.dom, this.progress);
-    this.polling = new PlayerPolling(
+    const core = new PlayerCore();
+    const progress = new PlayerProgress(dom);
+    const uiUpdater = new PlayerUIUpdater(dom, progress);
+    const polling = new PlayerPolling(
       this.api,
-      this.core,
-      this.progress,
-      this.uiUpdater,
+      core,
+      progress,
+      uiUpdater,
       (state) => this.events.emit("playbackStateChange", state),
     );
-    this.volume = new PlayerVolume(this.apiClient, this.dom, this.core);
-    this.output = new PlayerOutput(this.apiClient, this.dom, this.core);
-    this.channelManager = new PlayerChannelManager(
+    const volume = new PlayerVolume(this.apiClient, dom, core);
+    const output = new PlayerOutput(this.apiClient, dom, core);
+    const lifecycle = new PlayerLifecycle(
+      core,
+      uiUpdater,
+      progress,
+      polling,
+      this.api,
       this.apiClient,
       this.events,
-      this.dom,
+      null,
     );
-    await this.channelManager.init(this.tvApi);
-    this.mediaHandler = new PlayerMediaHandler(
+    let mediaHandler = null;
+    const onStopHandler = async () => {
+      if (core.isVideo() && core.hasActiveFile() && this.videoCloseModal) {
+        const result = await this.videoCloseModal.show(core.currentFile);
+        if (result && result.action === "delete") {
+          await lifecycle.deleteCurrentVideo();
+        } else if (result && result.action === "close") {
+          if (mediaHandler) await mediaHandler.stop(true);
+        }
+      } else {
+        if (mediaHandler) await mediaHandler.stop(true);
+      }
+    };
+    mediaHandler = new PlayerMediaHandler(
       this.api,
-      this.core,
-      this.uiUpdater,
-      this.progress,
-      () => this.show(),
-      () => this.hide(),
+      core,
+      uiUpdater,
+      progress,
+      () => {},
+      onStopHandler,
     );
-    return this;
+    lifecycle.mediaHandler = mediaHandler;
+    const eventHandler = new PlayerEventHandler(
+      mediaHandler,
+      volume,
+      output,
+      progress,
+      this.videoCloseModal,
+    );
+    const playerEvents = new PlayerEvents(eventHandler.getHandlers());
+    playerEvents.attach(dom);
+    const eventSubscriber = new PlayerEventSubscriber(
+      this.events,
+      this.api,
+      mediaHandler,
+      core,
+      uiUpdater,
+      () => {},
+      () => {},
+    );
+    eventSubscriber.subscribe();
+    const previewTooltip = new PreviewTooltip(dom, this.api);
+    this.components = {
+      dom,
+      core,
+      progress,
+      uiUpdater,
+      polling,
+      volume,
+      output,
+      lifecycle,
+      mediaHandler,
+      eventHandler,
+      eventSubscriber,
+      previewTooltip,
+    };
+    return this.components;
   }
 
   setVideoCloseModal(modal) {
     this.videoCloseModal = modal;
-    if (this.mediaHandler) {
-      this.mediaHandler.setVideoCloseModal(modal);
+    if (this.components.mediaHandler) {
+      this.components.mediaHandler.setVideoCloseModal(modal);
     }
-  }
-
-  show() {
-    if (this.dom) {
-      this.dom.show();
-      this.isVisible = true;
+    if (this.components.eventHandler) {
+      this.components.eventHandler._videoCloseModal = modal;
     }
-  }
-
-  hide() {
-    if (this.dom) {
-      this.dom.hide();
-      this.isVisible = false;
-    }
-  }
-
-  destroy() {
-    if (this.polling) this.polling.stop();
-    if (this.volume) this.volume.stopPolling();
-    if (this.output) this.output.stopPolling();
-    if (this.eventSubscriber) this.eventSubscriber?.unsubscribe();
-    if (this.previewTooltip) this.previewTooltip.destroy();
-    if (this.core) this.core.destroy();
   }
 }

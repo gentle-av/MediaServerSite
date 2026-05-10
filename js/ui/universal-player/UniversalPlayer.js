@@ -1,3 +1,4 @@
+// js/ui/universal-player/UniversalPlayer.js
 import { PlayerCore } from "./PlayerCore.js";
 import { PlayerProgress } from "./PlayerProgress.js";
 import { PlayerUIUpdater } from "./PlayerUIUpdater.js";
@@ -11,6 +12,9 @@ import { PlayerEventSubscriber } from "./PlayerEventSubscriber.js";
 import { PreviewTooltip } from "./PreviewTooltip.js";
 import { PlayerEventHandler } from "./PlayerEventHandler.js";
 import { PlayerLifecycle } from "./PlayerLifeCycle.js";
+import { PlaybackStateRestorer } from "./PlaybackStateRestorer.js";
+import { PlayerVisibilityController } from "./PlayerVisibilityController.js";
+import { PlayerAPIBridge } from "./PlayerAPIBridge.js";
 
 export class UniversalPlayer {
   constructor(api, events, musicApi, playerApi, apiClient, tvApi = null) {
@@ -20,20 +24,22 @@ export class UniversalPlayer {
     this.playerApi = playerApi;
     this.apiClient = apiClient;
     this.tvApi = tvApi;
+    this.videoCloseModal = null;
     this.dom = null;
     this.core = null;
     this.progress = null;
     this.uiUpdater = null;
     this.polling = null;
-    this.mediaHandler = null;
     this.volume = null;
     this.output = null;
     this.lifecycle = null;
+    this.mediaHandler = null;
     this.eventSubscriber = null;
     this.previewTooltip = null;
-    this.videoCloseModal = null;
-    this.isVisible = false;
-    this._restored = false;
+    this.eventHandler = null;
+    this.visibility = null;
+    this.apiBridge = null;
+    this.stateRestorer = null;
     this.initialize();
   }
 
@@ -126,6 +132,22 @@ export class UniversalPlayer {
     this.output.loadInitial();
     this.volume.startPolling();
     this.output.startPolling();
+    this.visibility = new PlayerVisibilityController(this.dom, this.core);
+    this.visibility.setUIUpdater(this.uiUpdater);
+    this.apiBridge = new PlayerAPIBridge(
+      this.api,
+      this.lifecycle,
+      this.mediaHandler,
+    );
+    this.stateRestorer = new PlaybackStateRestorer(
+      this.api,
+      this.core,
+      this.uiUpdater,
+      this.polling,
+      this.lifecycle,
+      () => this.visibility.show(),
+      this.progress,
+    );
     this.hide();
     this.checkAndRestorePlayback();
   }
@@ -141,101 +163,45 @@ export class UniversalPlayer {
   }
 
   async checkAndRestorePlayback() {
-    if (this._restored) {
-      return;
+    if (this.stateRestorer) {
+      await this.stateRestorer.checkAndRestore();
     }
-    this._restored = true;
-    try {
-      const videoStatus = await this.api.getVideoStatus();
-      if (videoStatus && videoStatus.success && videoStatus.currentFile) {
-        await this.lifecycle.checkExistingPlayback("video");
-        this.show();
-        return;
-      }
-      const playlistData = await this.api.api.get("/api/audio/getPlaylist");
-      if (playlistData?.data?.length > 0) {
-        await this._restoreFromPlaylist(playlistData.data);
-        this.show();
-        return;
-      }
-    } catch (error) {}
-  }
-
-  async _restoreFromPlaylist(tracks) {
-    const firstTrack = tracks[0];
-    const trackPath =
-      typeof firstTrack === "string" ? firstTrack : firstTrack.path;
-    if (!trackPath) return;
-    this.core.setCurrentFile(trackPath);
-    this.core.setMediaType("audio");
-    this.core.setPlaying(true);
-    this.uiUpdater.updateFileInfo(trackPath);
-    this.uiUpdater.updateTrackCount(0, tracks.length);
-    this.uiUpdater.updatePlayPauseButton(true);
-    const metadata = await this.api.getFileMetadata(trackPath);
-    let artist = "",
-      title = "",
-      coverUrl = null;
-    if (metadata?.data) {
-      if (metadata.data.file) {
-        artist = metadata.data.file.artist || "";
-        title = metadata.data.file.title || "";
-        coverUrl = metadata.data.file.cover || null;
-      }
-      if (!title && metadata.data.database) {
-        title = metadata.data.database.title || "";
-        artist = metadata.data.database.artist || "";
-      }
-    }
-    if (!title) {
-      let fileName = trackPath.split("/").pop();
-      fileName = fileName.replace(/\.(flac|mp3|m4a|wav|ogg|aac)$/i, "");
-      const match = fileName.match(/^\d+\s*[-.]?\s*(.+)$/);
-      title = match ? match[1] : fileName;
-    }
-    if (!coverUrl && title) {
-      coverUrl = await this.api.getAlbumCover(trackPath, title, artist);
-    }
-    this.uiUpdater.updateTrackFullInfo(title, artist, coverUrl);
-    if (this.polling) {
-      this.polling.stop();
-      this.polling.start();
-    }
-    setTimeout(async () => {
-      const timeInfo = await this.api.getAudioCurrentTime();
-      if (timeInfo && timeInfo.success) {
-        this.progress.update(timeInfo.currentTime || 0, timeInfo.duration || 0);
-      }
-    }, 500);
   }
 
   show() {
-    if (this.dom && this.core.hasActiveFile()) {
+    if (this.visibility) {
+      this.visibility.show();
+    } else if (this.dom && this.core.hasActiveFile()) {
       this.dom.show();
-      this.isVisible = true;
     }
   }
 
   hide() {
-    if (this.dom) {
+    if (this.visibility) {
+      this.visibility.hide();
+    } else if (this.dom) {
       this.dom.hide();
-      this.isVisible = false;
     }
   }
 
   toggleMinimize() {
-    const isMinimized = this.dom.hasClass("minimized");
-    this.uiUpdater.toggleMinimize(!isMinimized);
+    if (this.visibility) {
+      this.visibility.toggleMinimize();
+    }
   }
 
   toggleSettings() {
-    const settings = this.dom.get("universalBottomSettings");
-    const isCollapsed = settings.classList.contains("collapsed");
-    this.uiUpdater.toggleSettings(!isCollapsed);
+    if (this.visibility) {
+      this.visibility.toggleSettings();
+    }
   }
 
   clearState() {
-    this.lifecycle?.clearState();
+    if (this.apiBridge) {
+      this.apiBridge.clearState();
+    } else if (this.lifecycle) {
+      this.lifecycle.clearState();
+    }
     this.hide();
   }
 
@@ -249,66 +215,88 @@ export class UniversalPlayer {
   }
 
   getVideoStatus() {
-    return this.api.getVideoStatus();
+    return this.apiBridge
+      ? this.apiBridge.getVideoStatus()
+      : this.api.getVideoStatus();
   }
 
   getAudioPlaybackState() {
-    return this.api.getAudioPlaybackState();
+    return this.apiBridge
+      ? this.apiBridge.getAudioPlaybackState()
+      : this.api.getAudioPlaybackState();
   }
 
   getAudioCurrentTime() {
-    return this.api.getAudioCurrentTime();
+    return this.apiBridge
+      ? this.apiBridge.getAudioCurrentTime()
+      : this.api.getAudioCurrentTime();
   }
 
   getFileMetadata(path) {
-    return this.api.getFileMetadata(path);
+    return this.apiBridge
+      ? this.apiBridge.getFileMetadata(path)
+      : this.api.getFileMetadata(path);
   }
 
   getAlbumCover(path, title, artist) {
-    return this.api.getAlbumCover(path, title, artist);
+    return this.apiBridge
+      ? this.apiBridge.getAlbumCover(path, title, artist)
+      : this.api.getAlbumCover(path, title, artist);
   }
 
   closeVideo() {
-    return this.api.closeVideo();
+    return this.apiBridge ? this.apiBridge.closeVideo() : this.api.closeVideo();
   }
 
   openFile(path) {
-    return this.api.openFile(path);
+    return this.apiBridge
+      ? this.apiBridge.openFile(path)
+      : this.api.openFile(path);
   }
 
   controlVideo(command) {
-    return this.api.controlVideo(command);
+    return this.apiBridge
+      ? this.apiBridge.controlVideo(command)
+      : this.api.controlVideo(command);
   }
 
   seekVideo(time) {
-    return this.api.seekVideo(time);
+    return this.apiBridge
+      ? this.apiBridge.seekVideo(time)
+      : this.api.seekVideo(time);
   }
 
   audioPlay() {
-    return this.api.audioPlay();
+    return this.apiBridge ? this.apiBridge.audioPlay() : this.api.audioPlay();
   }
 
   audioPause() {
-    return this.api.audioPause();
+    return this.apiBridge ? this.apiBridge.audioPause() : this.api.audioPause();
   }
 
   audioStop() {
-    return this.api.audioStop();
+    return this.apiBridge ? this.apiBridge.audioStop() : this.api.audioStop();
   }
 
   audioNext() {
-    return this.api.audioNext();
+    return this.apiBridge ? this.apiBridge.audioNext() : this.api.audioNext();
   }
 
   audioPrevious() {
-    return this.api.audioPrevious();
+    return this.apiBridge
+      ? this.apiBridge.audioPrevious()
+      : this.api.audioPrevious();
   }
 
   audioSeek(time) {
-    return this.api.audioSeek(time);
+    return this.apiBridge
+      ? this.apiBridge.audioSeek(time)
+      : this.api.audioSeek(time);
   }
 
   getVideoThumbnail(path) {
-    return this.api.getVideoThumbnail(path);
+    return this.apiBridge
+      ? this.apiBridge.getVideoThumbnail(path)
+      : this.api.getVideoThumbnail(path);
   }
 }
