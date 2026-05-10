@@ -37,6 +37,7 @@ export class AlbumModal {
       this._onShow(album),
     );
     this.eventsHandler.bind(this.events);
+    window.albumModal = this;
   }
 
   setMusicApi(musicApi) {

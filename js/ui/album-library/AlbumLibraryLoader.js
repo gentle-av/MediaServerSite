@@ -1,5 +1,6 @@
 class Album {
   constructor(data) {
+    this.id = data.id || null;
     this.title = data.title || "";
     this.artist = data.artist || "";
     this.year = data.year || "";
@@ -92,13 +93,15 @@ export class AlbumLibraryLoader {
               albumData.album,
               albumData.artist,
             );
-            return new Album({
+            const album = new Album({
               title: albumData.album,
               artist: albumData.artist,
               year: albumData.year,
               tracks: [],
               coverUrl,
             });
+            album.id = this.state._generateAlbumId();
+            return album;
           }
           return null;
         }),

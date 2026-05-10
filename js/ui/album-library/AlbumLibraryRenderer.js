@@ -67,7 +67,11 @@ export class AlbumLibraryRenderer {
     const newAlbums = this.state.filteredAlbums.slice(existingCount);
     for (const album of newAlbums) {
       const card = new AlbumCard(album, this.events);
-      this.container.appendChild(card.render());
+      const cardElement = card.render();
+      if (album.id) {
+        cardElement.setAttribute("data-album-id", album.id);
+      }
+      this.container.appendChild(cardElement);
       if (onCardRender) onCardRender(card);
     }
     this.showLoadingMore();

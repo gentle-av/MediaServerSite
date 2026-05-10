@@ -32,6 +32,7 @@ export class AlbumLibrary {
       this.loader,
       this.renderer,
       () => this.refresh(),
+      this.search,
     );
     this.progress = new AlbumLibraryProgress();
     this.isReady = false;

@@ -19,6 +19,22 @@ export class TagEditorAlbum {
       if (success) successCount++;
     }
     if (successCount > 0) {
+      if (newArtist) album.artist = newArtist;
+      if (newAlbum) album.title = newAlbum;
+      if (newYear) album.year = newYear;
+      if (album.id) {
+        const card = document.querySelector(
+          `.album-card[data-album-id="${album.id}"]`,
+        );
+        if (card) {
+          const titleEl = card.querySelector(".album-card-title");
+          const artistEl = card.querySelector(".album-card-artist");
+          const yearEl = card.querySelector(".album-card-year");
+          if (newAlbum && titleEl) titleEl.textContent = newAlbum;
+          if (newArtist && artistEl) artistEl.textContent = newArtist;
+          if (newYear && yearEl) yearEl.textContent = newYear;
+        }
+      }
       window.dispatchEvent(new CustomEvent("albumTagsUpdated"));
       return true;
     }
@@ -72,7 +88,6 @@ export class TagEditorAlbum {
   _showNotification(message, type = "info") {
     if (window.showNotification) {
       window.showNotification(message, type);
-    } else {
     }
   }
 
@@ -115,6 +130,15 @@ export class TagEditorAlbum {
           if (success) {
             this._showNotification("Обложка обновлена", "success");
             album.coverUrl = URL.createObjectURL(file);
+            if (album.id) {
+              const card = document.querySelector(
+                `.album-card[data-album-id="${album.id}"]`,
+              );
+              if (card) {
+                const coverImg = card.querySelector(".album-card-art img");
+                if (coverImg) coverImg.src = album.coverUrl;
+              }
+            }
           } else {
             this._showNotification("Ошибка загрузки", "error");
           }

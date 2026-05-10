@@ -31,9 +31,9 @@ export class AlbumModalTracks {
     }
   }
 
-  async render(album) {
+  async render(album, force = false) {
     if (!this.container) return;
-    if (album.tracks && album.tracks.length > 0) {
+    if (album.tracks && album.tracks.length > 0 && !force) {
       if (this.trackList) {
         this.trackList.render(
           this.container,
@@ -83,6 +83,20 @@ export class AlbumModalTracks {
   }
 
   _onEditTrack(track, album) {
+    if (!album.id) {
+      const card = document.querySelector(
+        `.album-card .album-card-title:contains("${album.title}")`,
+      );
+      if (card) {
+        const albumCard = card.closest(".album-card");
+        if (albumCard) {
+          album.id = albumCard.getAttribute("data-album-id");
+        }
+      }
+      if (!album.id) {
+        album.id = `album_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      }
+    }
     if (window.TagEditor && window.TagEditor.showTrackTagEditor) {
       window.TagEditor.showTrackTagEditor(track, album);
     } else {

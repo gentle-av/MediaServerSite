@@ -1,11 +1,12 @@
 export class AlbumLibraryEvents {
-  constructor(api, events, state, loader, renderer, onRefresh) {
+  constructor(api, events, state, loader, renderer, onRefresh, search) {
     this.api = api;
     this.events = events;
     this.state = state;
     this.loader = loader;
     this.renderer = renderer;
     this.onRefresh = onRefresh;
+    this.search = search;
     this._currentContextMenu = null;
     this._lastClickedAlbum = null;
     this._lastClickTime = 0;
@@ -132,14 +133,30 @@ export class AlbumLibraryEvents {
   }
 
   async _refreshAlbumData() {
-    this.state.albums = [];
-    this.state.filteredAlbums = [];
-    this.state.currentArtistIndex = 0;
-    this.state.currentPage = 1;
-    await this.loader.loadMoreAlbums();
-    this.state.indexTracks();
-    this.renderer.clear();
-    this.renderer.renderAlbums();
+    const currentSearchTerm = this.search?.getCurrentTerm?.() || "";
+    for (let i = 0; i < this.state.albums.length; i++) {
+      const album = this.state.albums[i];
+      const cards = document.querySelectorAll(".album-card");
+      const cardIndex = Array.from(cards).findIndex((card) => {
+        const titleEl = card.querySelector(".album-title");
+        const artistEl = card.querySelector(".album-artist");
+        return (
+          titleEl &&
+          artistEl &&
+          titleEl.textContent === album.title &&
+          artistEl.textContent === album.artist
+        );
+      });
+      if (cardIndex !== -1) {
+        const card = cards[cardIndex];
+        const titleEl = card.querySelector(".album-title");
+        const artistEl = card.querySelector(".album-artist");
+        const yearEl = card.querySelector(".album-year");
+        if (titleEl && album.title) titleEl.textContent = album.title;
+        if (artistEl && album.artist) artistEl.textContent = album.artist;
+        if (yearEl && album.year) yearEl.textContent = album.year;
+      }
+    }
   }
 
   _handleAlbumClick(album) {

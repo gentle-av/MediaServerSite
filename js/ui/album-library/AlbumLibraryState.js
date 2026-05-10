@@ -14,6 +14,11 @@ export class AlbumLibraryState {
     this._lastClickedAlbum = null;
     this._lastClickTime = 0;
     this._trackPathToMetadata = new Map();
+    this._nextAlbumId = 1;
+  }
+
+  _generateAlbumId() {
+    return `album_${Date.now()}_${this._nextAlbumId++}`;
   }
 
   get loading() {
