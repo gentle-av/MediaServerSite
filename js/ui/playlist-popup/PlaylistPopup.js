@@ -33,9 +33,7 @@ export class PlaylistPopup {
           this.events.emit("playback:audioStart", state.currentTrack);
         }
         this.ui.hide();
-      } catch (error) {
-        console.error("[PlaylistPopup] Error playing track:", error);
-      }
+      } catch (error) {}
     };
     this.renderer = new PlaylistRenderer(
       "playlistContainer",
@@ -59,17 +57,40 @@ export class PlaylistPopup {
   }
 
   _attachClearButton() {
-    const clearBtn = document.getElementById("playlistClearBtn");
-    if (clearBtn) {
-      clearBtn.addEventListener("click", async () => {
-        if (!this.universalPlayer) return;
-        await this.universalPlayer.playerApi.post("/api/clearPlaylist");
+    document.addEventListener("click", async (e) => {
+      const clearBtn = e.target.closest("#playlistClearBtn");
+      if (!clearBtn) return;
+      if (!this.universalPlayer) return;
+      try {
+        const apiClient = this.universalPlayer.apiClient;
+        if (!apiClient) {
+          console.error("[PlaylistPopup] No API client available");
+          return;
+        }
+        await apiClient.post("/api/audio/clear");
+        await apiClient.post("/api/audio/stop");
         this.metadataHelper.clearCache();
         await this.refresh();
         this.events.emit("playlistCleared");
         this.ui.hide();
-      });
-    }
+        this.universalPlayer.core.reset();
+        this.universalPlayer.uiUpdater.reset();
+        this.universalPlayer.hide();
+        if (this.universalPlayer.polling) {
+          this.universalPlayer.polling.stop();
+          setTimeout(() => {
+            if (
+              this.universalPlayer.polling &&
+              !this.universalPlayer.core.hasActiveFile()
+            ) {
+              this.universalPlayer.polling.start();
+            }
+          }, 500);
+        }
+      } catch (error) {
+        console.error("[PlaylistPopup] Error clearing playlist:", error);
+      }
+    });
   }
 
   _attachEvents() {
@@ -79,7 +100,6 @@ export class PlaylistPopup {
 
   async refresh() {
     if (!this.universalPlayer) {
-      console.warn("[PlaylistPopup] universalPlayer not available");
       return;
     }
     try {
@@ -101,9 +121,7 @@ export class PlaylistPopup {
       this.renderer.render(tracksWithMetadata, currentPath, currentIndex);
       this._updateCount(tracksWithMetadata.length);
       setTimeout(() => this.renderer.scrollToCurrentTrack(), 100);
-    } catch (error) {
-      console.error("[PlaylistPopup] refresh error:", error);
-    }
+    } catch (error) {}
   }
 
   _updateCount(count) {

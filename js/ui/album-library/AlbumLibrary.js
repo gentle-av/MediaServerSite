@@ -134,7 +134,6 @@ export class AlbumLibrary {
       );
       setTimeout(() => this.progress.hide(), 1500);
     } catch (error) {
-      console.error("Refresh error:", error);
       this.progress.update(
         0,
         "Ошибка: " + (error.message || "Неизвестная ошибка"),

@@ -118,7 +118,6 @@ export class AlbumLibraryEvents {
           }
         }
       } catch (error) {
-        console.error("Delete error:", error);
         if (window.showNotification) {
           window.showNotification("Ошибка при удалении альбома", "error");
         }

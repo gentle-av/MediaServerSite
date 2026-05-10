@@ -105,7 +105,6 @@ export class PlayerMediaHandler {
         }
       }, 100);
     } catch (error) {
-      console.error("Error starting video:", error);
       Utils.showNotification("Ошибка запуска видео", "error");
       this.core.finishStartingVideo();
     }

@@ -13,9 +13,7 @@ export class PlayerEventHandler {
     try {
       await this.mediaHandler.api.audioStop();
       await this.mediaHandler.api.api.post("/api/audio/clear");
-    } catch (error) {
-      console.error("[PlayerEventHandler] Failed to clear playlist:", error);
-    }
+    } catch (error) {}
   }
 
   getHandlers() {
