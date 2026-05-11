@@ -15,7 +15,8 @@ export class AudioPageManager {
     this._isInitialized = false;
     this._boundHandlers = new Map();
     this._htmlLoaded = false;
-    this._isOpeningPopup = false;
+    this._isPopupActive = false;
+    this._lastClickTime = 0;
   }
 
   async onPageLoaded() {
@@ -97,7 +98,6 @@ export class AudioPageManager {
   }
 
   _setupSearchButton() {
-    console.log("[AudioPageManager] _setupSearchButton called");
     const refreshBtn = document.getElementById("headerRefreshBtn");
     if (refreshBtn) {
       refreshBtn.style.display = "none";
@@ -108,8 +108,19 @@ export class AudioPageManager {
       if (this._searchClickListener) {
         searchButton.removeEventListener("click", this._searchClickListener);
       }
-      this._searchClickListener = () => {
-        console.log("[AudioPageManager] search button clicked");
+      this._searchClickListener = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const now = Date.now();
+        if (now - this._lastClickTime < 500) {
+          console.log("[AudioPageManager] click ignored, too fast");
+          return;
+        }
+        if (this._isPopupActive) {
+          console.log("[AudioPageManager] popup is active, ignoring click");
+          return;
+        }
+        this._lastClickTime = now;
         this._showSearchPopup();
       };
       searchButton.addEventListener("click", this._searchClickListener);
@@ -117,49 +128,35 @@ export class AudioPageManager {
   }
 
   _showSearchPopup() {
-    console.log("[AudioPageManager] _showSearchPopup called");
-    if (this.searchPopup) {
-      console.log("[AudioPageManager] popup already exists, returning");
+    if (this._isPopupActive) {
+      console.log("[AudioPageManager] popup already active");
       return;
     }
-    if (this._isOpeningPopup) {
-      console.log("[AudioPageManager] popup is already opening, returning");
-      return;
-    }
-    this._isOpeningPopup = true;
+    this._isPopupActive = true;
     this.searchPopup = new SearchPopup(
       (term) => {
-        console.log("[AudioPageManager] onSearch callback, term:", term);
         if (this.albumLibrary && this.albumLibrary.isReady) {
           this.albumLibrary.searchAlbums(term);
         }
       },
       () => {
-        console.log("[AudioPageManager] onClear callback");
         if (this.albumLibrary && this.albumLibrary.isReady) {
           this.albumLibrary.searchAlbums("");
         }
       },
       () => {
-        const currentTerm =
-          this.albumLibrary && this.albumLibrary.search
-            ? this.albumLibrary.search.getCurrentTerm()
-            : "";
-        console.log("[AudioPageManager] getCurrentTerm callback:", currentTerm);
-        return currentTerm;
+        return this.albumLibrary && this.albumLibrary.search
+          ? this.albumLibrary.search.getCurrentTerm()
+          : "";
       },
     );
     this.searchPopup.setOnClose(() => {
-      console.log("[AudioPageManager] popup closed, clearing reference");
       setTimeout(() => {
+        this._isPopupActive = false;
         this.searchPopup = null;
-        this._isOpeningPopup = false;
       }, 200);
     });
     this.searchPopup.show();
-    setTimeout(() => {
-      this._isOpeningPopup = false;
-    }, 300);
   }
 
   _setupAlbumEvents() {
@@ -286,5 +283,6 @@ export class AudioPageManager {
       this.albumModal = null;
     }
     this._isInitialized = false;
+    this._isPopupActive = false;
   }
 }
