@@ -9,9 +9,11 @@ export class SearchPopup {
     this._shouldClearOnClose = false;
     this._isHiding = false;
     this._boundHandleKeydown = this._handleKeydown.bind(this);
+    this._onCloseCallback = null;
   }
 
   show() {
+    console.log("[SearchPopup] show called, isOpen:", this.isOpen);
     if (this.isOpen) return;
     this._shouldClearOnClose = false;
     this._isHiding = false;
@@ -19,6 +21,7 @@ export class SearchPopup {
     this.isOpen = true;
     document.addEventListener("keydown", this._boundHandleKeydown);
     const currentTerm = this.getCurrentTerm ? this.getCurrentTerm() : "";
+    console.log("[SearchPopup] currentTerm:", currentTerm);
     if (this.searchInput) {
       this.searchInput.value = currentTerm;
       this.searchInput.focus();
@@ -32,11 +35,26 @@ export class SearchPopup {
   }
 
   hide() {
-    if (this._isHiding || !this.isOpen) return;
+    console.log(
+      "[SearchPopup] hide called, _isHiding:",
+      this._isHiding,
+      "isOpen:",
+      this.isOpen,
+    );
+    if (this._isHiding || !this.isOpen) {
+      console.log("[SearchPopup] hide skipped");
+      return;
+    }
     this._isHiding = true;
+    console.log("[SearchPopup] _shouldClearOnClose:", this._shouldClearOnClose);
     if (this._shouldClearOnClose && this.onClear) {
+      console.log("[SearchPopup] calling onClear");
       this.onClear();
     } else if (this.searchInput && this.onSearch) {
+      console.log(
+        "[SearchPopup] calling onSearch with value:",
+        this.searchInput.value,
+      );
       this.onSearch(this.searchInput.value);
     }
     if (this.modal && this.modal.parentNode) {
@@ -53,9 +71,18 @@ export class SearchPopup {
     setTimeout(() => {
       this._isHiding = false;
     }, 300);
+    if (this._onCloseCallback) {
+      this._onCloseCallback();
+      this._onCloseCallback = null;
+    }
+  }
+
+  setOnClose(callback) {
+    this._onCloseCallback = callback;
   }
 
   _createModal() {
+    console.log("[SearchPopup] _createModal");
     if (this.modal && this.modal.parentNode) {
       this.modal.remove();
     }
@@ -102,14 +129,17 @@ export class SearchPopup {
     const clearBtn = this.modal.querySelector(".search-popup-clear-btn");
     const applyBtn = this.modal.querySelector(".search-popup-apply-btn");
     closeBtn.addEventListener("click", () => {
+      console.log("[SearchPopup] closeBtn click");
       this._shouldClearOnClose = true;
       this.hide();
     });
     overlay.addEventListener("click", () => {
+      console.log("[SearchPopup] overlay click");
       this._shouldClearOnClose = false;
       this.hide();
     });
     clearBtn.addEventListener("click", () => {
+      console.log("[SearchPopup] clearBtn click");
       this.searchInput.value = "";
       if (this.onClear) {
         this.onClear();
@@ -118,21 +148,26 @@ export class SearchPopup {
       this.hide();
     });
     applyBtn.addEventListener("click", () => {
+      console.log("[SearchPopup] applyBtn click");
       this._shouldClearOnClose = false;
       this.hide();
     });
     this.searchInput.addEventListener("input", (e) => {
+      console.log("[SearchPopup] input event, value:", e.target.value);
       if (this.onSearch) {
         this.onSearch(e.target.value);
       }
     });
     this.searchInput.addEventListener("keydown", (e) => {
+      console.log("[SearchPopup] keydown event, key:", e.key);
       e.stopPropagation();
       if (e.key === "Enter") {
+        console.log("[SearchPopup] Enter pressed");
         e.preventDefault();
         this._shouldClearOnClose = false;
         this.hide();
       } else if (e.key === "Escape") {
+        console.log("[SearchPopup] Escape pressed");
         e.preventDefault();
         e.stopPropagation();
         this._shouldClearOnClose = true;
@@ -142,7 +177,14 @@ export class SearchPopup {
   }
 
   _handleKeydown(e) {
+    console.log(
+      "[SearchPopup] document keydown, key:",
+      e.key,
+      "isOpen:",
+      this.isOpen,
+    );
     if (e.key === "Escape" && this.isOpen && !this._isHiding) {
+      console.log("[SearchPopup] Escape on document");
       e.preventDefault();
       e.stopPropagation();
       this._shouldClearOnClose = true;
