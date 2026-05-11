@@ -12,9 +12,7 @@ export class SearchPopup {
   }
 
   show() {
-    if (this.isOpen) {
-      return;
-    }
+    if (this.isOpen) return;
     this._shouldClearOnClose = false;
     this._isHiding = false;
     this._createModal();
@@ -34,9 +32,7 @@ export class SearchPopup {
   }
 
   hide() {
-    if (this._isHiding || !this.isOpen) {
-      return;
-    }
+    if (this._isHiding || !this.isOpen) return;
     this._isHiding = true;
     if (this._shouldClearOnClose && this.onClear) {
       this.onClear();
@@ -75,23 +71,27 @@ export class SearchPopup {
             <i class="fas fa-times"></i>
           </button>
         </div>
-        <div class="search-popup-hints">
-          <div class="search-hint">
-            <i class="fas fa-music"></i>
-            <span>Поиск по названию альбома</span>
+        <div class="search-popup-content">
+          <div class="search-popup-hints">
+            <div class="search-hint">
+              <i class="fas fa-music"></i>
+              <span>Поиск по названию альбома</span>
+            </div>
+            <div class="search-hint">
+              <i class="fas fa-user"></i>
+              <span>Поиск по имени исполнителя</span>
+            </div>
           </div>
-          <div class="search-hint">
-            <i class="fas fa-user"></i>
-            <span>Поиск по имени исполнителя</span>
-          </div>
-          <div class="search-hint">
-            <i class="fas fa-arrow-left"></i>
-            <span>Enter - применить и закрыть</span>
-          </div>
-          <div class="search-hint">
-            <i class="fas fa-times"></i>
-            <span>Esc - очистить и закрыть</span>
-          </div>
+        </div>
+        <div class="search-popup-actions">
+          <button class="search-popup-btn search-popup-clear-btn">
+            <i class="fas fa-trash-alt"></i>
+            <span>Очистить</span>
+          </button>
+          <button class="search-popup-btn search-popup-apply-btn">
+            <i class="fas fa-check"></i>
+            <span>Применить</span>
+          </button>
         </div>
       </div>
     `;
@@ -99,11 +99,25 @@ export class SearchPopup {
     this.searchInput = this.modal.querySelector(".search-popup-input");
     const closeBtn = this.modal.querySelector(".search-popup-close");
     const overlay = this.modal.querySelector(".search-popup-overlay");
+    const clearBtn = this.modal.querySelector(".search-popup-clear-btn");
+    const applyBtn = this.modal.querySelector(".search-popup-apply-btn");
     closeBtn.addEventListener("click", () => {
       this._shouldClearOnClose = true;
       this.hide();
     });
     overlay.addEventListener("click", () => {
+      this._shouldClearOnClose = false;
+      this.hide();
+    });
+    clearBtn.addEventListener("click", () => {
+      this.searchInput.value = "";
+      if (this.onClear) {
+        this.onClear();
+      }
+      this._shouldClearOnClose = true;
+      this.hide();
+    });
+    applyBtn.addEventListener("click", () => {
       this._shouldClearOnClose = false;
       this.hide();
     });
