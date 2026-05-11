@@ -1,22 +1,21 @@
 .universal-bottom-player {
-  position: fixed;
-  bottom: 0;
-  left: var(--sidebar-width);
-  right: 0;
+  position: relative;
+  width: 100%;
+  margin-top: auto;
   background: var(--bg1);
   border-top: 1px solid var(--bg3);
   padding: 12px 20px;
-  z-index: 1000;
+  z-index: 100;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
   transition: transform 0.3s ease;
-  display: none !important;
-  width: calc(100% - var(--sidebar-width));
+  display: none;
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .universal-bottom-player.active {
-  display: flex !important;
+  display: flex;
   flex-direction: column;
 }
 
@@ -201,6 +200,7 @@
 }
 
 .universal-bottom-player-play:hover {
+  background: var(--orange);
   transform: scale(1.1);
 }
 
@@ -284,7 +284,7 @@
 .universal-bottom-player-volume-fill {
   width: 50%;
   height: 100%;
-  background: linear-gradient(90deg, var(--yellow), #f5a623);
+  background: linear-gradient(90deg, var(--yellow), var(--orange));
   border-radius: 4px;
 }
 
@@ -395,40 +395,72 @@
   transform: rotate(180deg);
 }
 
-/* Медиа-запросы */
 @media (max-width: 768px) {
   .universal-bottom-player {
     left: 0 !important;
     right: 0 !important;
     width: 100% !important;
-    padding: 10px 12px;
+    padding: 12px;
+    position: fixed;
+    bottom: 0;
+    margin-top: 0;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .universal-bottom-player-content {
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
   }
 
   .universal-bottom-player-info {
     width: 100%;
+    min-width: auto;
+    gap: 12px;
   }
 
   .universal-bottom-player-controls {
     width: 100%;
     justify-content: center;
+    gap: 16px;
   }
 
   .universal-bottom-player-progress {
     width: 100%;
+    min-width: auto;
+  }
+
+  .universal-bottom-player-progress-bar-container {
+    gap: 10px;
   }
 
   .universal-bottom-player-preview {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
   }
 
   .universal-bottom-player-preview i {
-    font-size: 20px;
+    font-size: 22px;
+  }
+
+  .universal-bottom-player-btn,
+  .universal-bottom-player-volume-btn,
+  .universal-bottom-player-output-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .universal-bottom-player-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .universal-bottom-player-play {
+    width: 52px;
+    height: 52px;
+  }
+
+  .universal-bottom-player-progress-bar {
+    height: 6px;
   }
 
   .universal-bottom-player-volume-row {
@@ -442,25 +474,94 @@
   }
 
   .universal-bottom-player-output-section {
-    justify-content: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+  }
+
+  @supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .universal-bottom-player {
+      padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    }
+
+    .universal-bottom-player.minimized {
+      transform: translateY(calc(100% - 60px - env(safe-area-inset-bottom)));
+    }
+  }
+
+  .universal-bottom-player-progress-bar,
+  .universal-bottom-player-volume-range,
+  .universal-bottom-player-volume-slider {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .universal-bottom-player,
+  .universal-bottom-player-content {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 }
 
 @media (max-width: 480px) {
-  .universal-bottom-player-volume-btn {
-    width: 28px;
-    height: 28px;
+  .universal-bottom-player {
+    padding: 10px;
+  }
+
+  .universal-bottom-player-info {
+    gap: 10px;
+  }
+
+  .universal-bottom-player-track-name {
+    font-size: 0.85rem;
+  }
+
+  .universal-bottom-player-track-artist {
     font-size: 0.7rem;
+  }
+
+  .universal-bottom-player-controls {
+    gap: 12px;
+  }
+
+  .universal-bottom-player-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .universal-bottom-player-play {
+    width: 48px;
+    height: 48px;
+  }
+
+  .universal-bottom-player-progress-bar-container {
+    gap: 8px;
+  }
+
+  .universal-bottom-player-time-current,
+  .universal-bottom-player-time-total {
+    font-size: 0.7rem;
+    min-width: 35px;
+  }
+
+  .universal-bottom-player-volume-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    font-size: 0.8rem;
   }
 
   .universal-bottom-player-volume-value {
     font-size: 0.7rem;
-    min-width: 40px;
-    padding: 4px 8px;
+    min-width: 45px;
+    padding: 5px 10px;
   }
 
   .universal-bottom-player-output-section {
-    padding: 6px 12px;
+    padding: 8px 12px;
+    gap: 8px;
   }
 
   .universal-bottom-player-output-label {
@@ -472,12 +573,81 @@
   }
 
   .universal-bottom-player-output-btn {
-    padding: 4px 10px;
+    padding: 6px 12px;
     font-size: 0.7rem;
     gap: 6px;
+    min-width: auto;
+    min-height: auto;
   }
 
   .universal-bottom-player-output-btn i {
     font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 896px) and (orientation: landscape) {
+  .universal-bottom-player-content {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .universal-bottom-player-info {
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .universal-bottom-player-preview {
+    width: 36px;
+    height: 36px;
+  }
+
+  .universal-bottom-player-track-name {
+    font-size: 0.85rem;
+  }
+
+  .universal-bottom-player-controls {
+    flex: 0;
+    width: auto;
+    gap: 8px;
+  }
+
+  .universal-bottom-player-progress {
+    flex: 2;
+    min-width: 150px;
+  }
+
+  .universal-bottom-player-volume-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 768px) {
+  .universal-bottom-player-settings {
+    max-height: 200px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .universal-bottom-player {
+    background: var(--bg1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .universal-bottom-player,
+  .universal-bottom-player-settings,
+  .universal-bottom-player-content {
+    transition: none !important;
+  }
+}
+
+@supports (padding-right: env(safe-area-inset-right)) {
+  .universal-bottom-player {
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
   }
 }

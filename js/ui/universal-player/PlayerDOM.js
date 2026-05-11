@@ -9,8 +9,9 @@ export class PlayerDOM {
     this.element = document.getElementById("universalBottomPlayer");
     if (!this.element) return false;
     this._cacheElements();
-    this.element.style.display = "none";
-    this.element.classList.remove("active");
+    // Удалить эти две строки:
+    // this.element.style.display = "none";
+    // this.element.classList.remove("active");
     return true;
   }
 
