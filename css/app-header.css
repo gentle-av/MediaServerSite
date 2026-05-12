@@ -1,318 +1,162 @@
-/* app-header.css - обновленный (желтый hover для всех кнопок header-btn) */
-
-.app-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: var(--bg0);
-  border-bottom: 1px solid var(--bg2);
-  padding: 12px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  min-height: 60px;
-  height: auto;
-}
-
-.header-title-section .page-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin: 0;
-  color: var(--fg0);
-}
-
-.header-title-section .page-title i {
-  margin-right: 10px;
-  color: var(--orange);
-}
-
-.header-controls-section {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  min-height: 40px;
-}
-
-.mobile-nav-buttons {
-  display: none;
-}
-
-.header-btn {
-  background: var(--bg2);
-  border: 1px solid var(--bg3);
-  padding: 8px 16px;
-  border-radius: 12px;
-  color: var(--fg0);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  height: 36px;
-  min-height: 36px;
-}
-
-.header-btn i {
-  font-size: 1rem;
-  color: var(--yellow);
-}
-
-.header-btn:hover {
-  background: var(--bg3);
-  border-color: var(--yellow);
-  color: var(--yellow);
-  transform: translateY(-1px);
-}
-
-.header-btn:hover i {
-  color: var(--yellow);
-}
-
-.header-btn:active {
-  transform: translateY(0);
-}
-
-.scrollable-content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  height: calc(100vh - 60px);
-  padding-bottom: 0;
-}
-
 @media (max-width: 768px) {
   .app-header {
-    padding: 10px 15px;
-    min-height: 50px;
+    padding: 10px 16px;
+    min-height: 56px;
+    gap: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
   }
 
-  .header-title-section .page-title {
+  .header-title-section {
     display: none;
   }
 
+  .menu-toggle {
+    display: none !important;
+  }
+
+  .sidebar-overlay {
+    display: none !important;
+  }
+
+  /* Вкладки СЛЕВА - НЕПОСРЕДСТВЕННО в хедере */
   .mobile-nav-buttons {
     display: flex;
     gap: 8px;
+    flex-shrink: 0;
     order: 0;
-  }
-
-  .header-btn span {
-    display: none;
-  }
-
-  .header-btn {
-    padding: 8px 12px;
-    height: 36px;
-    min-height: 36px;
-  }
-
-  .scrollable-content {
-    height: calc(100vh - 50px);
-    padding-bottom: 0;
-  }
-
-  .header-controls-section {
-    width: 100%;
-    justify-content: space-between;
-    gap: 8px;
-    min-height: 36px;
+    margin-right: auto; /* ← добавляем */
   }
 
   .mobile-nav-buttons .header-btn {
+    padding: 8px 12px;
+    height: 40px;
+    min-height: 40px;
+    min-width: 44px;
+    justify-content: center;
     background: var(--bg2);
-    color: var(--fg2);
+    border: 1px solid var(--bg3);
+    border-radius: 12px;
+  }
+
+  .mobile-nav-buttons .header-btn span {
+    display: none;
+  }
+
+  .mobile-nav-buttons .header-btn i {
+    font-size: 1.2rem;
+    margin: 0;
+    color: var(--yellow);
   }
 
   .mobile-nav-buttons .header-btn.active {
     background: var(--yellow);
-    color: var(--bg0);
+    border-color: var(--yellow);
   }
 
   .mobile-nav-buttons .header-btn.active i {
     color: var(--bg0);
   }
 
-  #headerPlaylistBtn,
-  #headerRefreshBtn,
-  .refresh-metadata-btn,
-  #searchButton {
-    order: 2;
-  }
-}
-
-#globalSearchBox {
-  display: flex;
-  align-items: center;
-  background: var(--bg2);
-  border-radius: 12px;
-  padding: 6px 12px;
-  gap: 8px;
-  flex: 1;
-  max-width: 300px;
-  min-height: 36px;
-}
-
-#globalSearchBox i {
-  color: var(--fg3);
-}
-
-#globalSearchInput {
-  background: none;
-  border: none;
-  color: var(--fg0);
-  font-size: 0.9rem;
-  outline: none;
-  min-width: 180px;
-  width: 100%;
-}
-
-#globalSearchInput::placeholder {
-  color: var(--fg3);
-}
-
-@media (max-width: 768px) {
-  #globalSearchBox {
+  /* Поиск по центру */
+  .search-wrapper {
     flex: 1;
-    max-width: none;
+    margin: 0 12px;
     min-width: 0;
+    order: 1;
   }
 
-  #globalSearchInput {
-    min-width: 0;
+  #globalSearchBox {
+    display: flex;
+    align-items: center;
+    background: var(--bg2);
+    border-radius: 12px;
+    padding: 0 12px;
+    gap: 8px;
     width: 100%;
+    min-height: 40px;
+    height: 40px;
+    position: relative;
   }
-}
 
-@media (max-width: 480px) {
+  #globalSearchBox i {
+    color: var(--fg3);
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
   #globalSearchInput {
+    background: none;
+    border: none;
+    color: var(--fg0);
+    font-size: 0.9rem;
+    outline: none;
+    width: 100%;
     min-width: 0;
+    padding: 8px 0;
   }
 
-  .mobile-nav-buttons .header-btn {
-    padding: 8px 10px;
-    min-width: 40px;
+  .search-clear-btn {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--fg3);
+    cursor: pointer;
+    padding: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    z-index: 10;
   }
-}
 
-#headerPlaylistBtn,
-#headerRefreshBtn,
-.playlist-toggle-header,
-.refresh-header,
-.refresh-metadata-btn,
-#searchButton {
-  border-radius: 12px;
-  transition: all 0.2s ease;
-  background: var(--bg2);
-  border: 1px solid var(--bg3);
-  color: var(--fg0);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  padding: 8px 16px;
-}
+  /* Кнопки СПРАВА - отдельно */
+  .header-controls-section {
+    order: 2;
+    flex-shrink: 0;
+    gap: 8px;
+    margin-left: 0; /* ← УБИРАЕМ auto */
+    justify-content: flex-end;
+  }
 
-#headerPlaylistBtn i,
-#headerRefreshBtn i,
-.playlist-toggle-header i,
-.refresh-header i,
-.refresh-metadata-btn i,
-#searchButton i {
-  color: var(--yellow);
-  font-size: 1rem;
-}
-
-#headerPlaylistBtn:hover,
-#headerRefreshBtn:hover,
-.playlist-toggle-header:hover,
-.refresh-header:hover,
-.refresh-metadata-btn:hover,
-#searchButton:hover {
-  background: var(--bg3);
-  border-color: var(--yellow);
-  color: var(--yellow);
-  transform: translateY(-2px);
-}
-
-#headerPlaylistBtn:hover i,
-#headerRefreshBtn:hover i,
-.playlist-toggle-header:hover i,
-.refresh-header:hover i,
-.refresh-metadata-btn:hover i,
-#searchButton:hover i {
-  color: var(--yellow);
-}
-
-#headerPlaylistBtn:active,
-#headerRefreshBtn:active,
-.playlist-toggle-header:active,
-.refresh-header:active,
-.refresh-metadata-btn:active,
-#searchButton:active {
-  transform: translateY(0px);
-}
-
-@media (max-width: 768px) {
   #headerPlaylistBtn,
   #headerRefreshBtn,
-  .playlist-toggle-header,
-  .refresh-header,
   .refresh-metadata-btn,
   #searchButton {
-    padding: 10px;
+    padding: 8px 12px;
+    height: 40px;
+    min-height: 40px;
     min-width: 44px;
+    justify-content: center;
+    border-radius: 12px;
+    background: var(--bg2);
+    border: 1px solid var(--bg3);
+    color: var(--fg0);
   }
 
   #headerPlaylistBtn span,
   #headerRefreshBtn span,
-  .playlist-toggle-header span,
-  .refresh-header span,
   .refresh-metadata-btn span,
   #searchButton span {
     display: none;
   }
 
-  #headerPlaylistBtn:hover,
-  #headerRefreshBtn:hover,
-  .playlist-toggle-header:hover,
-  .refresh-header:hover,
-  .refresh-metadata-btn:hover,
-  #searchButton:hover {
-    transform: translateY(-1px);
+  #headerPlaylistBtn i,
+  #headerRefreshBtn i,
+  .refresh-metadata-btn i,
+  #searchButton i {
+    font-size: 1.2rem;
+    margin: 0;
+    color: var(--yellow);
   }
-}
 
-@media (max-width: 480px) {
-  #headerPlaylistBtn,
-  #headerRefreshBtn,
-  .playlist-toggle-header,
-  .refresh-header,
-  .refresh-metadata-btn,
-  #searchButton {
-    padding: 8px;
+  .scrollable-content {
+    height: calc(100vh - 56px);
+    padding-bottom: 0;
   }
-}
-
-.audio-only {
-  display: none;
-}
-
-.audio-page .audio-only {
-  display: flex;
-}
-
-.mobile-nav-buttons .header-btn.nav-power-btn.active {
-  background: var(--yellow);
-  color: var(--bg0);
-}
-
-.mobile-nav-buttons .header-btn.nav-power-btn.active i {
-  color: var(--bg0);
 }

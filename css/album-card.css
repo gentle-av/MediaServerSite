@@ -11,6 +11,150 @@
   position: relative;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: pan-y pinch-zoom;
+}
+
+@media (max-width: 768px) {
+  .albums-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 12px;
+    padding-bottom: 80px;
+  }
+
+  .album-card {
+    flex-direction: row;
+    align-items: center;
+    gap: 18px;
+    padding: 14px;
+    max-width: none;
+    position: relative;
+    background: var(--bg1);
+    border-radius: 12px;
+    transition: transform 0.3s ease;
+    transform: translateX(0);
+    z-index: 2;
+    margin: 0;
+    will-change: transform;
+  }
+
+  .album-card.swipe-left {
+    transform: translateX(-80px);
+  }
+
+  .album-card-art {
+    width: 90px;
+    height: 90px;
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+    background: var(--bg2);
+  }
+
+  .album-card-art img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: -webkit-optimize-contrast;
+  }
+
+  .album-card-info {
+    padding: 0;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .album-card-title {
+    font-size: 1rem;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    display: block;
+    -webkit-line-clamp: unset;
+    overflow-x: visible;
+    white-space: normal;
+  }
+
+  .album-card-artist {
+    font-size: 0.85rem;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  .album-card-meta {
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+
+  .album-delete-btn {
+    display: none;
+  }
+
+  .album-swipe-delete-container {
+    position: relative;
+    width: 100%;
+    margin-bottom: 14px;
+    overflow: visible;
+    touch-action: pan-y pinch-zoom;
+  }
+
+  .album-swipe-delete-container .album-swipe-delete-btn {
+    display: flex;
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 80px;
+    background: linear-gradient(135deg, var(--red) 0%, #d63031 100%);
+    border: none;
+    border-radius: 12px;
+    color: var(--bg0);
+    cursor: pointer;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    z-index: 1;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .album-swipe-delete-container .album-swipe-delete-btn i {
+    font-size: 28px;
+    margin-bottom: 4px;
+    pointer-events: none;
+  }
+
+  .album-swipe-delete-container .album-swipe-delete-btn:active {
+    transform: scale(0.97);
+  }
+
+  .album-swipe-delete-container .album-card {
+    margin: 0;
+    position: relative;
+    z-index: 2;
+    background: var(--bg1);
+  }
+}
+
+.album-card {
+  background: var(--bg1);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  border: 1px solid var(--bg2);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  position: relative;
+  margin: 0;
+  padding: 0;
 }
 
 .album-card-art {

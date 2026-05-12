@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, user-scalable=no"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#fabd2f" />
+    <meta name="theme-color" content="#282828" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
@@ -53,21 +53,41 @@
               <i class="fas fa-video"></i> Видео
             </h1>
           </div>
-          <div class="header-controls-section">
-            <div class="mobile-nav-buttons" id="mobileNavButtons">
-              <button class="header-btn nav-video-btn active" id="navVideoBtn">
-                <i class="fas fa-video"></i><span>Видео</span>
-              </button>
-              <button class="header-btn nav-audio-btn" id="navAudioBtn">
-                <i class="fas fa-music"></i><span>Аудио</span>
-              </button>
-              <button class="header-btn nav-power-btn" id="navPowerBtn">
-                <i class="fas fa-plug"></i><span>Питание</span>
+
+          <!-- Вкладки СЛЕВА -->
+          <div class="mobile-nav-buttons" id="mobileNavButtons">
+            <button class="header-btn nav-video-btn active" id="navVideoBtn">
+              <i class="fas fa-video"></i><span>Видео</span>
+            </button>
+            <button class="header-btn nav-audio-btn" id="navAudioBtn">
+              <i class="fas fa-music"></i><span>Аудио</span>
+            </button>
+            <button class="header-btn nav-power-btn" id="navPowerBtn">
+              <i class="fas fa-plug"></i><span>Питание</span>
+            </button>
+          </div>
+
+          <!-- Поиск ПО ЦЕНТРУ -->
+          <div class="search-wrapper" id="searchWrapper">
+            <div id="globalSearchBox">
+              <i class="fas fa-search"></i>
+              <input
+                type="text"
+                id="globalSearchInput"
+                placeholder="Поиск..."
+              />
+              <button
+                class="search-clear-btn"
+                id="searchClearBtn"
+                style="display: none"
+              >
+                <i class="fas fa-times"></i>
               </button>
             </div>
-            <button class="header-btn" id="searchButton">
-              <i class="fas fa-search"></i>
-              <span>Поиск</span>
+          </div>
+          <div class="header-controls-section">
+            <button class="header-btn" id="searchButton" style="display: none">
+              <i class="fas fa-search"></i><span>Поиск</span>
             </button>
             <button
               class="header-btn playlist-toggle-header audio-only"
@@ -388,7 +408,6 @@
     <script type="module" src="js/ui/album-card.js"></script>
     <script type="module" src="js/ui/playlist-popup/index.js"></script>
     <script type="module" src="js/modules/album.js"></script>
-    <script type="module" src="js/ui/universal-player/index.js"></script>
     <script type="module" src="js/ui/universal-player/index.js"></script>
     <script type="module" src="js/modules/video-library/index.js"></script>
     <script type="module" src="js/modules/power-management/index.js"></script>

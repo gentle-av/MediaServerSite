@@ -64,3 +64,17 @@
 .sidebar-btn.active i {
   color: var(--bg0);
 }
+
+@media (max-width: 768px) {
+  .sidebar {
+    display: none !important;
+  }
+
+  .sidebar-overlay {
+    display: none !important;
+  }
+
+  .menu-toggle {
+    display: none !important;
+  }
+}
