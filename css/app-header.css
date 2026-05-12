@@ -83,7 +83,6 @@
   overflow-x: hidden;
   height: calc(100vh - 60px);
   padding-bottom: 0;
-  transition: padding-bottom 0.3s ease;
 }
 
 @media (max-width: 768px) {

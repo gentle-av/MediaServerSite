@@ -1,5 +1,6 @@
 @import "variables.css";
 @import "reset.css";
+@import "layout.css";
 @import "sidebar.css";
 @import "main-content.css";
 @import "video-explorer.css";

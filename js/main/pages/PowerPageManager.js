@@ -32,14 +32,6 @@ export class PowerPageManager {
   }
 
   async _loadInitialData() {
-    if (!this.powerManagement) {
-      this.powerManagement = initPowerManagement(
-        this.core.api,
-        this.core.events,
-        {},
-      );
-      this.core.powerManagement = this.powerManagement;
-    }
     await Promise.all([
       this._loadVolume(),
       this._updateTVStatus(),
@@ -67,36 +59,69 @@ export class PowerPageManager {
     const tvCard = document.getElementById("tvCard");
     if (tvCard) {
       tvCard.addEventListener("click", async () => {
-        const statusText = document.querySelector("#tvStatus .status-text");
-        const statusDot = document.querySelector("#tvStatus .status-dot");
-        const isCurrentlyOn = statusDot?.classList.contains("on");
-        try {
-          if (statusText)
-            statusText.textContent = isCurrentlyOn
-              ? "Выключение..."
-              : "Включение...";
-          const response = await this.core.api.post("/api/power/tv-on");
-          if (response && response.success) {
-            if (statusText) statusText.textContent = "Включен";
-            if (statusDot) statusDot.classList.add("on");
-          } else {
-            if (statusText) statusText.textContent = "Выключен";
-            if (statusDot) statusDot.classList.remove("on");
-          }
-        } catch (error) {
-          if (statusText) statusText.textContent = "Ошибка";
-        } finally {
-          setTimeout(() => this._updateTVStatus(), 2000);
-        }
+        await this._toggleTV();
       });
-    } else {
     }
-    const sleepBtn = document.getElementById("sleepBtn");
-    if (sleepBtn) {
-      sleepBtn.addEventListener("click", async () => {
-        try {
-          await this.core.api.post("/api/system/sleep");
-        } catch (error) {}
+    const computerCard = document.getElementById("computerCard");
+    if (computerCard) {
+      computerCard.addEventListener("click", async () => {
+        await this._sleepComputer();
+      });
+    }
+  }
+
+  async _toggleTV() {
+    const statusText = document.querySelector("#tvStatus .status-text");
+    const statusDot = document.querySelector("#tvStatus .status-dot");
+    const isCurrentlyOn = statusDot?.classList.contains("on");
+    try {
+      if (statusText) {
+        statusText.textContent = isCurrentlyOn
+          ? "Выключение..."
+          : "Включение...";
+      }
+      const response = await this.core.api.post("/api/power/tv-on");
+      if (response && response.success) {
+        this.core.events?.emit("notification:show", {
+          message: response.message || "Команда отправлена",
+          type: "success",
+        });
+        setTimeout(() => this._updateTVStatus(), 2000);
+      } else {
+        throw new Error(response?.message || "Ошибка");
+      }
+    } catch (error) {
+      console.error("TV toggle error:", error);
+      if (statusText) statusText.textContent = "Ошибка";
+      this.core.events?.emit("notification:show", {
+        message: `Ошибка: ${error.message}`,
+        type: "error",
+      });
+    }
+  }
+
+  async _sleepComputer() {
+    try {
+      const confirmed = confirm("Отправить компьютер в режим сна?");
+      if (!confirmed) return;
+      this.core.events?.emit("notification:show", {
+        message: "Компьютер уходит в сон...",
+        type: "info",
+      });
+      const response = await this.core.api.post("/api/system/sleep");
+      if (response && response.success) {
+        this.core.events?.emit("notification:show", {
+          message: response.message || "Система засыпает",
+          type: "success",
+        });
+      } else {
+        throw new Error(response?.message || "Ошибка");
+      }
+    } catch (error) {
+      console.error("Sleep error:", error);
+      this.core.events?.emit("notification:show", {
+        message: `Ошибка: ${error.message}`,
+        type: "error",
       });
     }
   }
@@ -134,7 +159,9 @@ export class PowerPageManager {
       await this.core.api.post("/api/audio/volume", {
         volume: this._currentVolume,
       });
-    } catch (error) {}
+    } catch (error) {
+      console.error("Set volume error:", error);
+    }
   }
 
   async _toggleMute() {
@@ -151,6 +178,7 @@ export class PowerPageManager {
         this._updateVolumeUI();
       }
     } catch (error) {
+      console.error("Toggle mute error:", error);
       this._isMuted = !this._isMuted;
       this._updateVolumeUI();
     }
@@ -165,7 +193,9 @@ export class PowerPageManager {
         if (res.data.muted !== undefined) this._isMuted = res.data.muted;
         this._updateVolumeUI();
       }
-    } catch (error) {}
+    } catch (error) {
+      console.error("Load volume error:", error);
+    }
   }
 
   _updateVolumeUI() {
@@ -205,6 +235,7 @@ export class PowerPageManager {
             this._updateAudioOutputUI();
           }
         } catch (error) {
+          console.error("Switch to speakers error:", error);
         } finally {
           speakersBtn.disabled = false;
         }
@@ -220,6 +251,7 @@ export class PowerPageManager {
             this._updateAudioOutputUI();
           }
         } catch (error) {
+          console.error("Switch to headphones error:", error);
         } finally {
           headphonesBtn.disabled = false;
         }
@@ -234,7 +266,9 @@ export class PowerPageManager {
         this._currentOutput = res.data.current;
         this._updateAudioOutputUI();
       }
-    } catch (error) {}
+    } catch (error) {
+      console.error("Load audio output error:", error);
+    }
   }
 
   _updateAudioOutputUI() {
@@ -274,6 +308,7 @@ export class PowerPageManager {
         }
       }
     } catch (error) {
+      console.error("Update TV status error:", error);
       const statusText = document.querySelector("#tvStatus .status-text");
       if (statusText) statusText.textContent = "Ошибка подключения";
     }

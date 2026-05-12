@@ -1,7 +1,7 @@
 .universal-bottom-player {
   position: relative;
   width: 100%;
-  margin-top: auto;
+  margin-top: 0;
   background: var(--bg1);
   border-top: 1px solid var(--bg3);
   padding: 12px 20px;
@@ -401,8 +401,8 @@
     right: 0 !important;
     width: 100% !important;
     padding: 12px;
-    position: fixed;
-    bottom: 0;
+    position: relative;
+    bottom: auto;
     margin-top: 0;
     -webkit-tap-highlight-color: transparent;
   }
