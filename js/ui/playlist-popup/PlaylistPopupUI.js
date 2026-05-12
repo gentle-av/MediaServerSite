@@ -25,6 +25,7 @@ export class PlaylistPopupUI {
         this.isOpen() &&
         this.headerBtn &&
         !this.headerBtn.contains(e.target) &&
+        this.popup &&
         !this.popup.contains(e.target)
       ) {
         this.hide();
@@ -37,13 +38,18 @@ export class PlaylistPopupUI {
   }
 
   show() {
-    this.popup?.classList.add("open");
+    if (this.popup) {
+      document.body.appendChild(this.popup);
+      this.popup.classList.add("open");
+    }
     this._showOverlay();
     if (this.onOpen) this.onOpen();
   }
 
   hide() {
-    this.popup?.classList.remove("open");
+    if (this.popup) {
+      this.popup.classList.remove("open");
+    }
     this._hideOverlay();
     if (this.onClose) this.onClose();
   }

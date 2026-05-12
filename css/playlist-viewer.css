@@ -255,15 +255,24 @@
     left: 10px;
     width: auto;
     max-width: none;
-    z-index: 10001;
+    z-index: 10012;
+    background: var(--bg1);
   }
+
+  .playlist-popup.open {
+    display: flex;
+    z-index: 10012;
+  }
+
   .playlist-track-number {
     width: 32px;
     font-size: 0.75rem;
   }
+
   .playlist-track-name {
     font-size: 0.8rem;
   }
+
   .playlist-popup-count {
     font-size: 0.7rem;
     padding: 4px 8px;
