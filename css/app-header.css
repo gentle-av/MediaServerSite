@@ -1,3 +1,207 @@
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg0);
+  border-bottom: 1px solid var(--bg2);
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-height: 60px;
+  height: auto;
+}
+
+.header-title-section .page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--fg0);
+}
+
+.header-title-section .page-title i {
+  margin-right: 10px;
+  color: var(--orange);
+}
+
+.header-controls-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 40px;
+}
+
+.mobile-nav-buttons {
+  display: none;
+}
+
+.header-btn {
+  background: var(--bg2);
+  border: 1px solid var(--bg3);
+  padding: 8px 16px;
+  border-radius: 12px;
+  color: var(--fg0);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  height: 36px;
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.header-btn i {
+  font-size: 1rem;
+  color: var(--yellow);
+}
+
+.header-btn:hover {
+  background: var(--bg3);
+  border-color: var(--yellow);
+  color: var(--yellow);
+  transform: translateY(-1px);
+}
+
+.header-btn:hover i {
+  color: var(--yellow);
+}
+
+.header-btn:active {
+  transform: translateY(0);
+}
+
+#globalSearchBox {
+  display: flex;
+  align-items: center;
+  background: var(--bg2);
+  border-radius: 12px;
+  padding: 6px 12px;
+  gap: 8px;
+  flex: 1;
+  max-width: 300px;
+  min-height: 36px;
+}
+
+#globalSearchBox i {
+  color: var(--fg3);
+}
+
+#globalSearchInput {
+  background: none;
+  border: none;
+  color: var(--fg0);
+  font-size: 0.9rem;
+  outline: none;
+  min-width: 180px;
+  width: 100%;
+}
+
+#globalSearchInput::placeholder {
+  color: var(--fg3);
+}
+
+.search-clear-btn {
+  background: none;
+  border: none;
+  color: var(--fg3);
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.search-clear-btn:hover {
+  color: var(--fg1);
+  background: var(--bg3);
+}
+
+.scrollable-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: calc(100vh - 60px);
+  padding-bottom: 0;
+}
+
+#headerPlaylistBtn,
+#headerRefreshBtn,
+.playlist-toggle-header,
+.refresh-header,
+.refresh-metadata-btn,
+#searchButton {
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  background: var(--bg2);
+  border: 1px solid var(--bg3);
+  color: var(--fg0);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 8px 16px;
+}
+
+#headerPlaylistBtn i,
+#headerRefreshBtn i,
+.playlist-toggle-header i,
+.refresh-header i,
+.refresh-metadata-btn i,
+#searchButton i {
+  color: var(--yellow);
+  font-size: 1rem;
+}
+
+#headerPlaylistBtn:hover,
+#headerRefreshBtn:hover,
+.playlist-toggle-header:hover,
+.refresh-header:hover,
+.refresh-metadata-btn:hover,
+#searchButton:hover {
+  background: var(--bg3);
+  border-color: var(--yellow);
+  color: var(--yellow);
+  transform: translateY(-2px);
+}
+
+#headerPlaylistBtn:hover i,
+#headerRefreshBtn:hover i,
+.playlist-toggle-header:hover i,
+.refresh-header:hover i,
+.refresh-metadata-btn:hover i,
+#searchButton:hover i {
+  color: var(--yellow);
+}
+
+#headerPlaylistBtn:active,
+#headerRefreshBtn:active,
+.playlist-toggle-header:active,
+.refresh-header:active,
+.refresh-metadata-btn:active,
+#searchButton:active {
+  transform: translateY(0px);
+}
+
+.audio-only {
+  display: none;
+}
+
+.audio-page .audio-only {
+  display: flex;
+}
+
 @media (max-width: 768px) {
   .app-header {
     padding: 10px 16px;
@@ -21,13 +225,11 @@
     display: none !important;
   }
 
-  /* Вкладки СЛЕВА - НЕПОСРЕДСТВЕННО в хедере */
   .mobile-nav-buttons {
     display: flex;
     gap: 8px;
     flex-shrink: 0;
     order: 0;
-    margin-right: auto; /* ← добавляем */
   }
 
   .mobile-nav-buttons .header-btn {
@@ -60,7 +262,6 @@
     color: var(--bg0);
   }
 
-  /* Поиск по центру */
   .search-wrapper {
     flex: 1;
     margin: 0 12px;
@@ -69,58 +270,21 @@
   }
 
   #globalSearchBox {
-    display: flex;
-    align-items: center;
-    background: var(--bg2);
-    border-radius: 12px;
-    padding: 0 12px;
-    gap: 8px;
+    max-width: none;
     width: 100%;
     min-height: 40px;
     height: 40px;
-    position: relative;
-  }
-
-  #globalSearchBox i {
-    color: var(--fg3);
-    font-size: 1rem;
-    flex-shrink: 0;
   }
 
   #globalSearchInput {
-    background: none;
-    border: none;
-    color: var(--fg0);
-    font-size: 0.9rem;
-    outline: none;
-    width: 100%;
     min-width: 0;
-    padding: 8px 0;
   }
 
-  .search-clear-btn {
-    position: absolute;
-    right: 8px;
-    background: none;
-    border: none;
-    color: var(--fg3);
-    cursor: pointer;
-    padding: 0;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    z-index: 10;
-  }
-
-  /* Кнопки СПРАВА - отдельно */
   .header-controls-section {
     order: 2;
     flex-shrink: 0;
     gap: 8px;
-    margin-left: 0; /* ← УБИРАЕМ auto */
+    margin-left: auto;
     justify-content: flex-end;
   }
 
@@ -133,10 +297,6 @@
     min-height: 40px;
     min-width: 44px;
     justify-content: center;
-    border-radius: 12px;
-    background: var(--bg2);
-    border: 1px solid var(--bg3);
-    color: var(--fg0);
   }
 
   #headerPlaylistBtn span,
@@ -152,11 +312,107 @@
   #searchButton i {
     font-size: 1.2rem;
     margin: 0;
-    color: var(--yellow);
   }
 
   .scrollable-content {
     height: calc(100vh - 56px);
-    padding-bottom: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-header {
+    padding: 8px 12px;
+    min-height: 52px;
+  }
+
+  .mobile-nav-buttons {
+    gap: 6px;
+  }
+
+  .mobile-nav-buttons .header-btn {
+    padding: 6px 10px;
+    min-width: 40px;
+    height: 36px;
+    min-height: 36px;
+  }
+
+  .mobile-nav-buttons .header-btn i {
+    font-size: 1rem;
+  }
+
+  .header-controls-section {
+    gap: 6px;
+  }
+
+  #headerPlaylistBtn,
+  #headerRefreshBtn,
+  .refresh-metadata-btn,
+  #searchButton {
+    padding: 6px 10px;
+    min-width: 40px;
+    height: 36px;
+    min-height: 36px;
+  }
+
+  #headerPlaylistBtn i,
+  #headerRefreshBtn i,
+  .refresh-metadata-btn i,
+  #searchButton i {
+    font-size: 1rem;
+  }
+
+  .search-wrapper {
+    margin: 0 8px;
+  }
+
+  #globalSearchBox {
+    min-height: 36px;
+    height: 36px;
+    padding: 0 10px;
+  }
+
+  #globalSearchBox i {
+    font-size: 0.9rem;
+  }
+
+  #globalSearchInput {
+    font-size: 0.85rem;
+  }
+
+  .scrollable-content {
+    height: calc(100vh - 52px);
+  }
+}
+
+@media (max-width: 896px) and (orientation: landscape) {
+  .app-header {
+    min-height: 48px;
+    padding: 6px 16px;
+  }
+
+  .mobile-nav-buttons .header-btn,
+  #headerPlaylistBtn,
+  #headerRefreshBtn,
+  .refresh-metadata-btn,
+  #searchButton {
+    height: 36px;
+    min-height: 36px;
+  }
+
+  .mobile-nav-buttons .header-btn i,
+  #headerPlaylistBtn i,
+  #headerRefreshBtn i,
+  .refresh-metadata-btn i,
+  #searchButton i {
+    font-size: 1rem;
+  }
+
+  #globalSearchBox {
+    min-height: 36px;
+    height: 36px;
+  }
+
+  .scrollable-content {
+    height: calc(100vh - 48px);
   }
 }

@@ -61,8 +61,6 @@
 .universal-bottom-player-content {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
   gap: 15px;
   max-width: 1400px;
   margin: 0 auto;
@@ -73,7 +71,7 @@
 }
 
 .universal-bottom-player-info {
-  flex: 2;
+  flex: 0 0 auto;
   min-width: 200px;
   display: flex;
   align-items: center;
@@ -130,7 +128,7 @@
 }
 
 .universal-bottom-player-progress {
-  flex: 3;
+  flex: 1;
   min-width: 200px;
 }
 
@@ -170,6 +168,7 @@
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .universal-bottom-player-btn {
@@ -393,6 +392,25 @@
 
 .universal-bottom-player-settings-toggle.collapsed i {
   transform: rotate(180deg);
+}
+
+@media (max-width: 1024px) {
+  .universal-bottom-player-content {
+    flex-wrap: wrap;
+  }
+
+  .universal-bottom-player-info {
+    flex: 0 0 auto;
+  }
+
+  .universal-bottom-player-progress {
+    flex: 2;
+    min-width: 180px;
+  }
+
+  .universal-bottom-player-controls {
+    flex-shrink: 0;
+  }
 }
 
 @media (max-width: 768px) {
