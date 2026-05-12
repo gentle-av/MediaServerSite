@@ -315,8 +315,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  flex: 1;
-  min-width: 200px;
+  flex-shrink: 0;
+  margin-left: auto;
   background: var(--bg2);
   padding: 8px 16px;
   border-radius: 40px;
@@ -471,11 +471,13 @@
 
   .universal-bottom-player-volume-controls {
     min-width: auto;
+    width: 100%;
   }
 
   .universal-bottom-player-output-section {
     justify-content: space-between;
-    padding: 10px 16px;
+    margin-left: 0;
+    width: 100%;
   }
 
   @supports (padding-bottom: env(safe-area-inset-bottom)) {
