@@ -1,14 +1,5 @@
 export class PlayerLifeCycle {
-  constructor(
-    core,
-    uiUpdater,
-    progress,
-    polling,
-    api,
-    apiClient,
-    events,
-    mediaHandler,
-  ) {
+  constructor(core, uiUpdater, progress, polling, api, apiClient, events) {
     this.core = core;
     this.uiUpdater = uiUpdater;
     this.progress = progress;
@@ -16,7 +7,6 @@ export class PlayerLifeCycle {
     this.api = api;
     this.apiClient = apiClient;
     this.events = events;
-    this.mediaHandler = mediaHandler;
     this.onRestore = null;
   }
 

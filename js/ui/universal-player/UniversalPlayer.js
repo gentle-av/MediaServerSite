@@ -69,7 +69,6 @@ export class UniversalPlayer {
       this.api,
       this.apiClient,
       this.events,
-      this.mediaHandler,
     );
     this.lifeCycle.onRestore = () => {
       this.show();
