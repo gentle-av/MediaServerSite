@@ -7,24 +7,19 @@
   padding: 12px 20px;
   z-index: 100;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px);
   box-sizing: border-box;
   flex-shrink: 0;
-  display: none;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(20px);
-  transition:
-    opacity 0.3s ease,
-    visibility 0.3s ease,
-    transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease;
+  transform: translateY(0);
+}
+
+.universal-bottom-player.hidden {
+  transform: translateY(100%);
 }
 
 .universal-bottom-player.active {
-  display: flex;
-  flex-direction: column;
-  opacity: 1;
-  visibility: visible;
   transform: translateY(0);
 }
 
@@ -33,12 +28,11 @@
 }
 
 .universal-bottom-player.minimized .universal-bottom-player-content {
-  opacity: 0;
-  visibility: hidden;
+  display: none;
 }
 
 .universal-bottom-player.minimized .universal-bottom-player-minimize-bar {
-  opacity: 1;
+  display: flex;
 }
 
 .universal-bottom-player-minimize-bar {
@@ -50,14 +44,12 @@
   height: 30px;
   background: var(--bg2);
   border-radius: 20px 20px 0 0;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   border: 1px solid var(--bg3);
   border-bottom: none;
-  opacity: 0;
-  transition: opacity 0.3s ease;
   color: var(--fg3);
   z-index: 1001;
 }
@@ -105,7 +97,6 @@
 .universal-bottom-player-preview i {
   font-size: 24px;
   color: var(--yellow);
-  opacity: 0.7;
 }
 
 .universal-bottom-player-track-info {
@@ -217,17 +208,14 @@
   transition:
     max-height 0.3s ease,
     margin-top 0.3s ease,
-    padding-top 0.3s ease,
-    opacity 0.3s ease;
+    padding-top 0.3s ease;
   max-height: 100px;
-  opacity: 1;
 }
 
 .universal-bottom-player-settings.collapsed {
   max-height: 0;
   margin-top: 0;
   padding-top: 0;
-  opacity: 0;
   border-top: none;
 }
 
@@ -398,18 +386,6 @@
 
 .universal-bottom-player-settings-toggle.collapsed i {
   transform: rotate(180deg);
-}
-
-.universal-bottom-player-volume-fill[data-level="low"] {
-  background: var(--green);
-}
-
-.universal-bottom-player-volume-fill[data-level="medium"] {
-  background: var(--yellow);
-}
-
-.universal-bottom-player-volume-fill[data-level="high"] {
-  background: var(--red);
 }
 
 @media (max-width: 1024px) {
