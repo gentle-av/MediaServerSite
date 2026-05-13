@@ -75,16 +75,13 @@ export class PlayerMediaHandler {
     this.controller.setOnHide(callback);
   }
 
+  setVideoCloseModal(modal) {
+    this.controller.videoCloseModal = modal;
+    this.coordinator.videoCloseModal = modal;
+  }
+
   setForceRefreshVideo(fn) {
     this.coordinator.setVideoForceRefresh(fn);
-  }
-
-  setForceRefresh(fn) {
-    this.controller.setForceRefresh(fn);
-  }
-
-  forceRefreshPlayback(path) {
-    this.controller.forceRefreshPlayback(path);
   }
 
   async restoreFromState() {

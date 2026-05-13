@@ -17,34 +17,25 @@ export class PlayerLifeCycle {
     this.apiClient = apiClient;
     this.events = events;
     this.mediaHandler = mediaHandler;
+    this.onRestore = null;
   }
 
-  async checkExistingPlayback(type) {
+  async checkExistingPlayback() {
     try {
-      let hasActivePlayback = false;
-      if (type === "video") {
-        const status = await this.api.getVideoStatus();
-        if (status && status.success && status.currentFile) {
-          this.core.setCurrentFile(status.currentFile);
-          this.core.setMediaType("video");
-          this.core.setPlaying(!status.paused);
-          this.uiUpdater.updateFileInfo(status.currentFile);
-          this.uiUpdater.updatePlayPauseButton(!status.paused);
-          this.uiUpdater.updateFullscreenButtonVisibility("video");
-          const thumbnail = await this.api.getVideoThumbnail(
-            status.currentFile,
-          );
-          if (thumbnail) {
-            this.uiUpdater.showPreviewImage(thumbnail);
-          } else {
-            this.uiUpdater.updateMediaIcon("video");
-          }
-          hasActivePlayback = true;
+      const status = await this.api.getVideoStatus();
+      if (status && status.success && status.currentFile) {
+        this.core.setCurrentFile(status.currentFile);
+        this.core.setMediaType("video");
+        this.core.setPlaying(!status.paused);
+        this.uiUpdater.updateFileInfo(status.currentFile);
+        this.uiUpdater.updatePlayPauseButton(!status.paused);
+        this.uiUpdater.updateFullscreenButtonVisibility("video");
+        const thumbnail = await this.api.getVideoThumbnail(status.currentFile);
+        if (thumbnail) {
+          this.uiUpdater.showPreviewImage(thumbnail);
+        } else {
+          this.uiUpdater.updateMediaIcon("video");
         }
-      } else {
-        return false;
-      }
-      if (hasActivePlayback) {
         if (this.polling) {
           this.polling.stop();
           this.polling.start();
@@ -52,8 +43,9 @@ export class PlayerLifeCycle {
         if (this.onRestore) {
           this.onRestore();
         }
+        return true;
       }
-      return hasActivePlayback;
+      return false;
     } catch (error) {
       return false;
     }

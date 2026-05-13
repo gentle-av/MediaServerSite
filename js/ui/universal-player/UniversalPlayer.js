@@ -102,9 +102,8 @@ export class UniversalPlayer {
       onStopHandler,
     );
     this.mediaHandler.setOnHide(() => this.hide());
+    this.mediaHandler.setVideoCloseModal(this.videoCloseModal);
     this.mediaHandler.setForceRefreshVideo(() => this.lifeCycle.refreshVideo());
-    if (this.videoCloseModal)
-      this.mediaHandler.setVideoCloseModal(this.videoCloseModal);
     this.dom.ensureOutputButtons();
     this.eventHandler = new PlayerEventHandler(
       this.mediaHandler,
@@ -117,15 +116,10 @@ export class UniversalPlayer {
     playerEvents.attach(this.dom);
     this.eventSubscriber = new PlayerEventSubscriber(
       this.events,
-      this.api,
       this.mediaHandler,
-      this.core,
-      this.uiUpdater,
-      () => this.show(),
-      () => this.hide(),
     );
     this.eventSubscriber.subscribe();
-    this.previewTooltip = new PreviewTooltip(this.dom, this.api);
+    this.previewTooltip = new PreviewTooltip(this.dom, this.api, this.core);
     this.volume.loadInitial();
     this.output.loadInitial();
     this.volume.startPolling();
@@ -186,81 +180,66 @@ export class UniversalPlayer {
   }
 
   getVideoStatus() {
-    return this.apiBridge?.getVideoStatus() ?? this.api.getVideoStatus();
+    return this.apiBridge.getVideoStatus();
   }
 
   getAudioPlaybackState() {
-    return (
-      this.apiBridge?.getAudioPlaybackState() ??
-      this.api.getAudioPlaybackState()
-    );
+    return this.apiBridge.getAudioPlaybackState();
   }
 
   getAudioCurrentTime() {
-    return (
-      this.apiBridge?.getAudioCurrentTime() ?? this.api.getAudioCurrentTime()
-    );
+    return this.apiBridge.getAudioCurrentTime();
   }
 
   getFileMetadata(path) {
-    return (
-      this.apiBridge?.getFileMetadata(path) ?? this.api.getFileMetadata(path)
-    );
+    return this.apiBridge.getFileMetadata(path);
   }
 
   getAlbumCover(path, title, artist) {
-    return (
-      this.apiBridge?.getAlbumCover(path, title, artist) ??
-      this.api.getAlbumCover(path, title, artist)
-    );
+    return this.apiBridge.getAlbumCover(path, title, artist);
   }
 
   closeVideo() {
-    return this.apiBridge?.closeVideo() ?? this.api.closeVideo();
+    return this.apiBridge.closeVideo();
   }
 
   openFile(path) {
-    return this.apiBridge?.openFile(path) ?? this.api.openFile(path);
+    return this.apiBridge.openFile(path);
   }
 
   controlVideo(command) {
-    return (
-      this.apiBridge?.controlVideo(command) ?? this.api.controlVideo(command)
-    );
+    return this.apiBridge.controlVideo(command);
   }
 
   seekVideo(time) {
-    return this.apiBridge?.seekVideo(time) ?? this.api.seekVideo(time);
+    return this.apiBridge.seekVideo(time);
   }
 
   audioPlay() {
-    return this.apiBridge?.audioPlay() ?? this.api.audioPlay();
+    return this.apiBridge.audioPlay();
   }
 
   audioPause() {
-    return this.apiBridge?.audioPause() ?? this.api.audioPause();
+    return this.apiBridge.audioPause();
   }
 
   audioStop() {
-    return this.apiBridge?.audioStop() ?? this.api.audioStop();
+    return this.apiBridge.audioStop();
   }
 
   audioNext() {
-    return this.apiBridge?.audioNext() ?? this.api.audioNext();
+    return this.apiBridge.audioNext();
   }
 
   audioPrevious() {
-    return this.apiBridge?.audioPrevious() ?? this.api.audioPrevious();
+    return this.apiBridge.audioPrevious();
   }
 
   audioSeek(time) {
-    return this.apiBridge?.audioSeek(time) ?? this.api.audioSeek(time);
+    return this.apiBridge.audioSeek(time);
   }
 
   getVideoThumbnail(path) {
-    return (
-      this.apiBridge?.getVideoThumbnail(path) ??
-      this.api.getVideoThumbnail(path)
-    );
+    return this.apiBridge.getVideoThumbnail(path);
   }
 }

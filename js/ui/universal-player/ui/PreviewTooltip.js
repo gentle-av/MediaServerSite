@@ -1,7 +1,8 @@
 export class PreviewTooltip {
-  constructor(dom, api) {
+  constructor(dom, api, core) {
     this.dom = dom;
     this.api = api;
+    this.core = core;
     this.tooltip = null;
     this.isVisible = false;
     this.currentPath = null;
@@ -48,9 +49,7 @@ export class PreviewTooltip {
     );
     const targetContainer = previewContainer || altContainer;
     if (!targetContainer) return;
-
     let hoverTimer = null;
-
     targetContainer.addEventListener("mouseenter", (e) => {
       clearTimeout(this.hideTimeout);
       clearTimeout(hoverTimer);
@@ -58,7 +57,6 @@ export class PreviewTooltip {
         this.show(targetContainer);
       }, 300);
     });
-
     targetContainer.addEventListener("mouseleave", () => {
       clearTimeout(hoverTimer);
       clearTimeout(this.showTimeout);
@@ -83,8 +81,8 @@ export class PreviewTooltip {
   }
 
   getCurrentFile() {
-    if (window.universalPlayerInstance?.core?.currentFile) {
-      return window.universalPlayerInstance.core.currentFile;
+    if (this.core && this.core.currentFile) {
+      return this.core.currentFile;
     }
     const trackName = this.dom.get("universalBottomTrackName");
     const previewImg = this.dom.get("universalBottomPreviewImg");
