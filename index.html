@@ -391,25 +391,34 @@
         </div>
       </div>
     </div>
-    <script type="module" src="js/modules/delete-dialog.js"></script>
-    <script type="module" src="js/core/event-bus.js"></script>
-    <script type="module" src="js/services/api-client.js"></script>
-    <script type="module" src="js/services/music-api-client.js"></script>
-    <script type="module" src="js/modules/track.js"></script>
-    <script type="module" src="js/modules/refresh-manager.js"></script>
-    <script type="module" src="js/modules/confirm-dialog.js"></script>
-    <script type="module" src="js/modules/delete-dialog.js"></script>
-    <script type="module" src="js/modules/tag-editor/index.js"></script>
-    <script type="module" src="js/modules/navigation-manager.js"></script>
-    <script type="module" src="js/ui/album-card.js"></script>
-    <script type="module" src="js/ui/playlist-popup/index.js"></script>
-    <script type="module" src="js/modules/album.js"></script>
-    <script type="module" src="js/ui/universal-player/index.js"></script>
-    <script type="module" src="js/modules/video-library/index.js"></script>
-    <script type="module" src="js/modules/power-management/index.js"></script>
-    <script type="module" src="js/ui/album-library/index.js"></script>
-    <script type="module" src="js/ui/album-modal/index.js"></script>
-    <script type="module" src="js/ui/track-list.js"></script>
-    <script type="module" src="js/main.js"></script>
+    <script type="module">
+      import "./js/core/event-bus.js";
+      import { AppCore } from "./js/core/AppCore.js";
+      import "./js/services/RefreshManager.js";
+      import "./js/services/PlaybackManager.js";
+      import "./js/services/TrackMetadataHelper.js";
+      import "./js/modules/albums/AlbumLibrary.js";
+      import "./js/modules/albums/AlbumCard.js";
+      import "./js/modules/albums/TrackList.js";
+      import "./js/modules/albums/SearchPopup.js";
+      import "./js/modules/dialogs/confirm-dialog.js";
+      import "./js/modules/dialogs/delete-dialog.js";
+      import "./js/modules/player/UniversalPlayer.js";
+      import "./js/modules/player/MediaPlaybackController.js";
+      import "./js/modules/tag-editor/index.js";
+      import "./js/modules/videos/VideoLibrary.js";
+      import "./js/modules/power-management/index.js";
+      import "./js/ui/UIManager.js";
+      import "./js/ui/components/PlaylistPopup.js";
+      import "./js/ui/components/PlaylistRenderer.js";
+      import "./js/navigation/NavigationManager.js";
+      import "./js/navigation/Router.js";
+      import "./js/pages/AudioPageManager.js";
+      import "./js/pages/VideoPageManager.js";
+      import "./js/pages/PowerPageManager.js";
+      document.addEventListener("DOMContentLoaded", () => {
+        console.log("Media Center initialized with new structure");
+      });
+    </script>
   </body>
 </html>
