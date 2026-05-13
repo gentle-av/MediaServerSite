@@ -1,6 +1,4 @@
 import { MediaPlaybackController } from "./MediaPlaybackController.js";
-import { VideoPlaybackStarter } from "./VideoPlaybackStarter.js";
-import { AudioPlaybackStarter } from "./AudioPlaybackStarter.js";
 import { PlaybackCoordinator } from "./PlaybackCoordinator.js";
 
 export class PlayerMediaHandler {
@@ -18,19 +16,6 @@ export class PlayerMediaHandler {
       onShow,
       onStop,
     );
-    this.videoStarter = new VideoPlaybackStarter(
-      api,
-      core,
-      uiUpdater,
-      progress,
-      onShow,
-    );
-    this.audioStarter = new AudioPlaybackStarter(
-      api,
-      core,
-      uiUpdater,
-      progress,
-    );
     this.coordinator = new PlaybackCoordinator(
       api,
       core,
@@ -39,9 +24,9 @@ export class PlayerMediaHandler {
       onShow,
       onStop,
     );
-    this.coordinator.setVideoStarter(this.videoStarter);
-    this.coordinator.setAudioStarter(this.audioStarter);
+    this.coordinator.initStrategies();
     this.coordinator.setController(this.controller);
+    this.controller.setProgress(progress);
   }
 
   stopAudio() {
@@ -93,7 +78,7 @@ export class PlayerMediaHandler {
   }
 
   setForceRefreshVideo(fn) {
-    this.videoStarter.setForceRefreshVideo(fn);
+    this.coordinator.setVideoForceRefresh(fn);
   }
 
   setForceRefresh(fn) {
@@ -102,5 +87,13 @@ export class PlayerMediaHandler {
 
   forceRefreshPlayback(path) {
     this.controller.forceRefreshPlayback(path);
+  }
+
+  async restoreFromState() {
+    return this.controller.restoreFromState();
+  }
+
+  getCurrentStrategy() {
+    return this.coordinator.getCurrentStrategy();
   }
 }

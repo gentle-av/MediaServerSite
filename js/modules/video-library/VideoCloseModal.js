@@ -13,6 +13,9 @@ export class VideoCloseModal {
     this.events.on("video:close", (videoPath) => {
       this.show(videoPath);
     });
+    this.events.on("video:requestClose", (videoPath) => {
+      this.show(videoPath);
+    });
   }
 
   show(videoPath) {

@@ -81,10 +81,10 @@ export class UniversalPlayer {
         this.videoCloseModal
       ) {
         const result = await this.videoCloseModal.show(this.core.currentFile);
-        if (result && result.action === "delete") {
+        if (result?.action === "delete") {
           await this.lifecycle.deleteCurrentVideo();
           this.hide();
-        } else if (result && result.action === "close") {
+        } else if (result?.action === "close") {
           await this.mediaHandler.stop(true);
           this.hide();
         }
@@ -103,9 +103,8 @@ export class UniversalPlayer {
     );
     this.mediaHandler.setOnHide(() => this.hide());
     this.mediaHandler.setForceRefreshVideo(() => this.lifecycle.refreshVideo());
-    if (this.videoCloseModal) {
+    if (this.videoCloseModal)
       this.mediaHandler.setVideoCloseModal(this.videoCloseModal);
-    }
     this.dom.ensureOutputButtons();
     this.eventHandler = new PlayerEventHandler(
       this.mediaHandler,
@@ -162,140 +161,116 @@ export class UniversalPlayer {
   }
 
   async checkAndRestorePlayback() {
-    if (this.stateRestorer) {
-      await this.stateRestorer.checkAndRestore();
-    }
+    if (this.stateRestorer) await this.stateRestorer.checkAndRestore();
   }
 
   show() {
-    if (this.visibility) {
-      this.visibility.show();
-    } else if (this.dom && this.core.hasActiveFile()) {
-      this.dom.show();
-    }
+    this.visibility?.show() ?? this.dom?.show();
   }
 
   hide() {
-    if (this.visibility) {
-      this.visibility.hide();
-    } else if (this.dom) {
-      this.dom.hide();
-    }
+    this.visibility?.hide() ?? this.dom?.hide();
   }
 
   toggleMinimize() {
-    if (this.visibility) {
-      this.visibility.toggleMinimize();
-    }
+    this.visibility?.toggleMinimize();
   }
 
   toggleSettings() {
-    if (this.visibility) {
-      this.visibility.toggleSettings();
-    }
+    this.visibility?.toggleSettings();
   }
 
   clearState() {
-    if (this.apiBridge) {
-      this.apiBridge.clearState();
-    } else if (this.lifecycle) {
-      this.lifecycle.clearState();
-    }
+    if (this.apiBridge) this.apiBridge.clearState();
+    else if (this.lifecycle) this.lifecycle.clearState();
     this.hide();
   }
 
   destroy() {
-    if (this.polling) this.polling.stop();
-    if (this.volume) this.volume.stopPolling();
-    if (this.output) this.output.stopPolling();
-    if (this.eventSubscriber) this.eventSubscriber.unsubscribe();
-    if (this.previewTooltip) this.previewTooltip.destroy();
-    if (this.core) this.core.destroy();
+    this.polling?.stop();
+    this.volume?.stopPolling();
+    this.output?.stopPolling();
+    this.eventSubscriber?.unsubscribe();
+    this.previewTooltip?.destroy();
+    this.core?.destroy();
   }
 
   getVideoStatus() {
-    return this.apiBridge
-      ? this.apiBridge.getVideoStatus()
-      : this.api.getVideoStatus();
+    return this.apiBridge?.getVideoStatus() ?? this.api.getVideoStatus();
   }
 
   getAudioPlaybackState() {
-    return this.apiBridge
-      ? this.apiBridge.getAudioPlaybackState()
-      : this.api.getAudioPlaybackState();
+    return (
+      this.apiBridge?.getAudioPlaybackState() ??
+      this.api.getAudioPlaybackState()
+    );
   }
 
   getAudioCurrentTime() {
-    return this.apiBridge
-      ? this.apiBridge.getAudioCurrentTime()
-      : this.api.getAudioCurrentTime();
+    return (
+      this.apiBridge?.getAudioCurrentTime() ?? this.api.getAudioCurrentTime()
+    );
   }
 
   getFileMetadata(path) {
-    return this.apiBridge
-      ? this.apiBridge.getFileMetadata(path)
-      : this.api.getFileMetadata(path);
+    return (
+      this.apiBridge?.getFileMetadata(path) ?? this.api.getFileMetadata(path)
+    );
   }
 
   getAlbumCover(path, title, artist) {
-    return this.apiBridge
-      ? this.apiBridge.getAlbumCover(path, title, artist)
-      : this.api.getAlbumCover(path, title, artist);
+    return (
+      this.apiBridge?.getAlbumCover(path, title, artist) ??
+      this.api.getAlbumCover(path, title, artist)
+    );
   }
 
   closeVideo() {
-    return this.apiBridge ? this.apiBridge.closeVideo() : this.api.closeVideo();
+    return this.apiBridge?.closeVideo() ?? this.api.closeVideo();
   }
 
   openFile(path) {
-    return this.apiBridge
-      ? this.apiBridge.openFile(path)
-      : this.api.openFile(path);
+    return this.apiBridge?.openFile(path) ?? this.api.openFile(path);
   }
 
   controlVideo(command) {
-    return this.apiBridge
-      ? this.apiBridge.controlVideo(command)
-      : this.api.controlVideo(command);
+    return (
+      this.apiBridge?.controlVideo(command) ?? this.api.controlVideo(command)
+    );
   }
 
   seekVideo(time) {
-    return this.apiBridge
-      ? this.apiBridge.seekVideo(time)
-      : this.api.seekVideo(time);
+    return this.apiBridge?.seekVideo(time) ?? this.api.seekVideo(time);
   }
 
   audioPlay() {
-    return this.apiBridge ? this.apiBridge.audioPlay() : this.api.audioPlay();
+    return this.apiBridge?.audioPlay() ?? this.api.audioPlay();
   }
 
   audioPause() {
-    return this.apiBridge ? this.apiBridge.audioPause() : this.api.audioPause();
+    return this.apiBridge?.audioPause() ?? this.api.audioPause();
   }
 
   audioStop() {
-    return this.apiBridge ? this.apiBridge.audioStop() : this.api.audioStop();
+    return this.apiBridge?.audioStop() ?? this.api.audioStop();
   }
 
   audioNext() {
-    return this.apiBridge ? this.apiBridge.audioNext() : this.api.audioNext();
+    return this.apiBridge?.audioNext() ?? this.api.audioNext();
   }
 
   audioPrevious() {
-    return this.apiBridge
-      ? this.apiBridge.audioPrevious()
-      : this.api.audioPrevious();
+    return this.apiBridge?.audioPrevious() ?? this.api.audioPrevious();
   }
 
   audioSeek(time) {
-    return this.apiBridge
-      ? this.apiBridge.audioSeek(time)
-      : this.api.audioSeek(time);
+    return this.apiBridge?.audioSeek(time) ?? this.api.audioSeek(time);
   }
 
   getVideoThumbnail(path) {
-    return this.apiBridge
-      ? this.apiBridge.getVideoThumbnail(path)
-      : this.api.getVideoThumbnail(path);
+    return (
+      this.apiBridge?.getVideoThumbnail(path) ??
+      this.api.getVideoThumbnail(path)
+    );
   }
 }

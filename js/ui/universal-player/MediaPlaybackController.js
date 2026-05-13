@@ -6,28 +6,35 @@ export class MediaPlaybackController {
     this.onShow = onShow;
     this.onStop = onStop;
     this.onHide = null;
+    this.progress = null;
+    this.strategy = null;
+    this.videoCloseModal = null;
   }
 
   setOnHide(callback) {
     this.onHide = callback;
   }
 
+  setProgress(progress) {
+    this.progress = progress;
+  }
+
+  setStrategy(strategy) {
+    this.strategy = strategy;
+  }
+
+  setVideoCloseModal(modal) {
+    this.videoCloseModal = modal;
+  }
+
   async stop(keepState = false) {
-    if (this.core.isVideo()) {
-      await this.api.closeVideo();
-    } else {
-      await this.api.audioStop();
-    }
+    if (this.strategy) await this.strategy.stop();
     if (!keepState) {
       this.core.reset();
       this.uiUpdater.reset();
       this.uiUpdater.updateFullscreenButtonVisibility(null);
-      if (this.onHide) {
-        this.onHide();
-      }
-      if (this.onStop) {
-        this.onStop();
-      }
+      if (this.onHide) this.onHide();
+      if (this.onStop) this.onStop();
     }
   }
 
@@ -36,104 +43,19 @@ export class MediaPlaybackController {
   }
 
   async togglePlayPause() {
-    if (this.core.isVideo()) {
-      await this._toggleVideoPlayPause();
-    } else {
-      await this._toggleAudioPlayPause();
-    }
-  }
-
-  async _toggleVideoPlayPause() {
-    if (!this.core.hasActiveFile()) {
-      Utils.showNotification("Нет активного видео", "info");
-      return;
-    }
-    const status = await this.api.getVideoStatus();
-    if (!status.success || status.reason === "process_dead") {
-      Utils.showNotification(
-        "Видео не загружено или процесс завершён",
-        "error",
-      );
-      return;
-    }
-    const command = this.core.isPlaying ? "pause" : "play";
-    const response = await this.api.controlVideo(command);
-    if (response.success) {
-      this.core.setPlaying(!this.core.isPlaying, true);
-      this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
-    } else {
-      Utils.showNotification("Ошибка управления видео", "error");
-    }
-  }
-
-  async _toggleAudioPlayPause() {
-    const state = await this.api.getAudioPlaybackState();
-    if (state?.success && state.totalTracks > 0) {
-      if (this.core.isPlaying) {
-        await this.api.audioPause();
-      } else {
-        await this.api.audioPlay();
-      }
-      this.core.setPlaying(!this.core.isPlaying);
-      this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
-    } else {
-      Utils.showNotification("Плейлист пуст", "info");
-    }
+    if (this.strategy) await this.strategy.togglePlayPause();
   }
 
   async seek(time) {
-    if (this.core.isVideo()) {
-      const response = await this.api.seekVideo(time);
-      if (response.success) {
-        this.progress.update(response.time, this.progress.duration);
-      } else {
-        Utils.showNotification("Ошибка перемотки", "error");
-      }
-    } else {
-      await this.api.audioSeek(time);
-      this.progress.update(time, this.progress.duration);
-    }
+    if (this.strategy) await this.strategy.seek(time);
   }
 
   async previous() {
-    if (this.core.isVideo()) {
-      await this._seekRelative(-10);
-    } else {
-      await this.api.audioPrevious();
-    }
+    if (this.strategy) await this.strategy.previous();
   }
 
   async next() {
-    if (this.core.isVideo()) {
-      await this._seekRelative(10);
-    } else {
-      await this.api.audioNext();
-    }
-  }
-
-  async _seekRelative(seconds) {
-    if (!this.core.hasActiveFile()) {
-      Utils.showNotification("Нет активного медиа", "info");
-      return;
-    }
-    const status = await this.api.getVideoStatus();
-    let currentTime = 0;
-    let duration = 0;
-    if (status?.data) {
-      currentTime = status.data.currentTime || 0;
-      duration = status.data.duration || 0;
-    } else if (status?.currentTime !== undefined) {
-      currentTime = status.currentTime || 0;
-      duration = status.duration || 0;
-    }
-    let newTime = currentTime + seconds;
-    newTime = Math.max(0, Math.min(newTime, duration));
-    const response = await this.api.seekVideo(newTime);
-    if (response.success) {
-      this.progress.update(newTime, duration);
-    } else {
-      Utils.showNotification("Ошибка перемотки", "error");
-    }
+    if (this.strategy) await this.strategy.next();
   }
 
   async fullscreen() {
@@ -149,14 +71,6 @@ export class MediaPlaybackController {
     }
   }
 
-  setProgress(progress) {
-    this.progress = progress;
-  }
-
-  setVideoCloseModal(modal) {
-    this.videoCloseModal = modal;
-  }
-
   forceRefreshPlayback(path) {
     this.core.setCurrentFile(path);
     this.core.setMediaType("audio");
@@ -164,12 +78,23 @@ export class MediaPlaybackController {
     this.uiUpdater.updateFileInfo(path);
     this.uiUpdater.updatePlayPauseButton(true);
     this.onShow?.();
-    if (this._forceRefresh) {
-      this._forceRefresh();
-    }
+    if (this._forceRefresh) this._forceRefresh();
   }
 
   setForceRefresh(fn) {
     this._forceRefresh = fn;
+  }
+
+  async restoreFromState() {
+    const status = await this.strategy?.getStatus();
+    if (status?.success && status.currentFile) {
+      this.core.setCurrentFile(status.currentFile);
+      this.core.setPlaying(!status.paused);
+      this.uiUpdater.updateFileInfo(status.currentFile);
+      this.uiUpdater.updatePlayPauseButton(!status.paused);
+      this.strategy?.updateUI();
+      return true;
+    }
+    return false;
   }
 }

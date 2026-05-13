@@ -1,3 +1,8 @@
+import {
+  VideoPlaybackStrategy,
+  AudioPlaybackStrategy,
+} from "./strategies/index.js";
+
 export class PlaybackCoordinator {
   constructor(api, core, uiUpdater, progress, onShow, onStop) {
     this.api = api;
@@ -6,17 +11,22 @@ export class PlaybackCoordinator {
     this.progress = progress;
     this.onShow = onShow;
     this.onStop = onStop;
-    this.videoStarter = null;
-    this.audioStarter = null;
+    this.videoStrategy = null;
+    this.audioStrategy = null;
     this.controller = null;
+    this.currentStrategy = null;
   }
 
-  setVideoStarter(videoStarter) {
-    this.videoStarter = videoStarter;
-  }
-
-  setAudioStarter(audioStarter) {
-    this.audioStarter = audioStarter;
+  initStrategies() {
+    this.videoStrategy = new VideoPlaybackStrategy(this.api);
+    this.videoStrategy.setCore(this.core);
+    this.videoStrategy.setUIUpdater(this.uiUpdater);
+    this.videoStrategy.setProgress(this.progress);
+    this.videoStrategy.setOnShow(this.onShow);
+    this.audioStrategy = new AudioPlaybackStrategy(this.api);
+    this.audioStrategy.setCore(this.core);
+    this.audioStrategy.setUIUpdater(this.uiUpdater);
+    this.audioStrategy.setProgress(this.progress);
   }
 
   setController(controller) {
@@ -34,17 +44,16 @@ export class PlaybackCoordinator {
       this.core.mediaType !== type &&
       this.core.hasActiveFile()
     ) {
-      await this.controller.stop();
+      await this.controller?.stop();
     }
     this.core.setMediaType(type);
     this.core.setCurrentFile(path);
     this.uiUpdater.updateFileInfo(path);
     this.uiUpdater.updateMediaIcon(type);
-    if (type === "video") {
-      await this.videoStarter.start(path);
-    } else {
-      await this.audioStarter.start(path);
-    }
+    this.currentStrategy =
+      type === "video" ? this.videoStrategy : this.audioStrategy;
+    this.controller?.setStrategy(this.currentStrategy);
+    await this.currentStrategy.start(path);
     this.core.setMediaType(type);
   }
 
@@ -53,9 +62,7 @@ export class PlaybackCoordinator {
     if (settings) {
       settings.classList.toggle("collapsed");
       const toggle = document.getElementById("universalBottomSettingsToggle");
-      if (toggle) {
-        toggle.classList.toggle("collapsed");
-      }
+      if (toggle) toggle.classList.toggle("collapsed");
     }
   }
 
@@ -70,5 +77,13 @@ export class PlaybackCoordinator {
           : '<i class="fas fa-chevron-down"></i>';
       }
     }
+  }
+
+  getCurrentStrategy() {
+    return this.currentStrategy;
+  }
+
+  setVideoForceRefresh(fn) {
+    this.videoStrategy?.setForceRefresh(fn);
   }
 }

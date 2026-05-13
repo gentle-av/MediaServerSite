@@ -23,19 +23,15 @@ export class PlaybackStateRestorer {
     this._restored = true;
     try {
       const videoStatus = await this.api.getVideoStatus();
-      if (videoStatus && videoStatus.success && videoStatus.currentFile) {
+      if (videoStatus?.success && videoStatus.currentFile) {
         await this.lifecycle.checkExistingPlayback("video");
-        if (this.onRestoreComplete) {
-          this.onRestoreComplete();
-        }
+        if (this.onRestoreComplete) this.onRestoreComplete();
         return;
       }
       const playlistData = await this.api.api.get("/api/audio/getPlaylist");
-      if (playlistData && playlistData.data && playlistData.data.length > 0) {
+      if (playlistData?.data?.length > 0) {
         await this._restoreFromPlaylist(playlistData.data);
-        if (this.onRestoreComplete) {
-          this.onRestoreComplete();
-        }
+        if (this.onRestoreComplete) this.onRestoreComplete();
         return;
       }
     } catch (error) {}
@@ -54,10 +50,10 @@ export class PlaybackStateRestorer {
     this.uiUpdater.updatePlayPauseButton(true);
     this.uiUpdater.updateFullscreenButtonVisibility("audio");
     const metadata = await this.api.getFileMetadata(trackPath);
-    let artist = "";
-    let title = "";
-    let coverUrl = null;
-    if (metadata && metadata.data) {
+    let artist = "",
+      title = "",
+      coverUrl = null;
+    if (metadata?.data) {
       if (metadata.data.file) {
         artist = metadata.data.file.artist || "";
         title = metadata.data.file.title || "";
@@ -84,12 +80,7 @@ export class PlaybackStateRestorer {
     }
     setTimeout(async () => {
       const timeInfo = await this.api.getAudioCurrentTime();
-      if (
-        timeInfo &&
-        timeInfo.success &&
-        this.progress &&
-        this.progress.update
-      ) {
+      if (timeInfo?.success && this.progress?.update) {
         this.progress.update(timeInfo.currentTime || 0, timeInfo.duration || 0);
       }
     }, 500);
