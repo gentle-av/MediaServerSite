@@ -19,6 +19,16 @@
   -ms-user-select: none;
 }
 
+.data-track-index,
+.track-number,
+.track-name,
+.track-duration {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
 .album-card * {
   user-select: none;
   -webkit-user-select: none;
