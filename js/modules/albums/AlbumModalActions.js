@@ -13,19 +13,30 @@ export class AlbumModalActions {
     if (existingActions) existingActions.remove();
     const actionsDiv = document.createElement("div");
     actionsDiv.className = "modal-album-actions";
-    actionsDiv.style.cssText =
-      "display: flex; gap: 12px; padding: 16px; border-bottom: 1px solid var(--bg3); background: var(--bg2); flex-wrap: wrap;";
+    const isMobile = window.innerWidth <= 768;
+    let playBtnStyle, addBtnStyle, editBtnStyle;
+    if (isMobile) {
+      playBtnStyle = `width: calc(50% - 5px); flex: none; padding: 12px; background: var(--yellow); color: var(--bg0); border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;`;
+      addBtnStyle = `width: calc(50% - 5px); flex: none; padding: 12px; background: var(--bg2); color: var(--fg1); border: 1px solid var(--bg3); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;`;
+      editBtnStyle = `width: 100%; flex: none; padding: 12px; background: var(--bg2); color: var(--fg1); border: 1px solid var(--bg3); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease; margin-top: 0;`;
+      actionsDiv.style.cssText = `display: flex; flex-direction: row; flex-wrap: wrap; gap: 10px; padding: 12px; border-bottom: 1px solid var(--bg3); background: var(--bg2);`;
+    } else {
+      playBtnStyle = `flex: 1; padding: 10px; background: var(--yellow); color: var(--bg0); border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;`;
+      addBtnStyle = `flex: 1; padding: 10px; background: var(--bg2); color: var(--fg1); border: 1px solid var(--bg3); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;`;
+      editBtnStyle = `flex: 0.5; padding: 10px; background: var(--bg2); color: var(--fg1); border: 1px solid var(--bg3); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;`;
+      actionsDiv.style.cssText = `display: flex; gap: 12px; padding: 16px; border-bottom: 1px solid var(--bg3); background: var(--bg2); flex-wrap: wrap;`;
+    }
     actionsDiv.innerHTML = `
-      <button class="modal-play-btn" style="flex: 1; padding: 10px; background: var(--yellow); color: var(--bg0); border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;">
-        <i class="fas fa-play"></i> Воспроизвести альбом
-      </button>
-      <button class="modal-add-btn" style="flex: 1; padding: 10px; background: var(--bg2); color: var(--fg1); border: 1px solid var(--bg3); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;">
-        <i class="fas fa-plus"></i> Добавить в плейлист
-      </button>
-      <button class="modal-edit-album-btn" style="flex: 0.5; padding: 10px; background: var(--bg2); color: var(--fg1); border: 1px solid var(--bg3); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s ease;">
-        <i class="fas fa-pen"></i> Редактировать
-      </button>
-    `;
+    <button class="modal-play-btn" style="${playBtnStyle}">
+      <i class="fas fa-play"></i> Воспроизвести альбом
+    </button>
+    <button class="modal-add-btn" style="${addBtnStyle}">
+      <i class="fas fa-plus"></i> Добавить в плейлист
+    </button>
+    <button class="modal-edit-album-btn" style="${editBtnStyle}">
+      <i class="fas fa-pen"></i> Редактировать
+    </button>
+  `;
     modalBody?.insertBefore(actionsDiv, modalBody.firstChild);
     this._attachPlayButton(actionsDiv, album);
     this._attachAddButton(actionsDiv, album);

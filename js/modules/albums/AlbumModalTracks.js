@@ -31,6 +31,12 @@ export class AlbumModalTracks {
     }
   }
 
+  _formatDuration(seconds) {
+    if (!seconds || seconds <= 0) return "";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  }
   async render(album, force = false) {
     if (!this.container) return;
     if (album.tracks && album.tracks.length > 0 && !force) {
@@ -41,6 +47,8 @@ export class AlbumModalTracks {
           this._onEditTrack.bind(this),
           this.universalPlayer,
         );
+      } else {
+        this._renderTracksDirect(album);
       }
       return;
     }
@@ -63,6 +71,7 @@ export class AlbumModalTracks {
           displayName:
             track.title || track.name || this._extractNameFromPath(track.path),
           trackNumber: track.track || idx + 1,
+          displayDuration: this._formatDuration(track.duration), // Добавляем форматированную длительность
         }));
         album.tracks = normalizedTracks;
         album.coverUrl = coverUrl;
@@ -73,13 +82,65 @@ export class AlbumModalTracks {
             this._onEditTrack.bind(this),
             this.universalPlayer,
           );
+        } else {
+          this._renderTracksDirect(album);
         }
       } catch (error) {
+        console.error("Error loading tracks:", error);
         this.showError();
       }
     } else {
       this.showEmpty();
     }
+  }
+
+  _renderTracksDirect(album) {
+    if (!this.container || !album.tracks) return;
+    this.container.innerHTML = album.tracks
+      .map((track, idx) => {
+        const trackTitle = track.displayName || track.title || "Unknown";
+        const duration =
+          track.displayDuration || this._formatDuration(track.duration);
+        return `
+          <div class="track-item" data-track-index="${idx}">
+            <span class="track-number">${(idx + 1).toString().padStart(2, "0")}</span>
+            <span class="track-name" title="${this._escape(trackTitle)}">${this._escape(trackTitle)}</span>
+            <span class="track-duration">${duration || ""}</span>
+            <div class="track-actions">
+              <button class="track-play-btn" data-index="${idx}" title="Воспроизвести">
+                <i class="fas fa-play"></i>
+              </button>
+              <button class="track-edit-btn" data-index="${idx}" title="Редактировать метаданные">
+                <i class="fas fa-edit"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    this._attachDirectEvents(album);
+  }
+
+  _attachDirectEvents(album) {
+    this.container.querySelectorAll(".track-play-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const index = parseInt(btn.dataset.index);
+        const track = album.tracks[index];
+        if (this.universalPlayer && track && track.path) {
+          this.universalPlayer.startPlayback(track.path, "audio");
+        }
+      });
+    });
+    this.container.querySelectorAll(".track-edit-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const index = parseInt(btn.dataset.index);
+        const track = album.tracks[index];
+        this._onEditTrack(track, album);
+      });
+    });
   }
 
   _onEditTrack(track, album) {
@@ -110,5 +171,12 @@ export class AlbumModalTracks {
     if (!path) return "Без названия";
     const fileName = path.split("/").pop();
     return fileName.replace(/\.(flac|mp3|m4a|wav)$/i, "");
+  }
+
+  _escape(str) {
+    if (!str) return "";
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
   }
 }

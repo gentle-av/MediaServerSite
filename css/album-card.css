@@ -41,6 +41,7 @@
   user-select: text;
   -webkit-user-select: text;
 }
+
 @media (max-width: 768px) {
   .albums-grid {
     grid-template-columns: 1fr;
@@ -447,5 +448,189 @@
 
   .album-swipe-delete-container .album-card {
     margin: 0;
+  }
+}
+
+.track-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--bg3);
+  transition: background 0.2s ease;
+}
+
+.track-item:hover {
+  background: var(--bg2);
+}
+
+.track-number {
+  min-width: 32px;
+  color: var(--fg3);
+  font-size: 0.85rem;
+}
+
+.track-name {
+  flex: 1;
+  color: var(--fg0);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-duration {
+  color: var(--fg3);
+  font-size: 0.8rem;
+  font-family: monospace;
+  margin-left: auto;
+  margin-right: 16px;
+}
+
+.track-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.track-play-btn,
+.track-edit-btn {
+  background: var(--bg2);
+  border: none;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: var(--fg1);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.track-play-btn:hover,
+.track-edit-btn:hover {
+  background: var(--yellow);
+  color: var(--bg0);
+  transform: scale(1.05);
+}
+
+.modal-album-actions {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--bg3);
+  background: var(--bg2);
+  flex-wrap: wrap;
+}
+
+.modal-play-btn,
+.modal-add-btn,
+.modal-edit-album-btn {
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.modal-play-btn {
+  flex: 1;
+  background: var(--yellow);
+  color: var(--bg0);
+  border: none;
+}
+
+.modal-add-btn {
+  flex: 1;
+  background: var(--bg2);
+  color: var(--fg1);
+  border: 1px solid var(--bg3);
+}
+
+.modal-edit-album-btn {
+  flex: 0.5;
+  background: var(--bg2);
+  color: var(--fg1);
+  border: 1px solid var(--bg3);
+}
+
+@media (max-width: 768px) {
+  .modal-album-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .modal-play-btn,
+  .modal-add-btn {
+    flex: none;
+    width: calc(50% - 5px);
+  }
+
+  .modal-edit-album-btn {
+    flex: none;
+    width: 100%;
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-album-actions {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .modal-play-btn,
+  .modal-add-btn,
+  .modal-edit-album-btn {
+    padding: 10px;
+    font-size: 0.85rem;
+  }
+
+  .modal-play-btn i,
+  .modal-add-btn i,
+  .modal-edit-album-btn i {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .track-duration {
+    margin-right: 12px;
+  }
+
+  .track-actions {
+    gap: 8px;
+  }
+
+  .track-play-btn,
+  .track-edit-btn {
+    padding: 8px 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .track-duration {
+    margin-right: 8px;
+    font-size: 0.7rem;
+  }
+
+  .track-actions {
+    gap: 4px;
+  }
+
+  .track-play-btn,
+  .track-edit-btn {
+    padding: 4px 6px;
+  }
+
+  .track-play-btn i,
+  .track-edit-btn i {
+    font-size: 0.8rem;
   }
 }
