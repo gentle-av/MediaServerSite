@@ -37,6 +37,8 @@
   transition: all 0.2s ease;
   font-size: 13px;
   flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .breadcrumb-root:hover,
@@ -95,6 +97,13 @@
   transition: all 0.2s ease;
   position: relative;
   overflow: visible;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.item-card * {
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .item-card:hover {

@@ -13,8 +13,24 @@
   padding: 0;
   -webkit-tap-highlight-color: transparent;
   touch-action: pan-y pinch-zoom;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
+.album-card * {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.album-card input,
+.album-card textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
 @media (max-width: 768px) {
   .albums-grid {
     grid-template-columns: 1fr;
@@ -323,6 +339,7 @@
     gap: 14px;
     padding: 12px;
   }
+
   .album-card {
     flex-direction: row;
     align-items: center;
@@ -337,19 +354,23 @@
     z-index: 2;
     margin: 0;
   }
+
   .album-card.swipe-left {
     transform: translateX(-80px);
   }
+
   .album-card-art {
     width: 90px;
     height: 90px;
     flex-shrink: 0;
     border-radius: var(--radius-md);
   }
+
   .album-card-info {
     padding: 0;
     flex: 1;
   }
+
   .album-card-title {
     font-size: 1rem;
     white-space: normal;
@@ -359,6 +380,7 @@
     display: block;
     -webkit-line-clamp: unset;
   }
+
   .album-card-artist {
     font-size: 0.85rem;
     white-space: normal;
@@ -366,18 +388,22 @@
     overflow-wrap: break-word;
     word-break: break-word;
   }
+
   .album-card-meta {
     margin-top: 4px;
   }
+
   .album-delete-btn {
     display: none;
   }
+
   .album-swipe-delete-container {
     position: relative;
     width: 100%;
     margin-bottom: 14px;
     overflow: visible;
   }
+
   .album-swipe-delete-container .album-swipe-delete-btn {
     display: flex;
     position: absolute;
@@ -399,13 +425,16 @@
     transition: all 0.2s ease;
     z-index: 1;
   }
+
   .album-swipe-delete-container .album-swipe-delete-btn i {
     font-size: 28px;
     margin-bottom: 4px;
   }
+
   .album-swipe-delete-container .album-swipe-delete-btn:active {
     transform: scale(0.97);
   }
+
   .album-swipe-delete-container .album-card {
     margin: 0;
   }
