@@ -3,6 +3,7 @@ export class AlbumLibrarySearch {
     this.state = state;
     this.renderer = renderer;
     this._currentTerm = "";
+    this._searchTimeout = null;
   }
 
   _applyFilter() {
@@ -39,8 +40,11 @@ export class AlbumLibrarySearch {
   }
 
   search(term) {
+    if (this._searchTimeout) clearTimeout(this._searchTimeout);
     this.renderer.closeAllSwipes();
     this._currentTerm = term;
-    this._applyFilter();
+    this._searchTimeout = setTimeout(() => {
+      this._applyFilter();
+    }, 300);
   }
 }

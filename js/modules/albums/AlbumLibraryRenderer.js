@@ -6,6 +6,8 @@ export class AlbumLibraryRenderer {
     this.events = events;
     this.state = state;
     this._scrollPosition = 0;
+    this._renderedCount = 0;
+    this.VISUAL_BUFFER = 50;
   }
 
   showLoading() {
@@ -56,9 +58,9 @@ export class AlbumLibraryRenderer {
   restoreScrollPosition() {
     const scrollable = document.getElementById("scrollableContent");
     if (scrollable && this._scrollPosition > 0) {
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         scrollable.scrollTop = this._scrollPosition;
-      }, 50);
+      });
     }
   }
 
@@ -81,16 +83,21 @@ export class AlbumLibraryRenderer {
       ".album-swipe-delete-container",
     );
     const existingCount = existingCards.length;
-    const newAlbums = this.state.filteredAlbums.slice(existingCount);
-    for (const album of newAlbums) {
+    const albumsToRender = this.state.filteredAlbums.slice(
+      existingCount,
+      existingCount + this.VISUAL_BUFFER,
+    );
+    const fragment = document.createDocumentFragment();
+    for (const album of albumsToRender) {
       const card = new AlbumCard(album, this.events);
       const cardElement = card.render();
       if (album.id) {
         cardElement.setAttribute("data-album-id", album.id);
       }
-      this.container.appendChild(cardElement);
+      fragment.appendChild(cardElement);
       if (onCardRender) onCardRender(card);
     }
+    this.container.appendChild(fragment);
     this.showLoadingMore();
     this._fixScroll();
   }
@@ -108,6 +115,7 @@ export class AlbumLibraryRenderer {
     if (this.container) {
       this.container.innerHTML = "";
     }
+    this._renderedCount = 0;
   }
 
   closeAllSwipes() {
