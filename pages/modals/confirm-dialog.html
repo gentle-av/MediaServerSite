@@ -1,14 +1,19 @@
+<!-- pages/modals/confirm-dialog.html -->
 <div id="confirmDialog" class="confirm-dialog" style="display: none">
+  <div class="confirm-dialog-overlay"></div>
   <div class="confirm-dialog-content">
     <div class="confirm-dialog-header">
+      <i class="fas fa-power-off"></i>
       <h3 id="confirmTitle">Подтверждение</h3>
     </div>
     <div class="confirm-dialog-body">
       <p id="confirmMessage">Вы уверены?</p>
     </div>
-    <div class="confirm-dialog-footer">
-      <button id="confirmCancelBtn" class="confirm-btn cancel">Отмена</button>
-      <button id="confirmOkBtn" class="confirm-btn ok">OK</button>
+    <div class="confirm-dialog-buttons">
+      <button id="confirmCancelBtn" class="confirm-dialog-btn cancel">
+        Отмена
+      </button>
+      <button id="confirmOkBtn" class="confirm-dialog-btn confirm">OK</button>
     </div>
   </div>
 </div>

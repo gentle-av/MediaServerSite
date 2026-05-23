@@ -1,4 +1,3 @@
-// js/main/pages/VideoPageManager.js
 import { VideoLibrary } from "../modules/videos/VideoLibrary.js";
 
 export class VideoPageManager {

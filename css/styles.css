@@ -19,6 +19,7 @@
 @import "players/power-management.css";
 @import "modals/album-modal-header.css";
 @import "modals/album-tag-updater.css";
+@import "modals/confirm-dialog.css";
 @import "modals/tag-editor.css";
 @import "modals/video-close-modal.css";
 @import "modals/album-library-progress.css";
