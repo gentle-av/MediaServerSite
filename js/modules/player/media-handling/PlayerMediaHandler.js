@@ -1,6 +1,7 @@
 import { MediaPlaybackController } from "../MediaPlaybackController.js";
 import { PlaybackCoordinator } from "../playback/PlaybackCoordinator.js";
 import { AudioPlaybackStrategy } from "../strategies/AudioPlaybackStrategy.js";
+import { VideoPlaybackStrategy } from "../strategies/VideoPlaybackStrategy.js";
 
 export class PlayerMediaHandler {
   constructor(api, core, uiUpdater, progress, onShow, onStop) {
@@ -18,6 +19,7 @@ export class PlayerMediaHandler {
       onStop,
     );
     this.controller.setAudioPlaybackStrategyClass(AudioPlaybackStrategy);
+    this.controller.setVideoPlaybackStrategyClass(VideoPlaybackStrategy);
     this.coordinator = new PlaybackCoordinator(
       api,
       core,

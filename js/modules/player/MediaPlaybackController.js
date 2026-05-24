@@ -10,10 +10,15 @@ export class MediaPlaybackController {
     this.strategy = null;
     this.videoCloseModal = null;
     this.AudioPlaybackStrategy = null;
+    this.VideoPlaybackStrategy = null;
   }
 
   setAudioPlaybackStrategyClass(strategyClass) {
     this.AudioPlaybackStrategy = strategyClass;
+  }
+
+  setVideoPlaybackStrategyClass(strategyClass) {
+    this.VideoPlaybackStrategy = strategyClass;
   }
 
   setOnHide(callback) {
@@ -39,6 +44,19 @@ export class MediaPlaybackController {
       this.strategy.setCore(this.core);
       this.strategy.setUIUpdater(this.uiUpdater);
       this.strategy.setProgress(this.progress);
+      return true;
+    }
+    if (
+      this.core.hasActiveFile() &&
+      this.core.isVideo() &&
+      this.VideoPlaybackStrategy
+    ) {
+      this.strategy = new this.VideoPlaybackStrategy(this.api);
+      this.strategy.setCore(this.core);
+      this.strategy.setUIUpdater(this.uiUpdater);
+      this.strategy.setProgress(this.progress);
+      this.strategy.setOnShow(this.onShow);
+      this.strategy.setForceRefresh(this._forceRefresh);
       return true;
     }
     return false;
