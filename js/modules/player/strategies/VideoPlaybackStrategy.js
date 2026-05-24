@@ -40,7 +40,7 @@ export class VideoPlaybackStrategy extends PlaybackStrategy {
     await this.api.closeVideo();
     const response = await this.api.openFile(path);
     if (!response.success) {
-      Utils.showNotification(
+      this.uiUpdater.showNotification(
         response.error || "Ошибка воспроизведения",
         "error",
       );
@@ -60,12 +60,12 @@ export class VideoPlaybackStrategy extends PlaybackStrategy {
 
   async togglePlayPause() {
     if (!this.core.hasActiveFile()) {
-      Utils.showNotification("Нет активного видео", "info");
+      this.uiUpdater.showNotification("Нет активного видео", "info");
       return;
     }
     const status = await this.api.getVideoStatus();
     if (!status.success || status.reason === "process_dead") {
-      Utils.showNotification(
+      this.uiUpdater.showNotification(
         "Видео не загружено или процесс завершён",
         "error",
       );
@@ -77,7 +77,7 @@ export class VideoPlaybackStrategy extends PlaybackStrategy {
       this.core.setPlaying(!this.core.isPlaying, true);
       this.uiUpdater.updatePlayPauseButton(this.core.isPlaying);
     } else {
-      Utils.showNotification("Ошибка управления видео", "error");
+      this.uiUpdater.showNotification("Ошибка управления видео", "error");
     }
   }
 
@@ -86,7 +86,7 @@ export class VideoPlaybackStrategy extends PlaybackStrategy {
     if (response.success) {
       this.progress.update(response.time, this.progress.duration);
     } else {
-      Utils.showNotification("Ошибка перемотки", "error");
+      this.uiUpdater.showNotification("Ошибка перемотки", "error");
     }
   }
 
@@ -100,7 +100,7 @@ export class VideoPlaybackStrategy extends PlaybackStrategy {
 
   async _seekRelative(seconds) {
     if (!this.core.hasActiveFile()) {
-      Utils.showNotification("Нет активного медиа", "info");
+      this.uiUpdater.showNotification("Нет активного медиа", "info");
       return;
     }
     const status = await this.api.getVideoStatus();
@@ -111,7 +111,7 @@ export class VideoPlaybackStrategy extends PlaybackStrategy {
     if (response.success) {
       this.progress.update(newTime, duration);
     } else {
-      Utils.showNotification("Ошибка перемотки", "error");
+      this.uiUpdater.showNotification("Ошибка перемотки", "error");
     }
   }
 
