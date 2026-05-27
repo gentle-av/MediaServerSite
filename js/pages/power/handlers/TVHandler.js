@@ -1,7 +1,8 @@
 export class TVHandler {
-  constructor(tvService, tvStatusUI) {
+  constructor(tvService, tvStatusUI, eventEmitter = null) {
     this.tvService = tvService;
     this.tvStatusUI = tvStatusUI;
+    this.events = eventEmitter;
   }
 
   async toggle() {
@@ -16,6 +17,10 @@ export class TVHandler {
     } catch (error) {
       console.error("TV toggle error:", error);
       this.tvStatusUI.setStatusText("Ошибка");
+      this.events?.emit("notification:show", {
+        message: `Ошибка: ${error.message}`,
+        type: "error",
+      });
       throw error;
     }
   }

@@ -11,6 +11,8 @@ export class TVService {
         message: response.message || "Команда отправлена",
         type: "success",
       });
+    } else if (response && !response.success && response.message) {
+      console.warn("TV toggle warning:", response.message);
     } else {
       throw new Error(response?.message || "Ошибка");
     }
