@@ -2,14 +2,17 @@ import { DOMLoader } from "./power/components/DOMLoader.js";
 import { TVStatusUI } from "./power/components/TVStatusUI.js";
 import { VolumeUI } from "./power/components/VolumeUI.js";
 import { AudioOutputUI } from "./power/components/AudioOutputUI.js";
+import { MonitorUI } from "./power/components/MonitorUI.js";
 import { TVService } from "./power/services/TVService.js";
 import { ComputerService } from "./power/services/ComputerService.js";
 import { VolumeService } from "./power/services/VolumeService.js";
 import { AudioOutputService } from "./power/services/AudioOutputService.js";
+import { MonitorService } from "./power/services/MonitorService.js";
 import { TVHandler } from "./power/handlers/TVHandler.js";
 import { ComputerHandler } from "./power/handlers/ComputerHandler.js";
 import { VolumeHandler } from "./power/handlers/VolumeHandler.js";
 import { AudioOutputHandler } from "./power/handlers/AudioOutputHandler.js";
+import { MonitorHandler } from "./power/handlers/MonitorHandler.js";
 
 export class PowerPageManager {
   constructor(core) {
@@ -21,10 +24,12 @@ export class PowerPageManager {
     this.tvStatusUI = new TVStatusUI();
     this.volumeUI = new VolumeUI();
     this.audioOutputUI = new AudioOutputUI();
+    this.monitorUI = new MonitorUI();
     this.tvService = new TVService(core.api, core.events);
     this.computerService = new ComputerService(core.api);
     this.volumeService = new VolumeService(core.api);
     this.audioOutputService = new AudioOutputService(core.api);
+    this.monitorService = new MonitorService(core.api, core.events);
     this.tvHandler = new TVHandler(
       this.tvService,
       this.tvStatusUI,
@@ -39,6 +44,11 @@ export class PowerPageManager {
       this.audioOutputService,
       this.audioOutputUI,
     );
+    this.monitorHandler = new MonitorHandler(
+      this.monitorService,
+      this.monitorUI,
+      core.events,
+    );
   }
 
   async onPageLoaded() {
@@ -46,6 +56,7 @@ export class PowerPageManager {
     await this._loadInitialData();
     this._bindAllEvents();
     this._startTVStatusPolling();
+    this.monitorHandler.startPolling(5000);
     this._isInitialized = true;
   }
 
@@ -54,6 +65,7 @@ export class PowerPageManager {
       this.volumeHandler.load(),
       this.tvHandler.updateStatus(),
       this.audioOutputHandler.load(),
+      this.monitorHandler.load(),
     ]);
     this._updateUI();
   }
@@ -70,22 +82,7 @@ export class PowerPageManager {
     }
     this._tvStatusInterval = setInterval(() => {
       this.tvHandler.updateStatus();
-    }, 10000);
-  }
-
-  _bindPowerEvents() {
-    const tvCard = document.getElementById("tvCard");
-    if (tvCard) {
-      tvCard.addEventListener("click", async () => {
-        await this.tvHandler.toggle();
-      });
-    }
-    const computerCard = document.getElementById("computerCard");
-    if (computerCard) {
-      computerCard.addEventListener("click", async () => {
-        await this.computerHandler.sleep();
-      });
-    }
+    }, 30000);
   }
 
   _bindVolumeEvents() {
@@ -171,6 +168,40 @@ export class PowerPageManager {
       clearInterval(this._tvStatusInterval);
       this._tvStatusInterval = null;
     }
+    this.monitorHandler.stopPolling();
     this._isInitialized = false;
+  }
+
+  _bindPowerEvents() {
+    console.log("Binding power events");
+    const tvCard = document.getElementById("tvCard");
+    const monitorCard = document.getElementById("monitorCard");
+    const computerCard = document.getElementById("computerCard");
+
+    console.log("tvCard:", tvCard);
+    console.log("monitorCard:", monitorCard);
+    console.log("computerCard:", computerCard);
+
+    if (tvCard) {
+      tvCard.addEventListener("click", async () => {
+        console.log("TV card clicked");
+        await this.tvHandler.toggle();
+      });
+    }
+    if (monitorCard) {
+      console.log("Monitor card found, binding event");
+      monitorCard.addEventListener("click", async () => {
+        console.log("Monitor card clicked");
+        await this.monitorHandler.toggle();
+      });
+    } else {
+      console.log("Monitor card not found");
+    }
+    if (computerCard) {
+      computerCard.addEventListener("click", async () => {
+        console.log("Computer card clicked");
+        await this.computerHandler.sleep();
+      });
+    }
   }
 }

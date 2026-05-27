@@ -3,27 +3,48 @@ export class MonitorHandler {
     this.monitorService = monitorService;
     this.monitorUI = monitorUI;
     this.events = eventEmitter;
-    this._isMonitorOn = true;
+    this._isIdle = false;
+    this._isOn = true;
+    this._pollingInterval = null;
   }
 
   async load() {
+    await this.updateStatus();
+  }
+
+  async updateStatus() {
     try {
-      this._isMonitorOn = true;
-      this.monitorUI?.update(this._isMonitorOn);
+      const res = await this.monitorService.getStatus();
+      if (res.success && res.data) {
+        this._isIdle = res.data.is_idle || false;
+        this.monitorUI?.update(this._isIdle, this._isOn);
+        console.log(`Monitor idle: ${this._isIdle}, on: ${this._isOn}`);
+      }
     } catch (error) {
-      console.error("Load monitor error:", error);
+      console.error("Update monitor status error:", error);
       this.monitorUI?.setError();
     }
   }
 
+  async toggle() {
+    console.log("Monitor toggle called");
+    if (this._isOn) {
+      await this.turnOff();
+    } else {
+      await this.turnOn();
+    }
+  }
+
   async turnOn() {
+    console.log("Turning monitor on");
     try {
       const response = await this.monitorService.turnOnMonitor();
       if (response && response.success) {
-        this._isMonitorOn = true;
-        this.monitorUI?.update(true);
+        this._isOn = true;
+        // Сразу обновляем UI, не дожидаясь поллинга
+        this.monitorUI?.update(this._isIdle, true);
         this.events?.emit("notification:show", {
-          message: response.message || "Монитор включен",
+          message: "Монитор включен",
           type: "success",
         });
       }
@@ -31,22 +52,20 @@ export class MonitorHandler {
     } catch (error) {
       console.error("Turn on monitor error:", error);
       this.monitorUI?.setError();
-      this.events?.emit("notification:show", {
-        message: `Ошибка включения монитора: ${error.message}`,
-        type: "error",
-      });
       throw error;
     }
   }
 
   async turnOff() {
+    console.log("Turning monitor off");
     try {
       const response = await this.monitorService.turnOffMonitor();
       if (response && response.success) {
-        this._isMonitorOn = false;
-        this.monitorUI?.update(false);
+        this._isOn = false;
+        // Сразу обновляем UI, не дожидаясь поллинга
+        this.monitorUI?.update(this._isIdle, false);
         this.events?.emit("notification:show", {
-          message: response.message || "Монитор выключен",
+          message: "Монитор выключен",
           type: "success",
         });
       }
@@ -54,32 +73,31 @@ export class MonitorHandler {
     } catch (error) {
       console.error("Turn off monitor error:", error);
       this.monitorUI?.setError();
-      this.events?.emit("notification:show", {
-        message: `Ошибка выключения монитора: ${error.message}`,
-        type: "error",
-      });
       throw error;
     }
   }
 
-  async checkIdleAndTurnOff() {
-    try {
-      const res = await this.monitorService.isSessionIdle();
-      if (res.success && res.isIdle && this._isMonitorOn) {
-        await this.turnOff();
-        this.events?.emit("notification:show", {
-          message: "Монитор выключен из-за бездействия",
-          type: "info",
-        });
-      }
-      return res;
-    } catch (error) {
-      console.error("Check idle error:", error);
-      return null;
+  startPolling(intervalMs = 5000) {
+    if (this._pollingInterval) {
+      clearInterval(this._pollingInterval);
+    }
+    this._pollingInterval = setInterval(() => {
+      this.updateStatus();
+    }, intervalMs);
+  }
+
+  stopPolling() {
+    if (this._pollingInterval) {
+      clearInterval(this._pollingInterval);
+      this._pollingInterval = null;
     }
   }
 
-  get isMonitorOn() {
-    return this._isMonitorOn;
+  get isIdle() {
+    return this._isIdle;
+  }
+
+  get isOn() {
+    return this._isOn;
   }
 }

@@ -30,7 +30,7 @@
 
 .power-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 24px;
   margin-bottom: 24px;
 }
@@ -44,12 +44,14 @@
   cursor: pointer;
   transition:
     transform 0.2s,
-    box-shadow 0.2s;
+    box-shadow 0.2s,
+    border-color 0.2s;
 }
 
 .power-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  border-color: var(--yellow);
 }
 
 .power-card:active {
@@ -60,10 +62,15 @@
   font-size: 64px;
   color: var(--yellow);
   margin-bottom: 20px;
+  transition: transform 0.2s;
+}
+
+.power-card:hover .power-card-icon {
+  transform: scale(1.05);
 }
 
 .power-card-title {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 600;
   color: var(--fg0);
   margin-bottom: 12px;
@@ -74,7 +81,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: 16px;
+  font-size: 14px;
   color: var(--fg3);
 }
 
@@ -83,7 +90,9 @@
   height: 10px;
   border-radius: 50%;
   background: var(--fg4);
-  transition: background-color 0.2s;
+  transition:
+    background-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .status-dot.on {
@@ -93,6 +102,28 @@
 
 .status-dot.off {
   background: var(--red);
+  box-shadow: 0 0 4px var(--red);
+}
+
+.status-dot.idle {
+  background: var(--orange);
+  box-shadow: 0 0 4px var(--orange);
+}
+
+.monitor-card .power-card-icon {
+  color: #61afef;
+}
+
+.monitor-card:hover .power-card-icon {
+  color: var(--yellow);
+}
+
+.computer-card .power-card-icon {
+  color: #98c379;
+}
+
+.tv-card .power-card-icon {
+  color: #e5c07b;
 }
 
 .audio-output-section {
@@ -198,6 +229,7 @@
   background: var(--yellow);
   border-radius: 2px;
   width: 50%;
+  transition: width 0.1s ease;
 }
 
 .volume-slider input {
@@ -221,6 +253,9 @@
   cursor: pointer;
   color: var(--fg1);
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .volume-down:hover,
@@ -230,6 +265,12 @@
   border-color: var(--yellow);
   color: var(--yellow);
   transform: scale(1.05);
+}
+
+.volume-down:active,
+.volume-up:active,
+.volume-mute:active {
+  transform: scale(0.95);
 }
 
 @media (max-width: 768px) {
@@ -245,33 +286,33 @@
   }
 
   .power-page-header h2 {
-    font-size: 1.1rem;
+    font-size: 1rem;
   }
 
   .power-cards-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
     margin-bottom: 16px;
   }
 
   .power-card {
-    padding: 16px 12px;
-    border-radius: 16px;
+    padding: 14px 8px;
+    border-radius: 14px;
   }
 
   .power-card-icon {
-    font-size: 32px;
-    margin-bottom: 10px;
+    font-size: 28px;
+    margin-bottom: 8px;
   }
 
   .power-card-title {
-    font-size: 16px;
+    font-size: 13px;
     margin-bottom: 6px;
   }
 
   .power-card-status {
-    font-size: 11px;
+    font-size: 10px;
     gap: 4px;
   }
 
@@ -326,45 +367,42 @@
   .audio-output-btn i {
     font-size: 0.85rem;
   }
-
-  .audio-output-btn span {
-    display: inline;
-  }
 }
 
 @media (max-width: 480px) {
   .power-management-container {
-    padding: 10px;
+    padding: 8px;
   }
 
   .power-page-header h2 {
-    font-size: 1rem;
+    font-size: 0.9rem;
   }
 
   .power-cards-grid {
-    gap: 10px;
+    gap: 8px;
   }
 
   .power-card {
-    padding: 12px 8px;
+    padding: 10px 6px;
+    border-radius: 12px;
   }
 
   .power-card-icon {
-    font-size: 28px;
-    margin-bottom: 8px;
+    font-size: 22px;
+    margin-bottom: 6px;
   }
 
   .power-card-title {
-    font-size: 14px;
+    font-size: 11px;
   }
 
   .power-card-status {
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .volume-value-top {
-    font-size: 16px;
-    margin-bottom: 10px;
+    font-size: 14px;
+    margin-bottom: 8px;
   }
 
   .volume-down,
@@ -376,16 +414,55 @@
   }
 
   .audio-output-btn {
-    padding: 6px 10px;
+    padding: 6px 8px;
     font-size: 0.7rem;
     gap: 4px;
   }
 
   .audio-output-btn i {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
   }
 
   .audio-output-btn span {
     display: none;
   }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.power-card.loading {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.power-card .power-card-status .status-text {
+  transition: color 0.2s;
+}
+
+.status-dot.idle {
+  background: var(--orange);
+  box-shadow: 0 0 4px var(--orange);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.status-dot.off {
+  background: var(--red);
+  box-shadow: 0 0 4px var(--red);
 }
