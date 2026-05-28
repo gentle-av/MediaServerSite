@@ -110,8 +110,12 @@
   box-shadow: 0 0 4px var(--orange);
 }
 
-.monitor-card:hover .power-card-icon {
-  color: var(--yellow);
+.monitor-card {
+  color: var(--blue);
+}
+
+.monitor-card .power-card-icon {
+  color: #61afef;
 }
 
 .computer-card .power-card-icon {
@@ -424,16 +428,6 @@
   }
 }
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
 .power-card.loading {
   animation: pulse 1s ease-in-out infinite;
 }
@@ -448,6 +442,11 @@
   animation: pulse 2s ease-in-out infinite;
 }
 
+.status-dot.off {
+  background: var(--red);
+  box-shadow: 0 0 4px var(--red);
+}
+
 @keyframes pulse {
   0%,
   100% {
@@ -456,9 +455,4 @@
   50% {
     opacity: 0.5;
   }
-}
-
-.status-dot.off {
-  background: var(--red);
-  box-shadow: 0 0 4px var(--red);
 }
