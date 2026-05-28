@@ -110,10 +110,6 @@
   box-shadow: 0 0 4px var(--orange);
 }
 
-.monitor-card .power-card-icon {
-  color: #61afef;
-}
-
 .monitor-card:hover .power-card-icon {
   color: var(--yellow);
 }
