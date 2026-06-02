@@ -4,11 +4,22 @@ export class TagEditorCover {
     this.modal = modal;
   }
 
+  _showNotification(message, type = "info") {
+    if (window.showNotification) {
+      window.showNotification(message, type);
+    } else {
+      console.log(`[${type}] ${message}`);
+    }
+  }
+
   async uploadAlbumArtForAlbum(album, imageFile) {
-    if (!album.tracks || album.tracks.length === 0) return false;
+    if (!album.tracks || album.tracks.length === 0) {
+      this._showNotification("У альбома нет треков", "error");
+      return false;
+    }
     const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
     if (!allowedTypes.includes(imageFile.type)) {
-      Utils.showNotification(
+      this._showNotification(
         "Поддерживаются только JPEG, PNG, GIF и WEBP",
         "error",
       );
@@ -16,7 +27,7 @@ export class TagEditorCover {
     }
     const maxSize = 5 * 1024 * 1024;
     if (imageFile.size > maxSize) {
-      Utils.showNotification("Размер файла не должен превышать 5 МБ", "error");
+      this._showNotification("Размер файла не должен превышать 5 МБ", "error");
       return false;
     }
     return new Promise((resolve) => {
@@ -29,15 +40,35 @@ export class TagEditorCover {
         }
         let successCount = 0;
         for (const track of album.tracks) {
-          if (await this.api.uploadAlbumArt(track.path, base64Data))
-            successCount++;
+          try {
+            const success = await this.api.uploadAlbumArt(
+              track.path,
+              base64Data,
+            );
+            if (success) successCount++;
+          } catch (err) {
+            console.error(`Ошибка загрузки обложки для ${track.path}:`, err);
+          }
         }
         if (successCount > 0) {
           window.dispatchEvent(new CustomEvent("albumArtUpdated"));
+          this._showNotification(
+            `Обложка добавлена к ${successCount} трекам`,
+            "success",
+          );
+          resolve(true);
+        } else {
+          this._showNotification(
+            "Не удалось загрузить обложку ни для одного трека",
+            "error",
+          );
+          resolve(false);
         }
-        resolve(successCount > 0);
       };
-      reader.onerror = () => resolve(false);
+      reader.onerror = () => {
+        this._showNotification("Ошибка чтения файла", "error");
+        resolve(false);
+      };
       reader.readAsDataURL(imageFile);
     });
   }

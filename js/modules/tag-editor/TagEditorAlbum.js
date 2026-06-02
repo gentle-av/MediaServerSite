@@ -1,7 +1,10 @@
+import { TagEditorCover } from "./TagEditorCover.js";
+
 export class TagEditorAlbum {
   constructor(api, modal) {
     this.api = api;
     this.modal = modal;
+    this.cover = new TagEditorCover(api, modal);
   }
 
   async updateAlbumTags(album, newArtist, newAlbum, newYear) {
@@ -39,6 +42,14 @@ export class TagEditorAlbum {
       return true;
     }
     return false;
+  }
+
+  _showNotification(message, type = "info") {
+    if (window.showNotification) {
+      window.showNotification(message, type);
+    } else {
+      console.log(`[${type}] ${message}`);
+    }
   }
 
   showEditor(album) {
@@ -85,17 +96,12 @@ export class TagEditorAlbum {
     this._bindEvents(modal, album);
   }
 
-  _showNotification(message, type = "info") {
-    if (window.showNotification) {
-      window.showNotification(message, type);
-    }
-  }
-
   _bindEvents(modal, album) {
     const saveAllBtn = modal.querySelector("[data-action='save-all']");
     const changeCoverBtn = modal.querySelector("#changeCoverBtn");
     const coverFileInput = modal.querySelector("#coverFileInput");
     const currentCoverPreview = modal.querySelector("#currentCoverPreview");
+
     saveAllBtn.addEventListener("click", async () => {
       const newTitle = document.getElementById("editAlbumTitle").value.trim();
       const newArtist = document.getElementById("editAlbumArtist").value.trim();
@@ -113,6 +119,7 @@ export class TagEditorAlbum {
       }
       this.modal.hide();
     });
+
     if (changeCoverBtn && coverFileInput) {
       changeCoverBtn.addEventListener("click", () => coverFileInput.click());
       coverFileInput.addEventListener("change", async (e) => {
@@ -124,23 +131,32 @@ export class TagEditorAlbum {
           };
           reader.readAsDataURL(file);
           this._showNotification("Загрузка обложки...", "info");
-          const { TagEditorCover } = await import("./TagEditorCover.js");
-          const cover = new TagEditorCover(this.api, this.modal);
-          const success = await cover.uploadAlbumArtForAlbum(album, file);
+          const success = await this.cover.uploadAlbumArtForAlbum(album, file);
           if (success) {
             this._showNotification("Обложка обновлена", "success");
-            album.coverUrl = URL.createObjectURL(file);
+            const localCoverUrl = URL.createObjectURL(file);
+            album.coverUrl = localCoverUrl;
             if (album.id) {
               const card = document.querySelector(
                 `.album-card[data-album-id="${album.id}"]`,
               );
               if (card) {
                 const coverImg = card.querySelector(".album-card-art img");
-                if (coverImg) coverImg.src = album.coverUrl;
+                if (coverImg) {
+                  coverImg.src = localCoverUrl;
+                } else {
+                  const artDiv = card.querySelector(".album-card-art");
+                  if (artDiv) {
+                    artDiv.innerHTML = `<img src="${localCoverUrl}" alt="${this.modal.escapeHtml(album.title)}" loading="lazy">`;
+                  }
+                }
               }
             }
           } else {
-            this._showNotification("Ошибка загрузки", "error");
+            this._showNotification("Ошибка загрузки обложки", "error");
+            currentCoverPreview.innerHTML = album.coverUrl
+              ? `<img src="${album.coverUrl}">`
+              : '<i class="fas fa-image"></i>';
           }
           coverFileInput.value = "";
         }
