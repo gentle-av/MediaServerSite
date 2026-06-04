@@ -3,12 +3,8 @@ export class VideoEventHandlers {
     this.core = core;
     this.videoPageManager = videoPageManager;
   }
-  
-  setup() {
-    console.log('VideoEventHandlers setup');
-  }
-  
-  destroy() {
-    console.log('VideoEventHandlers destroy');
-  }
+
+  setup() {}
+
+  destroy() {}
 }

@@ -80,6 +80,9 @@ export class AudioPageManager {
     this.albumLibrary = new AlbumLibrary(this.core.musicApi, this.core.events);
     await this.albumLibrary.init();
     this.core.albumLibrary = this.albumLibrary;
+    window.MediaCenter.albumLibrary = this.albumLibrary;
+    window.albumLibrary = this.albumLibrary;
+    console.log("[DEBUG] AlbumLibrary added to window.MediaCenter and window");
   }
 
   _initPlaylistPopup() {

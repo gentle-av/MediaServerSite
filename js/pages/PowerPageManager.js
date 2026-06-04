@@ -132,7 +132,6 @@ export class PowerPageManager {
   }
 
   async reconnect() {
-    console.log("Восстановление соединения после сна...");
     this._reconnectAttempts = 0;
     await this._tryReconnect();
   }
@@ -141,7 +140,6 @@ export class PowerPageManager {
     this._reconnectAttempts++;
     try {
       await this.core.api.get("/api/ping");
-      console.log("Соединение восстановлено");
       await this._loadInitialData();
       if (this._reconnectAttempts > 1) {
         this.core.events?.emit("notification:show", {
@@ -150,7 +148,6 @@ export class PowerPageManager {
         });
       }
     } catch (error) {
-      console.log(`Попытка переподключения ${this._reconnectAttempts}...`);
       if (this._reconnectAttempts < 10) {
         setTimeout(() => this._tryReconnect(), 3000);
       }
@@ -173,33 +170,21 @@ export class PowerPageManager {
   }
 
   _bindPowerEvents() {
-    console.log("Binding power events");
     const tvCard = document.getElementById("tvCard");
     const monitorCard = document.getElementById("monitorCard");
     const computerCard = document.getElementById("computerCard");
-
-    console.log("tvCard:", tvCard);
-    console.log("monitorCard:", monitorCard);
-    console.log("computerCard:", computerCard);
-
     if (tvCard) {
       tvCard.addEventListener("click", async () => {
-        console.log("TV card clicked");
         await this.tvHandler.toggle();
       });
     }
     if (monitorCard) {
-      console.log("Monitor card found, binding event");
       monitorCard.addEventListener("click", async () => {
-        console.log("Monitor card clicked");
         await this.monitorHandler.toggle();
       });
-    } else {
-      console.log("Monitor card not found");
     }
     if (computerCard) {
       computerCard.addEventListener("click", async () => {
-        console.log("Computer card clicked");
         await this.computerHandler.sleep();
       });
     }

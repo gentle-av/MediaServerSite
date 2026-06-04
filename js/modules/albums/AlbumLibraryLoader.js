@@ -22,13 +22,13 @@ export class AlbumLibraryLoader {
     this.cancelRequested = true;
   }
 
-  async loadArtistsAndFirstAlbums(onProgress) {
+  async loadArtistsAndFirstAlbums(onProgress, force = false) {
     if (this.state.loading || this.state.isDestroyed) return false;
     this.state.loading = true;
     this.cancelRequested = false;
     if (onProgress)
       onProgress({ percent: 5, message: "Загрузка списка исполнителей..." });
-    this.state.artistsList = await this.api.getArtists();
+    this.state.artistsList = await this.api.getArtists(force);
     if (this.cancelRequested) {
       this.state.loading = false;
       return false;
@@ -51,12 +51,12 @@ export class AlbumLibraryLoader {
         message: `Загружено исполнителей: ${this.state.artistsList.length}`,
       });
     }
-    await this.loadMoreAlbums(onProgress);
+    await this.loadMoreAlbums(onProgress, force);
     this.state.loading = false;
     return true;
   }
 
-  async loadMoreAlbums(onProgress) {
+  async loadMoreAlbums(onProgress, force = false) {
     if (this.state.isLoadingMore || this.state.isDestroyed) return false;
     this.state.isLoadingMore = true;
     const totalArtists = this.state.artistsList.length;
@@ -75,6 +75,7 @@ export class AlbumLibraryLoader {
             artist,
             this.state.currentPage,
             this.state.pageSize,
+            force,
           ),
         ),
       );
@@ -92,6 +93,7 @@ export class AlbumLibraryLoader {
             const coverUrl = await this.api.fetchAlbumCover(
               albumData.album,
               albumData.artist,
+              force,
             );
             const album = new Album({
               title: albumData.album,
@@ -118,13 +120,12 @@ export class AlbumLibraryLoader {
         const percent = Math.min(80, Math.max(10, artistProgress));
         const processed = this.state.albums.length;
         const total = totalAlbumsEstimate;
-        const remaining = Math.max(0, total - processed);
         onProgress({
           percent: percent,
           message: `Загрузка альбомов...`,
           processedFiles: processed,
           totalFiles: total,
-          remainingFiles: remaining,
+          remainingFiles: Math.max(0, total - processed),
           addedFiles: this.state.albums.length,
         });
       }
@@ -147,14 +148,29 @@ export class AlbumLibraryLoader {
     return false;
   }
 
-  async refresh(onProgress) {
-    this.state.reset();
+  async refresh(onProgress, force = false) {
+    console.log("[DEBUG] AlbumLibraryLoader.refresh() called, force=", force);
     this.cancelRequested = false;
+    console.log("[DEBUG] Clearing all state data...");
+    this.state.albums = [];
+    this.state.filteredAlbums = [];
+    this.state.artistsList = [];
+    this.state.currentArtistIndex = 0;
+    this.state.currentPage = 1;
+    this.state._trackPathToMetadata.clear();
+    this.state._nextAlbumId = 1;
+    console.log("[DEBUG] State cleared");
     if (onProgress) onProgress({ percent: 0, message: "Начало обновления..." });
-    const result = await this.loadArtistsAndFirstAlbums(onProgress);
+    console.log("[DEBUG] Calling loadArtistsAndFirstAlbums...");
+    const result = await this.loadArtistsAndFirstAlbums(onProgress, force);
+    console.log("[DEBUG] loadArtistsAndFirstAlbums returned:", result);
     if (onProgress && !this.cancelRequested) {
       onProgress({ percent: 100, message: "Завершено", inProgress: false });
     }
+    console.log(
+      "[DEBUG] Final albums count after refresh:",
+      this.state.albums.length,
+    );
     return result;
   }
 }

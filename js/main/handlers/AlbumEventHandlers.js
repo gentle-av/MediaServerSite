@@ -4,12 +4,8 @@ export class AlbumEventHandlers {
     this.playbackManager = playbackManager;
     this.audioPageManager = audioPageManager;
   }
-  
-  setup() {
-    console.log('AlbumEventHandlers setup');
-  }
-  
-  destroy() {
-    console.log('AlbumEventHandlers destroy');
-  }
+
+  setup() {}
+
+  destroy() {}
 }

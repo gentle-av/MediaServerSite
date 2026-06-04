@@ -64,8 +64,12 @@ export class AlbumLibraryRenderer {
     }
   }
 
-  renderAlbums(onCardRender) {
+  renderAlbums(force = false) {
     if (!this.container || this.state.isDestroyed) return;
+    if (force) {
+      this.container.innerHTML = "";
+      this._renderedCount = 0;
+    }
     const loadingIndicator = this.container.querySelector(".loading");
     if (
       loadingIndicator &&
@@ -79,25 +83,31 @@ export class AlbumLibraryRenderer {
       this.showEmpty();
       return;
     }
-    const existingCards = this.container.querySelectorAll(
-      ".album-swipe-delete-container",
-    );
-    const existingCount = existingCards.length;
-    const albumsToRender = this.state.filteredAlbums.slice(
-      existingCount,
-      existingCount + this.VISUAL_BUFFER,
-    );
-    const fragment = document.createDocumentFragment();
-    for (const album of albumsToRender) {
-      const card = new AlbumCard(album, this.events);
-      const cardElement = card.render();
-      if (album.id) {
-        cardElement.setAttribute("data-album-id", album.id);
+    if (force) {
+      const fragment = document.createDocumentFragment();
+      for (const album of this.state.filteredAlbums) {
+        const card = new AlbumCard(album, this.events);
+        const cardElement = card.render();
+        fragment.appendChild(cardElement);
       }
-      fragment.appendChild(cardElement);
-      if (onCardRender) onCardRender(card);
+      this.container.appendChild(fragment);
+    } else {
+      const existingCards = this.container.querySelectorAll(
+        ".album-swipe-delete-container",
+      );
+      const existingCount = existingCards.length;
+      const albumsToRender = this.state.filteredAlbums.slice(
+        existingCount,
+        existingCount + this.VISUAL_BUFFER,
+      );
+      const fragment = document.createDocumentFragment();
+      for (const album of albumsToRender) {
+        const card = new AlbumCard(album, this.events);
+        const cardElement = card.render();
+        fragment.appendChild(cardElement);
+      }
+      this.container.appendChild(fragment);
     }
-    this.container.appendChild(fragment);
     this.showLoadingMore();
     this._fixScroll();
   }

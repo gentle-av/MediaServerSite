@@ -145,6 +145,45 @@ export class AlbumLibrary {
     }
   }
 
+  async reload() {
+    console.log("=== ALBUM LIBRARY RELOAD START ===");
+    console.log("Current albums before reload:", this.state.albums.length);
+    console.log(
+      "Current DOM cards before reload:",
+      document.querySelectorAll(".album-card").length,
+    );
+    this.renderer.showLoading();
+    console.log("[DEBUG] showLoading called");
+    this.state.reset();
+    console.log("[DEBUG] state.reset() called");
+    this.renderer.clear();
+    console.log("[DEBUG] renderer.clear() called");
+    console.log("[DEBUG] Calling loader.refresh()...");
+    try {
+      await this.loader.refresh(null, true);
+      console.log("[DEBUG] loader.refresh() completed successfully");
+    } catch (err) {
+      console.error("[DEBUG] loader.refresh() failed:", err);
+      throw err;
+    }
+    console.log("[DEBUG] Albums after refresh:", this.state.albums.length);
+    console.log(
+      "[DEBUG] First 3 albums:",
+      this.state.albums.slice(0, 3).map((a) => `${a.artist} - ${a.title}`),
+    );
+    this.state.indexTracks();
+    console.log("[DEBUG] indexTracks() called");
+    this.renderer.renderAlbums(true);
+    console.log("[DEBUG] renderAlbums(true) called");
+    this.search.reset();
+    console.log("[DEBUG] search.reset() called");
+    console.log(
+      "[DEBUG] Final DOM cards:",
+      document.querySelectorAll(".album-card").length,
+    );
+    console.log("=== ALBUM LIBRARY RELOAD COMPLETE ===");
+  }
+
   searchAlbums(term) {
     if (!this.isReady) return;
     if (term === "" || term === null || term === undefined) {

@@ -27,6 +27,35 @@ class RefreshButtonManager {
     });
   }
 
+  _showNotification(message, type = "info") {
+    const notification = document.createElement("div");
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+      <div class="notification-content">
+        <i class="fas ${type === "success" ? "fa-check-circle" : type === "error" ? "fa-exclamation-circle" : "fa-info-circle"}"></i>
+        <span>${message}</span>
+      </div>
+    `;
+    notification.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: ${type === "success" ? "var(--green)" : type === "error" ? "var(--red)" : "var(--blue)"};
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      z-index: 10002;
+      animation: slideIn 0.3s ease;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => {
+      notification.style.animation = "slideOut 0.3s ease";
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
+  }
+
   async handleRefreshClick() {
     if (this.isRefreshing) return;
     this.isRefreshing = true;
@@ -44,14 +73,16 @@ class RefreshButtonManager {
         this.updateProgressDialog(data.total_files, data.processed_files);
         await this.pollRescanStatus();
       } else {
+        console.error("[DEBUG] Failed to start scan:", data);
         this.closePopup();
         this.isRefreshing = false;
-        Utils.showNotification("Ошибка запуска сканирования", "error");
+        this._showNotification("Ошибка запуска сканирования", "error");
       }
     } catch (error) {
+      console.error("[DEBUG] Error in handleRefreshClick:", error);
       this.closePopup();
       this.isRefreshing = false;
-      Utils.showNotification("Ошибка: " + error.message, "error");
+      this._showNotification("Ошибка: " + error.message, "error");
     }
   }
 
@@ -64,7 +95,9 @@ class RefreshButtonManager {
       await new Promise((resolve) => setTimeout(resolve, 500));
       pollCount++;
       try {
-        const response = await fetch(`${baseUrl}/api/music/rescan-status`);
+        const response = await fetch(
+          `${baseUrl}/api/music/rescan-status?_=${Date.now()}`,
+        );
         const status = await response.json();
         if (status.status === "success") {
           if (status.in_progress) {
@@ -77,18 +110,40 @@ class RefreshButtonManager {
             isComplete = true;
             this.showCompleteDialog(status);
             if (window.MediaCenter && window.MediaCenter.albumLibrary) {
-              await window.MediaCenter.albumLibrary.loader.refresh();
-              window.MediaCenter.albumLibrary.state.indexTracks();
-              window.MediaCenter.albumLibrary.renderer.renderAlbums();
-              window.MediaCenter.albumLibrary.search.reset();
+              try {
+                await window.MediaCenter.albumLibrary.reload();
+                this._showNotification(
+                  `Библиотека обновлена! Альбомов: ${window.MediaCenter.albumLibrary.state.albums.length}`,
+                  "success",
+                );
+              } catch (error) {
+                console.error("[DEBUG] ERROR during reload:", error);
+                this._showNotification(
+                  "Ошибка при обновлении интерфейса: " + error.message,
+                  "error",
+                );
+              }
+            } else {
+              console.error(
+                "[DEBUG] MediaCenter or albumLibrary not available!",
+              );
+              this._showNotification(
+                "AlbumLibrary не найден! Обновите страницу вручную",
+                "error",
+              );
             }
             this.isRefreshing = false;
           }
+        } else {
+          console.warn("[DEBUG] Unexpected status response:", status);
         }
-      } catch (error) {}
+      } catch (error) {
+        console.error("[DEBUG] Poll error:", error);
+      }
     }
     if (!isComplete && this.isRefreshing) {
-      Utils.showNotification("Превышено время ожидания сканирования", "error");
+      console.error("[DEBUG] Poll timeout reached!");
+      this._showNotification("Превышено время ожидания сканирования", "error");
       this.closePopup();
       this.isRefreshing = false;
     }
