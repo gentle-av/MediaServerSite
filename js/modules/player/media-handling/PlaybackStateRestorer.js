@@ -27,12 +27,18 @@ export class PlaybackStateRestorer {
       const videoStatus = await this.api.getVideoStatus();
       if (videoStatus?.success && videoStatus.currentFile) {
         await this.lifecycle.checkExistingPlayback("video");
+        if (this.polling && !this.polling._intervalId) {
+          this.polling.start();
+        }
         if (this.onRestoreComplete) this.onRestoreComplete();
         return;
       }
       const playlistData = await this.api.api.get("/api/audio/getPlaylist");
       if (playlistData?.data?.length > 0) {
         await this._restoreFromPlaylist(playlistData.data);
+        if (this.polling && !this.polling._intervalId) {
+          this.polling.start();
+        }
         if (this.onRestoreComplete) this.onRestoreComplete();
         return;
       }
