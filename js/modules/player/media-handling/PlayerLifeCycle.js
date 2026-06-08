@@ -26,8 +26,7 @@ export class PlayerLifeCycle {
         } else {
           this.uiUpdater.updateMediaIcon("video");
         }
-        if (this.polling) {
-          this.polling.stop();
+        if (this.polling && !this.polling._intervalId) {
           this.polling.start();
         }
         if (this.onRestore) {
@@ -37,6 +36,7 @@ export class PlayerLifeCycle {
       }
       return false;
     } catch (error) {
+      console.error("checkExistingPlayback error:", error);
       return false;
     }
   }
