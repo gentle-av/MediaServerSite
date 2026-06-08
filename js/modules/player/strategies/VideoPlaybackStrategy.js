@@ -1,4 +1,5 @@
 import { PlaybackStrategy } from "./PlaybackStrategy.js";
+
 export class VideoPlaybackStrategy extends PlaybackStrategy {
   constructor(api) {
     super();
@@ -48,10 +49,22 @@ export class VideoPlaybackStrategy extends PlaybackStrategy {
       return;
     }
     this.uiUpdater.updatePlayPauseButton(true);
+    this.core.setCurrentFile(path);
+    this.core.setMediaType("video");
     this.core.setPlaying(true);
     this.core.finishStartingVideo();
     this.progress.reset();
     setTimeout(() => this._forceRefresh?.(), 100);
+    setTimeout(async () => {
+      try {
+        const status = await this.api.getVideoStatus();
+        if (status?.success && status.currentTime && status.duration) {
+          this.progress.update(status.currentTime, status.duration);
+        }
+      } catch (e) {
+        console.warn("Failed to get initial video status", e);
+      }
+    }, 500);
   }
 
   async stop() {
