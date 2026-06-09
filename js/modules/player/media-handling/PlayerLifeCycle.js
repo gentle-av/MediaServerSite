@@ -27,7 +27,10 @@ export class PlayerLifeCycle {
           this.uiUpdater.updateMediaIcon("video");
         }
         if (this.polling && !this.polling._intervalId) {
+          console.log("[LIFECYCLE] Starting polling (was not running)");
           this.polling.start();
+        } else if (this.polling && this.polling._intervalId) {
+          console.log("[LIFECYCLE] Polling already running, skipping start");
         }
         if (this.onRestore) {
           this.onRestore();

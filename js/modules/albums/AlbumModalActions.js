@@ -90,8 +90,21 @@ export class AlbumModalActions {
         this.universalPlayer.uiUpdater.updateTrackCount(0, tracks.length);
         this.universalPlayer.uiUpdater.updatePlayPauseButton(true);
         if (this.universalPlayer.polling) {
+          console.log("[ALBUM] Restarting polling for album playback");
+          console.log(
+            "[ALBUM] Current intervalId:",
+            this.universalPlayer.polling._intervalId,
+          );
           this.universalPlayer.polling.stop();
+          console.log(
+            "[ALBUM] After stop, intervalId:",
+            this.universalPlayer.polling._intervalId,
+          );
           this.universalPlayer.polling.start();
+          console.log(
+            "[ALBUM] After start, intervalId:",
+            this.universalPlayer.polling._intervalId,
+          );
         }
       }
       this.events.emit("playback:audioStart", trackPaths[0]);

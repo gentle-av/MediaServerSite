@@ -10,22 +10,16 @@ export class PlayerPolling {
     this._intervalId = null;
     this._currentStrategy = null;
     this._lastMediaType = null;
+    this.interval = 1000;
   }
 
   start() {
     if (this._intervalId) {
-      clearInterval(this._intervalId);
+      return;
     }
-    this._intervalId = setInterval(async () => {
-      if (this.core.isDestroyed() || this.core.shouldIgnorePolling()) {
-        return;
-      }
-      try {
-        await this._poll();
-      } catch (error) {
-        console.error("Polling error:", error);
-      }
-    }, 500);
+    this._intervalId = setInterval(() => {
+      this._poll();
+    }, this.interval);
   }
 
   stop() {
@@ -33,7 +27,6 @@ export class PlayerPolling {
       clearInterval(this._intervalId);
       this._intervalId = null;
     }
-    this._cleanupStrategy();
   }
 
   async _poll() {
@@ -50,10 +43,8 @@ export class PlayerPolling {
           this.onStateChange,
         );
       }
-
       this._lastMediaType = currentType;
     }
-
     if (this._currentStrategy) {
       await this._currentStrategy.execute();
     }

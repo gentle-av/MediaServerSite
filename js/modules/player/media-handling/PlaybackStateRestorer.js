@@ -28,6 +28,7 @@ export class PlaybackStateRestorer {
       if (videoStatus?.success && videoStatus.currentFile) {
         await this.lifecycle.checkExistingPlayback("video");
         if (this.polling && !this.polling._intervalId) {
+          console.log("[RESTORER] Starting polling (was not running)");
           this.polling.start();
         }
         if (this.onRestoreComplete) this.onRestoreComplete();
