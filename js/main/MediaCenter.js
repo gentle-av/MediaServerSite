@@ -5,8 +5,6 @@ import { NavigationManager } from "../navigation/NavigationManager.js";
 import { VideoPageManager } from "../pages/VideoPageManager.js";
 import { AudioPageManager } from "../pages/AudioPageManager.js";
 import { PowerPageManager } from "../pages/PowerPageManager.js";
-import { AlbumEventHandlers } from "./handlers/AlbumEventHandlers.js";
-import { VideoEventHandlers } from "./handlers/VideoEventHandlers.js";
 import { TagEditorInstance } from "../modules/tag-editor/index.js";
 
 export class MediaCenter {
@@ -17,8 +15,6 @@ export class MediaCenter {
     this.videoPageManager = null;
     this.audioPageManager = null;
     this.powerPageManager = null;
-    this.albumEventHandlers = null;
-    this.videoEventHandlers = null;
   }
 
   async init() {
@@ -40,15 +36,6 @@ export class MediaCenter {
       this.playbackManager,
     );
     this.powerPageManager = new PowerPageManager(this.core);
-    this.albumEventHandlers = new AlbumEventHandlers(
-      this.core,
-      this.playbackManager,
-      this.audioPageManager,
-    );
-    this.videoEventHandlers = new VideoEventHandlers(
-      this.core,
-      this.videoPageManager,
-    );
     this._setupEventHandlers();
     this._exposeGlobal();
     await this.playbackManager.checkExistingPlaybacks();
@@ -78,8 +65,6 @@ export class MediaCenter {
         this.playbackManager.universalPlayer.show();
       }
     });
-    this.albumEventHandlers.setup();
-    this.videoEventHandlers.setup();
   }
 
   _exposeGlobal() {
@@ -88,8 +73,6 @@ export class MediaCenter {
   }
 
   destroy() {
-    this.albumEventHandlers?.destroy();
-    this.videoEventHandlers?.destroy();
     this.videoPageManager?.destroy();
     this.audioPageManager?.destroy();
     this.powerPageManager?.destroy();
