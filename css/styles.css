@@ -9,7 +9,7 @@
 @import "components/app-header.css";
 @import "components/album-card.css";
 @import "components/modal.css";
-@import "components/confirm-dialog.css";
+@import "components/delete-dialog.css";
 @import "components/overlay.css";
 @import "components/components.css";
 @import "components/preview-tooltip.css";
