@@ -14,6 +14,8 @@ import { PlayerEventSubscriber } from "./ui/PlayerEventSubscriber.js";
 import { PreviewTooltip } from "./ui/PreviewTooltip.js";
 import { PlayerLifeCycle } from "./media-handling/PlayerLifeCycle.js";
 import { PlayerAPIBridge } from "./api/PlayerAPIBridge.js";
+import { AudioStreamManager } from "../../modules/videos/stream/AudioStreamManager.js";
+import { AudioStreamSelector } from "../../ui/AudioStreamSelector.js";
 
 export class UniversalPlayer {
   constructor(
@@ -31,7 +33,7 @@ export class UniversalPlayer {
     this.playerApi = playerApi;
     this.apiClient = apiClient;
     this.tvApi = tvApi;
-    this.videoCloseModal = null;
+    this.videoCloseModal = videoCloseModal;
     this.dom = null;
     this.core = null;
     this.progress = null;
@@ -47,7 +49,12 @@ export class UniversalPlayer {
     this.visibility = null;
     this.apiBridge = null;
     this.stateRestorer = null;
-    this.videoCloseModal = videoCloseModal;
+    this.audioStreamManager = new AudioStreamManager();
+    this.audioStreamSelector = new AudioStreamSelector(
+      this.api,
+      this.audioStreamManager,
+    );
+
     this.initialize();
   }
 
@@ -148,6 +155,7 @@ export class UniversalPlayer {
       () => this.visibility.show(),
       this.progress,
     );
+    this.audioStreamSelector.init();
     this.hide();
     this.checkAndRestorePlayback();
   }
@@ -185,6 +193,7 @@ export class UniversalPlayer {
     this.eventSubscriber?.unsubscribe();
     this.previewTooltip?.destroy();
     this.core?.destroy();
+    this.audioStreamSelector?.destroy();
   }
 
   getVideoStatus() {

@@ -16,6 +16,7 @@
 @import "components/refresh-manager.css";
 @import "players/universal-player.css";
 @import "players/playlist-viewer.css";
+@import "players/streams.css";
 @import "players/power-management.css";
 @import "modals/album-modal-header.css";
 @import "modals/album-tag-updater.css";

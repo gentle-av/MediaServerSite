@@ -1,0 +1,132 @@
+.audio-stream-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg2);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.audio-stream-btn:hover {
+  background: var(--bg1);
+  color: var(--fg0);
+}
+.audio-stream-btn.active {
+  color: var(--blue);
+}
+.audio-stream-popup {
+  position: fixed;
+  width: 300px;
+  max-height: 320px;
+  background: var(--bg0);
+  border: 1px solid var(--bg2);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+  overflow: hidden;
+  display: none;
+}
+.audio-stream-popup.visible {
+  display: block;
+  animation: fadeInDown 0.15s ease;
+}
+.audio-stream-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--bg2);
+  font-weight: 600;
+  color: var(--fg1);
+  font-size: 13px;
+  background: var(--bg1);
+}
+.audio-stream-close {
+  background: none;
+  border: none;
+  color: var(--fg3);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.audio-stream-close:hover {
+  color: var(--fg0);
+}
+.audio-stream-list {
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.audio-stream-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  color: var(--fg2);
+  font-size: 13px;
+  position: relative;
+}
+.audio-stream-item:hover {
+  background: var(--bg1);
+  color: var(--fg0);
+}
+.audio-stream-item.selected {
+  background: var(--bg1);
+  color: var(--blue);
+}
+.audio-stream-item .audio-stream-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.audio-stream-item .audio-stream-codec,
+.audio-stream-item .audio-stream-channels {
+  font-size: 11px;
+  color: var(--fg4);
+  background: var(--bg2);
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.audio-stream-item .audio-stream-flags {
+  font-size: 11px;
+  color: var(--yellow);
+  flex-shrink: 0;
+}
+.audio-stream-item .audio-stream-check {
+  color: var(--blue);
+  flex-shrink: 0;
+}
+.audio-stream-loading,
+.audio-stream-empty {
+  display: none;
+  padding: 20px;
+  text-align: center;
+  color: var(--fg4);
+  font-size: 13px;
+}
+.audio-stream-loading {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
